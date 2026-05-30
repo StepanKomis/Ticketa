@@ -2,10 +2,10 @@ build:
 	go build -o ./build/ticketa ./src/cmd/main.go
 
 run-local:
-	./build/ticketa
+	docker compose up -d database && ./build/ticketa
 
 docker-build:
 	docker buildx build .
 
-docker-up:
+deploy:
 	docker compose up -d
