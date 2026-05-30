@@ -1,0 +1,18 @@
+services:
+  ticketa:
+    container_name: ticketa
+    # Local build of docker image
+    build: .
+
+  database:
+    image: "postgres:18.4"
+    ports:
+      - ${PG_PORT}:5432
+
+    environment:
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_DB: ${PG_DATABASE}
+
+    volumes:
+      - ticketa_postgrese_data:/var/lib/postgresql/data/
