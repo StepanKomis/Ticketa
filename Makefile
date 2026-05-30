@@ -1,11 +1,11 @@
 build:
-	go build -o ./build/ticketa ./src/cmd/main.go
+	go build -o ./build/ticketa ./src/cmd/server/main.go
 
 run-local:
 	docker compose up -d database && ./build/ticketa
 
 docker-build:
-	docker buildx build -t ticketa:0.0.1 .
+	docker buildx build --no-cache -t ticketa:0.0.1 .
 
 deploy:
 	docker compose up -d

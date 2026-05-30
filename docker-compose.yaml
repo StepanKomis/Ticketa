@@ -1,21 +1,38 @@
 services:
   ticketa:
     container_name: ticketa
-    # Local build of docker image
     build: .
+    environment:
+      PG_USER: ${PG_USER}
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_NAME: ${PG_DATABASE}
+      PG_PORT: ${PG_PORT}
+      PG_HOST: ${PG_HOST}
+
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - ticketa
 
   database:
+    container_name: ticketa-database
     image: "postgres:18.4"
     ports:
       - ${PG_PORT}:5432
-
     environment:
       POSTGRES_USER: ${PG_USER}
       POSTGRES_PASSWORD: ${PG_PASSWORD}
       POSTGRES_DB: ${PG_DATABASE}
-
     volumes:
-      - ticketa_postgres_data:/var/lib/postgresql/data/
+      - ticketa_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER} -d ${PG_DATABASE}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ticketa
 
 networks:
   ticketa:
