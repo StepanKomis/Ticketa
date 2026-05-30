@@ -1,6 +1,6 @@
 build:
-	go build ./src/cmd/main.go
-
+	go build -o ./build/ticketa ./src/cmd/main.go
+	
 docker-build:
 	docker buildx build .
 
