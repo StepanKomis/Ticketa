@@ -28,7 +28,7 @@ func NewLogger(prefix string) (*Logger, error) {
     }
     
 		return &Logger{
-        logger: log.New(io.MultiWriter(os.Stdout, f), logPrefix, log.LstdFlags|log.Lshortfile),
+        logger: log.New(io.MultiWriter(os.Stdout, f), logPrefix, log.LstdFlags),
         file:   f,
     }, nil
 }
