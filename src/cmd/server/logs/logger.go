@@ -42,11 +42,22 @@ func (l *Logger) Close() error { return l.file.Close() }
 
 func (l *Logger) Info(msg string)  { l.logger.Println("[INFO] " + msg) }
 func (l *Logger) Error(msg string) { l.logger.Println("[ERROR] " + msg) }
-func (l *Logger) Warn(msg string) { l.logger.Panicln("[WARN] " + msg) }
+func (l *Logger) Warn(msg string)  { l.logger.Panicln("[WARN] " + msg) }
+func (l *Logger) Fatal(msg string)  {
+	l.logger.Panicln("[FATAL] " + msg)
+	os.Exit(1)
+}
+
+func (l *Logger) Infof(format string, args ...any)  { l.Info(fmt.Sprintf(format, args...)) }
+func (l *Logger) Errorf(format string, args ...any) { l.Error(fmt.Sprintf(format, args...)) }
+func (l *Logger) Warnf(format string, args ...any)  { l.Warn(fmt.Sprintf(format, args...)) }
+func (l *Logger) Fatalf(format string, args ...any) { l.Fatal(fmt.Sprintf(format, args...)) }
 
 // Only shows the message when LOG_LEVEL env is set to debug
-func (l *Logger) Debug(msg string)  {
+func (l *Logger) Debug(msg string) {
 	if strings.ToLower(env.Get("LOG_LEVEL", "info")) == "debug" {
-  	l.logger.Println("[DEBUG] " + msg)
+		l.logger.Println("[DEBUG] " + msg)
 	}
 }
+
+func (l *Logger) Debugf(format string, args ...any) { l.Debug(fmt.Sprintf(format, args...)) }

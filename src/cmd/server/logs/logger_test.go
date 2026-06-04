@@ -100,6 +100,76 @@ func TestDebug_LevelCheckIsCaseInsensitive(t *testing.T) {
 	}
 }
 
+func TestInfof(t *testing.T) {
+	l, buf := newTestLogger(t, "test")
+	l.Infof("hello %s %d", "world", 42)
+	if !strings.Contains(buf.String(), "[INFO] hello world 42") {
+		t.Errorf("expected formatted output, got: %s", buf.String())
+	}
+}
+
+func TestErrorf(t *testing.T) {
+	l, buf := newTestLogger(t, "test")
+	l.Errorf("code %d", 500)
+	if !strings.Contains(buf.String(), "[ERROR] code 500") {
+		t.Errorf("expected formatted output, got: %s", buf.String())
+	}
+}
+
+func TestWarnf_Panics(t *testing.T) {
+	l, _ := newTestLogger(t, "test")
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected Warnf to panic")
+		}
+	}()
+	l.Warnf("warn %s", "formatted")
+}
+
+func TestFatal_Panics(t *testing.T) {
+	l, buf := newTestLogger(t, "test")
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected Fatal to panic")
+		}
+		if !strings.Contains(buf.String(), "[FATAL] fatal message") {
+			t.Errorf("expected [FATAL] in output, got: %s", buf.String())
+		}
+	}()
+	l.Fatal("fatal message")
+}
+
+func TestFatalf_Panics(t *testing.T) {
+	l, buf := newTestLogger(t, "test")
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected Fatalf to panic")
+		}
+		if !strings.Contains(buf.String(), "[FATAL] code 503") {
+			t.Errorf("expected [FATAL] formatted output, got: %s", buf.String())
+		}
+	}()
+	l.Fatalf("code %d", 503)
+}
+
+func TestDebugf_SuppressedByDefault(t *testing.T) {
+	l, buf := newTestLogger(t, "test")
+	t.Setenv("LOG_LEVEL", "info")
+	l.Debugf("hidden %d", 1)
+	if strings.Contains(buf.String(), "hidden") {
+		t.Error("Debugf should be suppressed when LOG_LEVEL is not debug")
+	}
+}
+
+func TestDebugf_ShownWhenEnabled(t *testing.T) {
+	l, buf := newTestLogger(t, "test")
+	t.Setenv("LOG_LEVEL", "debug")
+	l.Debugf("value=%d", 7)
+	if !strings.Contains(buf.String(), "[DEBUG] value=7") {
+		t.Errorf("expected formatted debug output, got: %s", buf.String())
+	}
+}
+
 func TestAddWriter_ReceivesOutput(t *testing.T) {
 	l, _ := newTestLogger(t, "test")
 	extra := &bytes.Buffer{}

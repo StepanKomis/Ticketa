@@ -2,21 +2,21 @@ package startup
 
 import (
 	"fmt"
-	"log"
 
+	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
 	psql "github.com/StepanKomis/Ticketa/src/database/postgres"
 )
 
-func InitializeServer() error {
-	log.Printf("Starting server...")
-	log.Printf("Initializing Postgres connection...")
+func InitializeServer(l *logs.Logger) error {
+	l.Info("Starting server...")
+	l.Info("Initializing Postgres connection...")
 
 	err := psql.Init()
 	if err != nil {
 		return fmt.Errorf("Error initializing first Postgres connection: %s", err.Error())
 	}
 
-	log.Printf("Postgres connection successful.")
+	l.Info("Postgres connection successful.")
 
 	return nil
 }
