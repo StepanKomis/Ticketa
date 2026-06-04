@@ -20,7 +20,8 @@ type Logger struct {
 func NewLogger(prefix string) (*Logger, error) {
 		logPrefix := "[" + strings.ToUpper(prefix) + "] "
 		
-		filePath := fmt.Sprintf("/var/log/ticketa/%s.log", prefix)
+		logDir := env.Get("LOG_DIR", "/var/log/ticketa")
+		filePath := fmt.Sprintf("%s/%s.log", logDir, prefix)
 		f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
     if err != nil {
         return nil, fmt.Errorf("failed to open log file: %w", err)
@@ -37,6 +38,8 @@ func (l *Logger) AddWriter(w io.Writer) {
 	l.logger.SetOutput(io.MultiWriter(l.logger.Writer(), w))
 }
  
+func (l *Logger) Close() error { return l.file.Close() }
+
 func (l *Logger) Info(msg string)  { l.logger.Println("[INFO] " + msg) }
 func (l *Logger) Error(msg string) { l.logger.Println("[ERROR] " + msg) }
 func (l *Logger) Warn(msg string) { l.logger.Panicln("[WARN] " + msg) }
