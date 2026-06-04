@@ -2,10 +2,14 @@ package startup
 
 import (
 	"fmt"
+	"net/http"
 
+	"github.com/StepanKomis/Ticketa/src/cmd/server/env"
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
 	migrate "github.com/StepanKomis/Ticketa/src/database/migrations"
 	psql "github.com/StepanKomis/Ticketa/src/database/postgres"
+	"github.com/StepanKomis/Ticketa/src/www"
+	"github.com/StepanKomis/Ticketa/src/www/router"
 )
 
 func InitializeServer(l *logs.Logger) error {
@@ -37,6 +41,16 @@ func InitializeServer(l *logs.Logger) error {
 	}
 
 	l.Info("Migrations complete.")
+
+	port := env.Get("SERVER_PORT", "8080")
+	addr := ":" + port
+
+	mux := router.NewRouter(www.StaticFiles)
+
+	l.Infof("Listening on %s", addr)
+	if err := http.ListenAndServe(addr, mux); err != nil {
+		return fmt.Errorf("HTTP server error: %s", err.Error())
+	}
 
 	return nil
 }
