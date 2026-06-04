@@ -11,7 +11,7 @@ WORKDIR /app
 COPY go.mod ./
 RUN go mod download
 COPY . .
-COPY --from=frontend-builder /client/dist ./src/www/static
+COPY --from=frontend-builder /client/build ./src/www/static
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /ticketa ./src/cmd \
     && chmod +x /ticketa \
     && mkdir -p /var/log/ticketa

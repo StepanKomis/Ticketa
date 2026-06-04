@@ -17,7 +17,7 @@ build-frontend:
 	npm --prefix $(CLIENT_TMP) install
 	npm --prefix $(CLIENT_TMP) run build
 	rm -rf $(STATIC_DIR)
-	cp -r $(CLIENT_TMP)/dist $(STATIC_DIR)
+	cp -r $(CLIENT_TMP)/build $(STATIC_DIR)
 	rm -rf $(CLIENT_TMP)
 
 # Full local build: frontend + Go binary
