@@ -15,7 +15,8 @@ services:
       database:
         condition: service_healthy
     networks:
-      - ticketa
+      - ticketa-web
+      - ticketa-db
 
   database:
     container_name: ticketa-database
@@ -32,10 +33,11 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - ticketa
+      - ticketa-db
 
 networks:
-  ticketa:
+  ticketa-web: {}
+  ticketa-db:
     internal: true
 
 volumes:
