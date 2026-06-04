@@ -1,2 +1,4 @@
 .env
 build
+src/www/static/*
+!src/www/static/.gitkeep
