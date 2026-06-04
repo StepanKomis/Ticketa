@@ -14,7 +14,7 @@ build:
 build-frontend:
 	rm -rf $(CLIENT_TMP)
 	git clone $(CLIENT_REPO) $(CLIENT_TMP)
-	npm --prefix $(CLIENT_TMP) ci
+	npm --prefix $(CLIENT_TMP) install
 	npm --prefix $(CLIENT_TMP) run build
 	rm -rf $(STATIC_DIR)
 	cp -r $(CLIENT_TMP)/dist $(STATIC_DIR)
