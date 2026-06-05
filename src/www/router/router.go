@@ -13,7 +13,7 @@ func NewRouter(staticFiles fs.FS, db *sql.DB) *http.ServeMux {
 	// Creating the HTTP logger
 	httpLogger, err := logs.NewLogger("http")
   if err != nil {
-  	httpLogger.Fatalf("failed to create http logger for router: %w", err)
+  	httpLogger.Fatalf("failed to create http logger for router: %s", err)
   }
 	
 	// User handler initialization
