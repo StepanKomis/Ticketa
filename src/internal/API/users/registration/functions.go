@@ -50,8 +50,19 @@ func ValidatePassword(rawPassword string) error {
 	return nil
 }
 
+var validUserTypes = map[string]db.UserType{
+	"student":    db.UserTypeStudent,
+	"staff":      db.UserTypeStaff,
+	"maintainer": db.UserTypeMaintainer,
+}
+
 // RegisterNewUser registers a new user and their local login credentials within a single transaction.
 func RegisterNewLocalUser(b RegistrationRequest, psql *sql.DB) (int32, error) {
+	userType, ok := validUserTypes[b.UserType]
+	if !ok {
+		return 0, fmt.Errorf("%w %q: must be student, staff, or maintainer", ErrInvalidUserType, b.UserType)
+	}
+
 	hash, err := security.HashPassword(b.Password)
 	if err != nil {
 		return 0, fmt.Errorf("error hashing password for user %s: %w", b.Email, err)
@@ -69,6 +80,8 @@ func RegisterNewLocalUser(b RegistrationRequest, psql *sql.DB) (int32, error) {
 		Email:     b.Email,
 		FirstName: sql.NullString{String: b.FirstName, Valid: b.FirstName != ""},
 		LastName:  sql.NullString{String: b.LastName, Valid: b.LastName != ""},
+		UserType:  userType,
+		Provider:  db.AuthProviderLocal,
 	}
 
 	user, err := queries.CreateUser(context.Background(), userParams)
