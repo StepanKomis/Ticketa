@@ -11,6 +11,7 @@ services:
       PG_PORT: ${PG_PORT}
       PG_HOST: database
       SERVER_PORT: 8080
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
       database:
         condition: service_healthy

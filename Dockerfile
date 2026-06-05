@@ -5,7 +5,7 @@ RUN git clone https://github.com/StepanKomis/Ticketa-client.git .
 RUN npm install
 RUN npm run build
 
-FROM golang:1.24.4-alpine AS builder
+FROM golang:1.25.0-alpine AS builder
 RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
 COPY go.mod ./
