@@ -16,9 +16,18 @@ func InitializeServer(l *logs.Logger) error {
 	l.Info("Starting server...")
 	l.Info("Initializing Postgres connection...")
 
+	// Initializes Postgres connection
 	err := psql.Init()
 	if err != nil {
 		return fmt.Errorf("Error initializing first Postgres connection: %s", err.Error())
+	}
+
+	db, err := psql.GetNewConnection()
+	if err != nil {
+		return fmt.Errorf(
+			"Error during creation of new database connection whileinitializing the server: %s",
+			err,
+		)
 	}
 
 	l.Info("Postgres connection successful.")
@@ -45,7 +54,7 @@ func InitializeServer(l *logs.Logger) error {
 	port := env.Get("SERVER_PORT", "8080")
 	addr := ":" + port
 
-	mux := router.NewRouter(www.StaticFiles)
+	mux := router.NewRouter(www.StaticFiles, db)
 
 	l.Infof("Listening on %s", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
