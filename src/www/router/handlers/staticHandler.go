@@ -3,6 +3,7 @@ package handlers
 import (
 	"io/fs"
 	"net/http"
+	"strings"
 )
 
 type StaticHandler struct {
@@ -15,6 +16,11 @@ func NewStaticHandler(files fs.FS) *StaticHandler {
 
 func (h *StaticHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
+
+	if strings.HasPrefix(path, "/api/") {
+		http.NotFound(w, r)
+		return
+	}
 
 	f, err := h.fs.Open(path)
 	if err != nil {

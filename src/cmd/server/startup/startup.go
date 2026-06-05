@@ -8,6 +8,7 @@ import (
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
 	migrate "github.com/StepanKomis/Ticketa/src/database/migrations"
 	psql "github.com/StepanKomis/Ticketa/src/database/postgres"
+	psqlmigrations "github.com/StepanKomis/Ticketa/src/database/postgres/migrations"
 	"github.com/StepanKomis/Ticketa/src/www"
 	"github.com/StepanKomis/Ticketa/src/www/router"
 )
@@ -16,9 +17,18 @@ func InitializeServer(l *logs.Logger) error {
 	l.Info("Starting server...")
 	l.Info("Initializing Postgres connection...")
 
+	// Initializes Postgres connection
 	err := psql.Init()
 	if err != nil {
 		return fmt.Errorf("Error initializing first Postgres connection: %s", err.Error())
+	}
+
+	db, err := psql.GetNewConnection()
+	if err != nil {
+		return fmt.Errorf(
+			"Error during creation of new database connection whileinitializing the server: %s",
+			err,
+		)
 	}
 
 	l.Info("Postgres connection successful.")
@@ -34,7 +44,7 @@ func InitializeServer(l *logs.Logger) error {
 		return fmt.Errorf("Error initializing migrations: %s", err.Error())
 	}
 
-	runner := migrate.NewRunner(migrator, []migrate.Migration{})
+	runner := migrate.NewRunner(migrator, psqlmigrations.All)
 
 	if err := runner.MigrateUp(); err != nil {
 		return fmt.Errorf("Error running migrations: %s", err.Error())
@@ -45,7 +55,7 @@ func InitializeServer(l *logs.Logger) error {
 	port := env.Get("SERVER_PORT", "8080")
 	addr := ":" + port
 
-	mux := router.NewRouter(www.StaticFiles)
+	mux := router.NewRouter(www.StaticFiles, db)
 
 	l.Infof("Listening on %s", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
