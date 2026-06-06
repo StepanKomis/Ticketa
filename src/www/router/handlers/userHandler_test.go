@@ -155,7 +155,7 @@ func newTestHandler(t *testing.T, db *sql.DB) http.Handler {
 	}
 	t.Cleanup(func() { httpLogger.Close() })
 
-	h, err := handlers.NewUserHandler(httpLogger, db)
+	h, err := handlers.NewUserHandler(httpLogger, db, nil)
 	if err != nil {
 		t.Fatalf("NewUserHandler: %v", err)
 	}
@@ -183,7 +183,7 @@ func TestUserHandler_MethodNotAllowed(t *testing.T) {
 func TestUserHandler_Post_InvalidJSON(t *testing.T) {
 	h := newTestHandler(t, nil)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/users", strings.NewReader("not json"))
+	req := httptest.NewRequest(http.MethodPost, "/api/register", strings.NewReader("not json"))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
 
@@ -196,7 +196,7 @@ func TestUserHandler_Post_PasswordTooShort(t *testing.T) {
 	h := newTestHandler(t, nil)
 
 	body := `{"email":"jane@example.com","password":"x"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/users", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/register", strings.NewReader(body))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
 
@@ -209,7 +209,7 @@ func TestUserHandler_Post_NoSpecialCharacter(t *testing.T) {
 	h := newTestHandler(t, nil)
 
 	body := `{"email":"jane@example.com","password":"Secret123"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/users", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/register", strings.NewReader(body))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
 
@@ -225,8 +225,8 @@ func TestUserHandler_Post_DBError(t *testing.T) {
 	db := newHandlerDB(t, script)
 	h := newTestHandler(t, db)
 
-	body := `{"email":"jane@example.com","password":"Secret1!"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/users", strings.NewReader(body))
+	body := `{"email":"jane@example.com","password":"Secret1!","user_type":"student"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/register", strings.NewReader(body))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
 
@@ -243,8 +243,8 @@ func TestUserHandler_Post_Success(t *testing.T) {
 	db := newHandlerDB(t, script)
 	h := newTestHandler(t, db)
 
-	body := `{"email":"jane@example.com","password":"Secret1!","first_name":"Jane","last_name":"Doe"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/users", strings.NewReader(body))
+	body := `{"email":"jane@example.com","password":"Secret1!","first_name":"Jane","last_name":"Doe","user_type":"student"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/register", strings.NewReader(body))
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
 

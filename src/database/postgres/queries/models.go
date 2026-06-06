@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sqlc-dev/pqtype"
 )
 
 type AuthProvider string
@@ -123,6 +124,18 @@ type MaintainerProfile struct {
 	ID           int32
 	AccessLevel  int16
 	ManagedScope sql.NullString
+}
+
+type Session struct {
+	ID         int64
+	UserID     int64
+	Token      string
+	Ip         pqtype.Inet
+	UserAgent  string
+	CreatedAt  time.Time
+	ExpiresAt  time.Time
+	LastSeenAt time.Time
+	Deleted    bool
 }
 
 type StaffProfile struct {

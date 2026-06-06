@@ -8,6 +8,9 @@ SELECT id, email, first_name, last_name, user_type, provider, is_active, created
 FROM users
 WHERE email = $1;
 
+-- name: GetUserIDByEmail :one
+SELECT id FROM users WHERE email = $1;
+
 -- name: ListUsers :many
 SELECT id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at
 FROM users
