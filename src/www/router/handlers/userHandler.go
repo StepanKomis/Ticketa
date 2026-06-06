@@ -35,8 +35,8 @@ func NewUserHandler(httpLogger *logs.Logger, db *sql.DB) (*UserHandler, error) {
 	return uh, nil
 }
 
-func (uh *UserHandler) post(w http.ResponseWriter, r *http.Request) {
-	uh.httpLogger.Debugf("POST /api/users from %s", r.RemoteAddr)
+func (uh *UserHandler) register(w http.ResponseWriter, r *http.Request) {
+	uh.httpLogger.Debugf("POST /api/register from %s", r.RemoteAddr)
 
 	var body userregistration.RegistrationRequest
 
@@ -83,12 +83,19 @@ func (uh *UserHandler) post(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonRes)
 }
 
+func (uh *UserHandler) login(w http.ResponseWriter, r *http.Request) {
+	uh.httpLogger.Debugf("POST /api/login from %s", r.RemoteAddr)
+	writeError(w, http.StatusNotImplemented, "not implemented")
+}
+
 func (uh *UserHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodPost:
-		uh.post(w, r)
+	switch r.URL.Path {
+	case "/api/register":
+		uh.register(w, r)
+	case "/api/login":
+		uh.login(w, r)
 	default:
-		uh.httpLogger.Debugf("method not allowed: %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
+		uh.httpLogger.Debugf("unhandled path: %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
 		defaultResponse(w)
 	}
 }

@@ -36,7 +36,8 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB) *http.ServeMux {
 	mux.Handle("/", handlers.NewStaticHandler(sub))
 
 	// Public routes
-	mux.Handle("/api/users", userHandler)
+	mux.Handle("POST /api/register", userHandler)
+	mux.Handle("POST /api/login", userHandler)
 
 	// Protected routes: wrap handlers with auth
 	// mux.Handle("/api/...", auth(someHandler))
