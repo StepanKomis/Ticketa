@@ -203,6 +203,7 @@ func TestRegisterNewLocalUser_Success(t *testing.T) {
 		Password:  "Secret1!",
 		FirstName: "Jane",
 		LastName:  "Doe",
+		UserType:  "student",
 	}
 
 	id, err := userregistration.RegisterNewLocalUser(req, db)

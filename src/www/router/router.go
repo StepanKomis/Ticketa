@@ -7,6 +7,7 @@ import (
 
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
 	"github.com/StepanKomis/Ticketa/src/internal/security"
+	middleware "github.com/StepanKomis/Ticketa/src/www/midleware"
 	"github.com/StepanKomis/Ticketa/src/www/router/handlers"
 
 	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
@@ -15,14 +16,16 @@ import (
 func NewRouter(staticFiles fs.FS, sqlDB *sql.DB) *http.ServeMux {
 	httpLogger, err := logs.NewLogger("http")
 	if err != nil {
-		httpLogger.Fatalf("failed to create http logger for router: %s", err)
+		// ! httpLogger is nil when NewLogger fails; calling Fatalf on it panics
+		// ! without any diagnostic message. Use the standard library as a fallback.
+		panic("failed to create http logger for router: " + err.Error())
 	}
 
 	queries := db.New(sqlDB)
 	store := security.NewSessionStore(queries)
-	auth := handlers.AuthMiddleware(store)
+	auth := middleware.AuthMiddleware(store)
 
-	userHandler, err := handlers.NewUserHandler(httpLogger, sqlDB)
+	userHandler, err := handlers.NewUserHandler(httpLogger, sqlDB, store)
 	if err != nil {
 		httpLogger.Fatalf("Failed to create user handler in router: %s", err)
 	}
