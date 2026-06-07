@@ -626,6 +626,51 @@ func (q *Queries) ListUsersByType(ctx context.Context, userType UserType) ([]Use
 	return items, nil
 }
 
+const setUserIsActive = `-- name: SetUserIsActive :exec
+UPDATE users
+SET is_active = $2
+WHERE id = $1
+`
+
+type SetUserIsActiveParams struct {
+	ID       int32
+	IsActive bool
+}
+
+func (q *Queries) SetUserIsActive(ctx context.Context, arg SetUserIsActiveParams) error {
+	_, err := q.db.ExecContext(ctx, setUserIsActive, arg.ID, arg.IsActive)
+	return err
+}
+
+const setUserType = `-- name: SetUserType :one
+UPDATE users
+SET user_type = $2
+WHERE id = $1
+RETURNING id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at
+`
+
+type SetUserTypeParams struct {
+	ID       int32
+	UserType UserType
+}
+
+func (q *Queries) SetUserType(ctx context.Context, arg SetUserTypeParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, setUserType, arg.ID, arg.UserType)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.FirstName,
+		&i.LastName,
+		&i.UserType,
+		&i.Provider,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.LastLoginAt,
+	)
+	return i, err
+}
+
 const syncLDAPLogin = `-- name: SyncLDAPLogin :exec
 UPDATE ldap_login
 SET uid              = $2,
