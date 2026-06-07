@@ -371,7 +371,7 @@ make build-full
 | `test` | Run the Go test suite |
 | `sqlc` | Regenerate database query code via sqlc |
 | `swagger-ui` | Download pinned Swagger UI dist assets into `src/www/docs/` |
-| `docs` | Validate `openapi.yaml` is well-formed YAML |
+| `swag` | Regenerate `swagger.yaml` from swag annotations in handler source files |
 | `clean` | Remove `./build` and the frontend embed directory |
 
 ## Database
@@ -402,7 +402,7 @@ src/
     ctxkeys/               shared context key types (avoids import cycles)
     security/              session store, token generation, cookie helpers
   www/
-    docs/                  embedded Swagger UI assets + openapi.yaml
+    docs/                  embedded Swagger UI assets + swagger.yaml (generováno přes make swag)
     midleware/             AuthMiddleware, MaintainerMiddleware
     router/
       handlers/            UserHandler, TicketHandler, AdminHandler, StaticHandler, DocsHandler

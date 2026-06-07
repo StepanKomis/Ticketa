@@ -63,10 +63,38 @@ func pathID(path, prefix string) (int64, bool) {
 
 // ---- Config ----------------------------------------------------------------
 
+// getConfig vrátí aktuální runtime konfiguraci systému.
+// Konfigurace se čte z in-memory store (synchronizovaného s ticketa.yaml na disku).
+//
+// @Summary      Získat konfiguraci
+// @Description  Vrátí aktuální runtime konfiguraci — logování a seznam stavů tiketů.
+// @Tags         admin
+// @Produce      json
+// @Success      200  {object}  configResponse  "Aktuální konfigurace"
+// @Failure      401  {object}  errorResponse   "Chybí nebo vypršel session cookie"
+// @Failure      403  {object}  errorResponse   "Přístup pouze pro maintainer"
+// @Security     cookieAuth
+// @Router       /api/admin/config [get]
 func (h *AdminHandler) getConfig(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, h.cfgStore.Get())
 }
 
+// patchConfig aktualizuje runtime konfiguraci systému.
+// Změny se zapisují atomicky do /config/ticketa.yaml a projeví se okamžitě bez restartu.
+// Pokud je uveden TicketStatuses, musí obsahovat alespoň 3 položky.
+//
+// @Summary      Aktualizovat konfiguraci
+// @Description  Aktualizuje runtime konfiguraci. Uvádějte pouze pole, která chcete změnit. Změny jsou zapsány atomicky (temp soubor + rename) do ticketa.yaml.
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Param        body  body      patchConfigRequest  true  "Změny konfigurace (všechna pole volitelná)"
+// @Success      200   {object}  configResponse      "Aktualizovaná konfigurace"
+// @Failure      400   {object}  errorResponse       "Neplatné tělo nebo chyba zápisu na disk"
+// @Failure      401   {object}  errorResponse       "Chybí nebo vypršel session cookie"
+// @Failure      403   {object}  errorResponse       "Přístup pouze pro maintainer"
+// @Security     cookieAuth
+// @Router       /api/admin/config [patch]
 func (h *AdminHandler) patchConfig(w http.ResponseWriter, r *http.Request) {
 	var patch config.Config
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
@@ -95,6 +123,19 @@ func (h *AdminHandler) patchConfig(w http.ResponseWriter, r *http.Request) {
 
 // ---- Ticket statuses -------------------------------------------------------
 
+// listStatuses vrátí seznam všech stavů tiketů seřazených podle pozice.
+// Prázdný výsledek vrátí [] (nikdy null).
+//
+// @Summary      Seznam stavů tiketů
+// @Description  Vrátí všechny stavy tiketů seřazené podle position. Používá se k naplnění výběru stavu při vytváření nebo editaci tiketu.
+// @Tags         admin
+// @Produce      json
+// @Success      200  {array}   ticketStatusResponse  "Seznam stavů"
+// @Failure      401  {object}  errorResponse         "Chybí nebo vypršel session cookie"
+// @Failure      403  {object}  errorResponse         "Přístup pouze pro maintainer"
+// @Failure      500  {object}  errorResponse         "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/admin/ticket-statuses [get]
 func (h *AdminHandler) listStatuses(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.queries.ListTicketStatuses(r.Context())
 	if err != nil {
@@ -113,6 +154,23 @@ type createStatusRequest struct {
 	Position int32  `json:"position"`
 }
 
+// createStatus vytvoří nový stav tiketu a přidá ho do YAML konfigurace.
+// Výchozí barva je #808080 pokud není zadána.
+//
+// @Summary      Vytvořit stav tiketu
+// @Description  Vytvoří nový stav tiketu. Nový stav je automaticky přidán do ticketa.yaml. Position musí být unikátní.
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Param        body  body      createStatusRequest   true  "Nový stav"
+// @Success      201   {object}  ticketStatusResponse  "Vytvořený stav"
+// @Failure      400   {object}  errorResponse         "Neplatné tělo požadavku"
+// @Failure      401   {object}  errorResponse         "Chybí nebo vypršel session cookie"
+// @Failure      403   {object}  errorResponse         "Přístup pouze pro maintainer"
+// @Failure      422   {object}  errorResponse         "Chybí povinné pole title"
+// @Failure      500   {object}  errorResponse         "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/admin/ticket-statuses [post]
 func (h *AdminHandler) createStatus(w http.ResponseWriter, r *http.Request) {
 	var body createStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -154,6 +212,23 @@ type updateStatusRequest struct {
 	Color string `json:"color"`
 }
 
+// updateStatus aktualizuje existující stav tiketu a synchronizuje YAML konfiguraci.
+//
+// @Summary      Aktualizovat stav tiketu
+// @Description  Aktualizuje název nebo barvu stavu. Změna je automaticky synchronizována do ticketa.yaml.
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Param        id    path      int                   true  "ID stavu"
+// @Param        body  body      updateStatusRequest   true  "Aktualizovaná data stavu"
+// @Success      200   {object}  ticketStatusResponse  "Aktualizovaný stav"
+// @Failure      400   {object}  errorResponse         "Neplatné ID nebo tělo požadavku"
+// @Failure      401   {object}  errorResponse         "Chybí nebo vypršel session cookie"
+// @Failure      403   {object}  errorResponse         "Přístup pouze pro maintainer"
+// @Failure      404   {object}  errorResponse         "Stav nenalezen"
+// @Failure      500   {object}  errorResponse         "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/admin/ticket-statuses/{id} [put]
 func (h *AdminHandler) updateStatus(w http.ResponseWriter, r *http.Request) {
 	id64, ok := pathID(r.URL.Path, "/api/admin/ticket-statuses/")
 	if !ok {
@@ -188,6 +263,20 @@ func (h *AdminHandler) updateStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, row)
 }
 
+// deleteStatus smaže stav tiketu a synchronizuje YAML konfiguraci.
+// Tikety odkazující na tento stav budou mít status_id nastaven na null.
+//
+// @Summary      Smazat stav tiketu
+// @Description  Smaže stav tiketu. Tikety odkazující na tento stav budou mít status_id nastaven na null. Konfigurace je automaticky synchronizována.
+// @Tags         admin
+// @Param        id  path  int  true  "ID stavu"
+// @Success      204 "Stav smazán"
+// @Failure      400 {object}  errorResponse  "Neplatné ID"
+// @Failure      401 {object}  errorResponse  "Chybí nebo vypršel session cookie"
+// @Failure      403 {object}  errorResponse  "Přístup pouze pro maintainer"
+// @Failure      500 {object}  errorResponse  "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/admin/ticket-statuses/{id} [delete]
 func (h *AdminHandler) deleteStatus(w http.ResponseWriter, r *http.Request) {
 	id64, ok := pathID(r.URL.Path, "/api/admin/ticket-statuses/")
 	if !ok {
@@ -221,6 +310,19 @@ func (h *AdminHandler) syncStatusesToConfig(ctx context.Context) {
 
 // ---- Users -----------------------------------------------------------------
 
+// listUsers vrátí seznam všech uživatelů.
+// Prázdný výsledek vrátí [] (nikdy null).
+//
+// @Summary      Seznam uživatelů
+// @Description  Vrátí všechny uživatele systému. Přístupné pouze pro maintainer.
+// @Tags         admin
+// @Produce      json
+// @Success      200  {array}   userResponse   "Seznam uživatelů"
+// @Failure      401  {object}  errorResponse  "Chybí nebo vypršel session cookie"
+// @Failure      403  {object}  errorResponse  "Přístup pouze pro maintainer"
+// @Failure      500  {object}  errorResponse  "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/admin/users [get]
 func (h *AdminHandler) listUsers(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.queries.ListUsers(r.Context())
 	if err != nil {
@@ -233,6 +335,21 @@ func (h *AdminHandler) listUsers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, rows)
 }
 
+// getUser vrátí jednoho uživatele podle ID.
+//
+// @Summary      Získat uživatele
+// @Description  Vrátí uživatele podle jeho ID. Přístupné pouze pro maintainer.
+// @Tags         admin
+// @Produce      json
+// @Param        id   path      int           true  "ID uživatele"
+// @Success      200  {object}  userResponse  "Uživatel"
+// @Failure      400  {object}  errorResponse "Neplatné ID"
+// @Failure      401  {object}  errorResponse "Chybí nebo vypršel session cookie"
+// @Failure      403  {object}  errorResponse "Přístup pouze pro maintainer"
+// @Failure      404  {object}  errorResponse "Uživatel nenalezen"
+// @Failure      500  {object}  errorResponse "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/admin/users/{id} [get]
 func (h *AdminHandler) getUser(w http.ResponseWriter, r *http.Request) {
 	id64, ok := pathID(r.URL.Path, "/api/admin/users/")
 	if !ok {
@@ -257,6 +374,24 @@ type patchUserRequest struct {
 	UserType *string `json:"user_type"`
 }
 
+// patchUser aktualizuje uživatele — aktivaci nebo roli.
+// Lze měnit samostatně nebo obojí naráz. Neaktivní uživatelé se nemohou přihlásit.
+//
+// @Summary      Aktualizovat uživatele
+// @Description  Aktualizuje is_active nebo user_type uživatele. Obě pole jsou volitelná. Neaktivní uživatelé se nemohou přihlásit — existující session jim jsou zneplatněny při dalším požadavku.
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Param        id    path      int               true  "ID uživatele"
+// @Param        body  body      patchUserRequest  true  "Aktualizovaná data uživatele"
+// @Success      200   {object}  userResponse      "Aktualizovaný uživatel"
+// @Failure      400   {object}  errorResponse     "Neplatné ID nebo tělo požadavku"
+// @Failure      401   {object}  errorResponse     "Chybí nebo vypršel session cookie"
+// @Failure      403   {object}  errorResponse     "Přístup pouze pro maintainer"
+// @Failure      404   {object}  errorResponse     "Uživatel nenalezen"
+// @Failure      500   {object}  errorResponse     "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/admin/users/{id} [patch]
 func (h *AdminHandler) patchUser(w http.ResponseWriter, r *http.Request) {
 	id64, ok := pathID(r.URL.Path, "/api/admin/users/")
 	if !ok {

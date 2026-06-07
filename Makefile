@@ -5,7 +5,7 @@ DOCS_DIR           := ./src/www/docs
 SWAGGER_UI_VERSION := 5.18.2
 SWAGGER_CDN        := https://cdn.jsdelivr.net/npm/swagger-ui-dist@$(SWAGGER_UI_VERSION)
 
-.PHONY: test build build-frontend build-full run-local docker-build docker-build-nc deploy sqlc clean docs swagger-ui
+.PHONY: test build build-frontend build-full run-local docker-build docker-build-nc deploy sqlc clean swag swagger-ui
 
 test:
 	go test ./...
@@ -53,10 +53,15 @@ swagger-ui:
 		curl -sL $(SWAGGER_CDN)/$$f -o $(DOCS_DIR)/$$f; \
 	done
 
-# Validate openapi.yaml is well-formed YAML
-docs:
-	python3 -c "import yaml, sys; yaml.safe_load(open('$(DOCS_DIR)/openapi.yaml')) or sys.exit(1)" \
-		&& echo "openapi.yaml OK"
+# Regenerate swagger.yaml from swag annotations in handler source files.
+# Vyžaduje: go install github.com/swaggo/swag/cmd/swag@latest
+swag:
+	swag init \
+		--generalInfo cmd/main.go \
+		--dir ./src \
+		--output $(DOCS_DIR) \
+		--outputTypes yaml \
+		--parseInternal
 
 # Remove local build artifacts and static embed directory
 clean:

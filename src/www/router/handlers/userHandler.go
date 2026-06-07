@@ -41,6 +41,19 @@ func NewUserHandler(httpLogger *logs.Logger, db *sql.DB, store *security.Session
 	return uh, nil
 }
 
+// register vytvoří nový lokální účet.
+// Po úspěšné registraci je potřeba se přihlásit přes POST /api/login — session cookie není nastaven automaticky.
+//
+// @Summary      Registrace
+// @Description  Vytvoří nový lokální účet. Heslo musí mít alespoň 8 znaků a obsahovat velké písmeno, číslici a speciální znak.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      registerRequest       true  "Registrační údaje"
+// @Success      201   {object}  registrationResponse  "ID nově vytvořeného uživatele"
+// @Failure      400   {object}  errorResponse         "Chybí povinné pole, slabé heslo nebo neplatný user_type"
+// @Failure      500   {object}  errorResponse         "Interní chyba (např. duplicitní e-mail)"
+// @Router       /api/register [post]
 func (uh *UserHandler) register(w http.ResponseWriter, r *http.Request) {
 	uh.httpLogger.Debugf("POST /api/register from %s", r.RemoteAddr)
 
@@ -89,6 +102,19 @@ func (uh *UserHandler) register(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonRes) //nolint:errcheck // a failed write after WriteHeader cannot be recovered
 }
 
+// login ověří přihlašovací údaje a nastaví session cookie.
+// Cookie `session_token` je HTTP-only a platí 7 dní.
+//
+// @Summary      Přihlášení
+// @Description  Ověří e-mail a heslo. Při úspěchu nastaví HTTP-only cookie `session_token` platný 7 dní.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body  loginRequest  true  "Přihlašovací údaje"
+// @Success      200   "Session cookie nastaven"
+// @Failure      400   {object}  errorResponse  "Neplatné tělo požadavku"
+// @Failure      401   {object}  errorResponse  "Špatné přihlašovací údaje nebo neaktivní účet"
+// @Router       /api/login [post]
 func (uh *UserHandler) login(w http.ResponseWriter, r *http.Request) {
 	uh.httpLogger.Debugf("POST /api/login from %s", r.RemoteAddr)
 
