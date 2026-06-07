@@ -155,6 +155,22 @@ type StudentProfile struct {
 	ClassGroup   sql.NullString
 }
 
+type Ticket struct {
+	ID        int64
+	Title     string
+	Body      string
+	CreatedAt time.Time
+	AuthorID  int32
+	StatusID  sql.NullInt32
+}
+
+type TicketStatus struct {
+	ID       int32
+	Title    string
+	Color    string
+	Position int32
+}
+
 type User struct {
 	ID          int32
 	Email       string
