@@ -1,0 +1,849 @@
+basePath: /
+definitions:
+  handlers.configLoggingResponse:
+    properties:
+      Dir:
+        example: /var/log/ticketa
+        type: string
+      Level:
+        enum:
+        - info
+        - debug
+        example: info
+        type: string
+    type: object
+  handlers.configResponse:
+    properties:
+      Logging:
+        $ref: '#/definitions/handlers.configLoggingResponse'
+      TicketStatuses:
+        items:
+          $ref: '#/definitions/handlers.configStatusResponse'
+        type: array
+    type: object
+  handlers.configStatusResponse:
+    properties:
+      Color:
+        example: '#3498db'
+        type: string
+      Title:
+        example: Otevřeno
+        type: string
+    type: object
+  handlers.createStatusRequest:
+    properties:
+      color:
+        type: string
+      position:
+        type: integer
+      title:
+        type: string
+    type: object
+  handlers.createTicketRequest:
+    properties:
+      body:
+        type: string
+      status_id:
+        type: integer
+      title:
+        type: string
+    type: object
+  handlers.errorResponse:
+    properties:
+      code:
+        example: 404
+        type: integer
+      msg:
+        example: ticket not found
+        type: string
+      status:
+        example: Not Found
+        type: string
+    type: object
+  handlers.loginRequest:
+    properties:
+      email:
+        example: jan.novak@skola.cz
+        type: string
+      password:
+        example: Heslo123!
+        type: string
+    type: object
+  handlers.nullInt32:
+    properties:
+      Int32:
+        example: 1
+        type: integer
+      Valid:
+        example: true
+        type: boolean
+    type: object
+  handlers.nullString:
+    properties:
+      String:
+        example: Jan
+        type: string
+      Valid:
+        example: true
+        type: boolean
+    type: object
+  handlers.nullTime:
+    properties:
+      Time:
+        example: "2026-06-07T14:22:55Z"
+        type: string
+      Valid:
+        example: false
+        type: boolean
+    type: object
+  handlers.patchConfigRequest:
+    properties:
+      Logging:
+        $ref: '#/definitions/handlers.patchLoggingRequest'
+      TicketStatuses:
+        items:
+          $ref: '#/definitions/handlers.patchStatusRequest'
+        type: array
+    type: object
+  handlers.patchLoggingRequest:
+    properties:
+      Dir:
+        example: /var/log/ticketa
+        type: string
+      Level:
+        enum:
+        - info
+        - debug
+        example: debug
+        type: string
+    type: object
+  handlers.patchStatusRequest:
+    properties:
+      Color:
+        example: '#3498db'
+        type: string
+      Title:
+        example: Otevřeno
+        type: string
+    type: object
+  handlers.patchUserRequest:
+    properties:
+      is_active:
+        type: boolean
+      user_type:
+        type: string
+    type: object
+  handlers.registerRequest:
+    properties:
+      email:
+        example: jan.novak@skola.cz
+        type: string
+      first_name:
+        example: Jan
+        type: string
+      last_name:
+        example: Novák
+        type: string
+      password:
+        example: Heslo123!
+        type: string
+      user_type:
+        enum:
+        - student
+        - staff
+        - maintainer
+        example: student
+        type: string
+    type: object
+  handlers.registrationResponse:
+    properties:
+      id:
+        type: integer
+    type: object
+  handlers.ticketResponse:
+    properties:
+      AuthorID:
+        example: 3
+        type: integer
+      Body:
+        example: Po zadání hesla se nic nestane.
+        type: string
+      CreatedAt:
+        example: "2026-06-07T14:22:55Z"
+        type: string
+      ID:
+        example: 1
+        type: integer
+      StatusID:
+        $ref: '#/definitions/handlers.nullInt32'
+      Title:
+        example: Nemohu se přihlásit
+        type: string
+    type: object
+  handlers.ticketStatusResponse:
+    properties:
+      Color:
+        example: '#f39c12'
+        type: string
+      ID:
+        example: 1
+        type: integer
+      Position:
+        example: 1
+        type: integer
+      Title:
+        example: Probíhá
+        type: string
+    type: object
+  handlers.updateStatusRequest:
+    properties:
+      color:
+        type: string
+      title:
+        type: string
+    type: object
+  handlers.updateTicketRequest:
+    properties:
+      body:
+        type: string
+      status_id:
+        type: integer
+      title:
+        type: string
+    type: object
+  handlers.userResponse:
+    properties:
+      CreatedAt:
+        example: "2026-06-07T12:00:00Z"
+        type: string
+      Email:
+        example: jan.novak@skola.cz
+        type: string
+      FirstName:
+        $ref: '#/definitions/handlers.nullString'
+      ID:
+        example: 3
+        type: integer
+      IsActive:
+        example: true
+        type: boolean
+      LastLoginAt:
+        $ref: '#/definitions/handlers.nullTime'
+      LastName:
+        $ref: '#/definitions/handlers.nullString'
+      Provider:
+        example: local
+        type: string
+      UserType:
+        enum:
+        - student
+        - staff
+        - maintainer
+        example: student
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    name: StepanKomis
+    url: https://github.com/StepanKomis/Ticketa
+  description: |-
+    REST API ticketovacího systému pro školy.
+    Studenti a zaměstnanci spravují vlastní tikety, udržovatelé (maintainer) spravují celý systém — uživatele, stavy tiketů a runtime konfiguraci.
+
+    **Autentizace:** cookie-based. Po přihlášení přes POST /api/login je nastaven HTTP-only cookie `session_token` platný 7 dní.
+    Chráněné endpointy vrátí 401 bez platného cookie a 403 při nedostatečné roli.
+  title: Ticketa API
+  version: 0.1.0
+paths:
+  /api/admin/config:
+    get:
+      description: Vrátí aktuální runtime konfiguraci — logování a seznam stavů tiketů.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Aktuální konfigurace
+          schema:
+            $ref: '#/definitions/handlers.configResponse'
+        "401":
+          description: Chybí nebo vypršel session cookie
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "403":
+          description: Přístup pouze pro maintainer
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      security:
+      - cookieAuth: []
+      summary: Získat konfiguraci
+      tags:
+      - admin
+    patch:
+      consumes:
+      - application/json
+      description: Aktualizuje runtime konfiguraci. Uvádějte pouze pole, která chcete
+        změnit. Změny jsou zapsány atomicky (temp soubor + rename) do ticketa.yaml.
+      parameters:
+      - description: Změny konfigurace (všechna pole volitelná)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.patchConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Aktualizovaná konfigurace
+          schema:
+            $ref: '#/definitions/handlers.configResponse'
+        "400":
+          description: Neplatné tělo nebo chyba zápisu na disk
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "401":
+          description: Chybí nebo vypršel session cookie
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "403":
+          description: Přístup pouze pro maintainer
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      security:
+      - cookieAuth: []
+      summary: Aktualizovat konfiguraci
+      tags:
+      - admin
+  /api/admin/ticket-statuses:
+    get:
+      description: Vrátí všechny stavy tiketů seřazené podle position. Používá se
+        k naplnění výběru stavu při vytváření nebo editaci tiketu.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Seznam stavů
+          schema:
+            items:
+              $ref: '#/definitions/handlers.ticketStatusResponse'
+            type: array
+        "401":
+          description: Chybí nebo vypršel session cookie
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "403":
+          description: Přístup pouze pro maintainer
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "500":
+          description: Interní chyba
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      security:
+      - cookieAuth: []
+      summary: Seznam stavů tiketů
+      tags:
+      - admin
+    post:
+      consumes:
+      - application/json
+      description: Vytvoří nový stav tiketu. Nový stav je automaticky přidán do ticketa.yaml.
+        Position musí být unikátní.
+      parameters:
+      - description: Nový stav
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.createStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Vytvořený stav
+          schema:
+            $ref: '#/definitions/handlers.ticketStatusResponse'
+        "400":
+          description: Neplatné tělo požadavku
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "401":
+          description: Chybí nebo vypršel session cookie
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "403":
+          description: Přístup pouze pro maintainer
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "422":
+          description: Chybí povinné pole title
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "500":
+          description: Interní chyba
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      security:
+      - cookieAuth: []
+      summary: Vytvořit stav tiketu
+      tags:
+      - admin
+  /api/admin/ticket-statuses/{id}:
+    delete:
+      description: Smaže stav tiketu. Tikety odkazující na tento stav budou mít status_id
+        nastaven na null. Konfigurace je automaticky synchronizována.
+      parameters:
+      - description: ID stavu
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: Stav smazán
+        "400":
+          description: Neplatné ID
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "401":
+          description: Chybí nebo vypršel session cookie
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "403":
+          description: Přístup pouze pro maintainer
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "500":
+          description: Interní chyba
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      security:
+      - cookieAuth: []
+      summary: Smazat stav tiketu
+      tags:
+      - admin
+    put:
+      consumes:
+      - application/json
+      description: Aktualizuje název nebo barvu stavu. Změna je automaticky synchronizována
+        do ticketa.yaml.
+      parameters:
+      - description: ID stavu
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Aktualizovaná data stavu
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.updateStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Aktualizovaný stav
+          schema:
+            $ref: '#/definitions/handlers.ticketStatusResponse'
+        "400":
+          description: Neplatné ID nebo tělo požadavku
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "401":
+          description: Chybí nebo vypršel session cookie
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "403":
+          description: Přístup pouze pro maintainer
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "404":
+          description: Stav nenalezen
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "500":
+          description: Interní chyba
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      security:
+      - cookieAuth: []
+      summary: Aktualizovat stav tiketu
+      tags:
+      - admin
+  /api/admin/users:
+    get:
+      description: Vrátí všechny uživatele systému. Přístupné pouze pro maintainer.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Seznam uživatelů
+          schema:
+            items:
+              $ref: '#/definitions/handlers.userResponse'
+            type: array
+        "401":
+          description: Chybí nebo vypršel session cookie
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "403":
+          description: Přístup pouze pro maintainer
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "500":
+          description: Interní chyba
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      security:
+      - cookieAuth: []
+      summary: Seznam uživatelů
+      tags:
+      - admin
+  /api/admin/users/{id}:
+    get:
+      description: Vrátí uživatele podle jeho ID. Přístupné pouze pro maintainer.
+      parameters:
+      - description: ID uživatele
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Uživatel
+          schema:
+            $ref: '#/definitions/handlers.userResponse'
+        "400":
+          description: Neplatné ID
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "401":
+          description: Chybí nebo vypršel session cookie
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "403":
+          description: Přístup pouze pro maintainer
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "404":
+          description: Uživatel nenalezen
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "500":
+          description: Interní chyba
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      security:
+      - cookieAuth: []
+      summary: Získat uživatele
+      tags:
+      - admin
+    patch:
+      consumes:
+      - application/json
+      description: Aktualizuje is_active nebo user_type uživatele. Obě pole jsou volitelná.
+        Neaktivní uživatelé se nemohou přihlásit — existující session jim jsou zneplatněny
+        při dalším požadavku.
+      parameters:
+      - description: ID uživatele
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Aktualizovaná data uživatele
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.patchUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Aktualizovaný uživatel
+          schema:
+            $ref: '#/definitions/handlers.userResponse'
+        "400":
+          description: Neplatné ID nebo tělo požadavku
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "401":
+          description: Chybí nebo vypršel session cookie
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "403":
+          description: Přístup pouze pro maintainer
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "404":
+          description: Uživatel nenalezen
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "500":
+          description: Interní chyba
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      security:
+      - cookieAuth: []
+      summary: Aktualizovat uživatele
+      tags:
+      - admin
+  /api/login:
+    post:
+      consumes:
+      - application/json
+      description: Ověří e-mail a heslo. Při úspěchu nastaví HTTP-only cookie `session_token`
+        platný 7 dní.
+      parameters:
+      - description: Přihlašovací údaje
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.loginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Session cookie nastaven
+        "400":
+          description: Neplatné tělo požadavku
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "401":
+          description: Špatné přihlašovací údaje nebo neaktivní účet
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      summary: Přihlášení
+      tags:
+      - auth
+  /api/register:
+    post:
+      consumes:
+      - application/json
+      description: Vytvoří nový lokální účet. Heslo musí mít alespoň 8 znaků a obsahovat
+        velké písmeno, číslici a speciální znak.
+      parameters:
+      - description: Registrační údaje
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.registerRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: ID nově vytvořeného uživatele
+          schema:
+            $ref: '#/definitions/handlers.registrationResponse'
+        "400":
+          description: Chybí povinné pole, slabé heslo nebo neplatný user_type
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "500":
+          description: Interní chyba (např. duplicitní e-mail)
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      summary: Registrace
+      tags:
+      - auth
+  /api/tickets:
+    get:
+      description: Vrátí všechny tikety seřazené od nejnovějšího. Přístupné pro všechny
+        přihlášené uživatele.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Seznam tiketů
+          schema:
+            items:
+              $ref: '#/definitions/handlers.ticketResponse'
+            type: array
+        "401":
+          description: Chybí nebo vypršel session cookie
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "500":
+          description: Interní chyba
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      security:
+      - cookieAuth: []
+      summary: Seznam tiketů
+      tags:
+      - tickets
+    post:
+      consumes:
+      - application/json
+      description: Vytvoří nový tiket. Autor je automaticky nastaven ze session. StatusID
+        je volitelné — pokud není zadáno, tiket nemá přiřazený stav.
+      parameters:
+      - description: Nový tiket
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.createTicketRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Vytvořený tiket
+          schema:
+            $ref: '#/definitions/handlers.ticketResponse'
+        "400":
+          description: Neplatné tělo požadavku
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "401":
+          description: Chybí nebo vypršel session cookie
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "422":
+          description: Chybí povinné pole (title nebo body)
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "500":
+          description: Interní chyba
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      security:
+      - cookieAuth: []
+      summary: Vytvořit tiket
+      tags:
+      - tickets
+  /api/tickets/{id}:
+    delete:
+      description: Smaže tiket. Povoleno pouze autorovi. Vrátí 204 bez těla odpovědi.
+      parameters:
+      - description: ID tiketu
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: Tiket smazán
+        "400":
+          description: Neplatné ID
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "401":
+          description: Chybí nebo vypršel session cookie
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "403":
+          description: Nejste autor tohoto tiketu
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "404":
+          description: Tiket nenalezen
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "500":
+          description: Interní chyba
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      security:
+      - cookieAuth: []
+      summary: Smazat tiket
+      tags:
+      - tickets
+    get:
+      description: Vrátí jeden tiket podle jeho ID.
+      parameters:
+      - description: ID tiketu
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tiket
+          schema:
+            $ref: '#/definitions/handlers.ticketResponse'
+        "400":
+          description: Neplatné ID
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "401":
+          description: Chybí nebo vypršel session cookie
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "404":
+          description: Tiket nenalezen
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "500":
+          description: Interní chyba
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      security:
+      - cookieAuth: []
+      summary: Získat tiket
+      tags:
+      - tickets
+    put:
+      consumes:
+      - application/json
+      description: Aktualizuje tiket. Povoleno pouze autorovi. Nelze přepisovat tikety
+        ostatních uživatelů.
+      parameters:
+      - description: ID tiketu
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Aktualizovaná data tiketu
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.updateTicketRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Aktualizovaný tiket
+          schema:
+            $ref: '#/definitions/handlers.ticketResponse'
+        "400":
+          description: Neplatné ID nebo tělo požadavku
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "401":
+          description: Chybí nebo vypršel session cookie
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "403":
+          description: Nejste autor tohoto tiketu
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "404":
+          description: Tiket nenalezen
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+        "500":
+          description: Interní chyba
+          schema:
+            $ref: '#/definitions/handlers.errorResponse'
+      security:
+      - cookieAuth: []
+      summary: Aktualizovat tiket
+      tags:
+      - tickets
+securityDefinitions:
+  cookieAuth:
+    description: HTTP-only session cookie platná 7 dní. Nastavena automaticky po přihlášení.
+    in: cookie
+    name: session_token
+    type: apiKey
+swagger: "2.0"
