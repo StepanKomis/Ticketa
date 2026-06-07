@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
+	"github.com/StepanKomis/Ticketa/src/config"
 	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
 	"github.com/StepanKomis/Ticketa/src/internal/API/users/login"
 	userregistration "github.com/StepanKomis/Ticketa/src/internal/API/users/registration"
@@ -25,14 +26,14 @@ type registrationResponse struct {
 	ID int32 `json:"id"`
 }
 
-func NewUserHandler(httpLogger *logs.Logger, db *sql.DB, store *security.SessionStore) (*UserHandler, error) {
+func NewUserHandler(httpLogger *logs.Logger, db *sql.DB, store *security.SessionStore, cfg *config.Config) (*UserHandler, error) {
 	uh := &UserHandler{}
 	uh.httpLogger = httpLogger
 	uh.db = db
 	uh.store = store
 
 	var err error
-	uh.userLogger, err = logs.NewLogger("user")
+	uh.userLogger, err = logs.NewLogger("user", cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user logger for user handler: %w", err)
 	}
