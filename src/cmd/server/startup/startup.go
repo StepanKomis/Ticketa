@@ -14,7 +14,7 @@ import (
 	"github.com/StepanKomis/Ticketa/src/www/router"
 )
 
-func InitializeServer(l *logs.Logger, cfg *config.Config) error {
+func InitializeServer(l *logs.Logger, cfgStore *config.Store) error {
 	l.Info("Starting server...")
 	l.Info("Initializing Postgres connection...")
 
@@ -56,7 +56,7 @@ func InitializeServer(l *logs.Logger, cfg *config.Config) error {
 	port := env.Get("SERVER_PORT", "8080")
 	addr := ":" + port
 
-	mux := router.NewRouter(www.StaticFiles, db, cfg)
+	mux := router.NewRouter(www.StaticFiles, db, cfgStore)
 
 	l.Infof("Listening on %s", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {

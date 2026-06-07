@@ -14,17 +14,18 @@ import (
 	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
 )
 
-func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfg *config.Config) *http.ServeMux {
+func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.ServeMux {
+	cfg := cfgStore.Get()
 	httpLogger, err := logs.NewLogger("http", cfg)
 	if err != nil {
 		panic("failed to create http logger for router: " + err.Error())
 	}
 
 	queries := db.New(sqlDB)
-	store := security.NewSessionStore(queries)
-	auth := middleware.AuthMiddleware(store)
+	sessionStore := security.NewSessionStore(queries)
+	auth := middleware.AuthMiddleware(sessionStore)
 
-	userHandler, err := handlers.NewUserHandler(httpLogger, sqlDB, store, cfg)
+	userHandler, err := handlers.NewUserHandler(httpLogger, sqlDB, sessionStore, cfg)
 	if err != nil {
 		httpLogger.Fatalf("Failed to create user handler in router: %s", err)
 	}
