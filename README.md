@@ -25,38 +25,256 @@ The database is PostgreSQL. Migrations run automatically at startup; no external
 
 ## API
 
+Interactive documentation is served at `/docs` once the server is running.
+
+Authentication is cookie-based (`session_token`, HTTP-only). Authenticated and admin routes return `401` without a valid session cookie and `403` when the role requirement is not met. All error responses share the same shape:
+
+```json
+{ "code": 404, "status": "Not Found", "msg": "ticket not found" }
+```
+
 ### Public
 
-| Method | Path | Description |
+No authentication required.
+
+#### `POST /api/register`
+
+Create a local account.
+
+**Request body**
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `email` | string | yes | Valid e-mail address |
+| `password` | string | yes | Min. 8 chars, must include uppercase, digit, and special character |
+| `user_type` | string | yes | `student`, `staff`, or `maintainer` |
+| `first_name` | string | no | |
+| `last_name` | string | no | |
+
+**Responses**
+
+| Status | Description |
+|---|---|
+| `201` | `{ "id": 42 }` |
+| `400` | Missing field, weak password, or unknown user type |
+| `500` | Internal error (e.g. duplicate e-mail) |
+
+---
+
+#### `POST /api/login`
+
+Authenticate and receive a session cookie.
+
+**Request body**
+
+| Field | Type | Required |
 |---|---|---|
-| `POST` | `/api/register` | Register a new account |
-| `POST` | `/api/login` | Authenticate; sets an HTTP-only session cookie |
+| `email` | string | yes |
+| `password` | string | yes |
+
+**Responses**
+
+| Status | Description |
+|---|---|
+| `200` | Sets `session_token` HTTP-only cookie (7-day TTL) |
+| `400` | Invalid request body |
+| `401` | Wrong credentials or inactive account |
+
+---
 
 ### Authenticated (any active user)
 
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/api/tickets` | Create a ticket |
-| `GET` | `/api/tickets` | List all tickets |
-| `GET` | `/api/tickets/{id}` | Get a single ticket |
-| `PUT` | `/api/tickets/{id}` | Update a ticket (author only) |
-| `DELETE` | `/api/tickets/{id}` | Delete a ticket (author only) |
+Requires a valid `session_token` cookie.
+
+#### `POST /api/tickets` — Create ticket
+
+**Request body**
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `title` | string | yes | Short summary |
+| `body` | string | yes | Full description |
+| `status_id` | integer | no | ID of the initial status |
+
+**Responses:** `201` ticket object · `400` bad body · `401` no session · `422` missing title or body · `500`
+
+---
+
+#### `GET /api/tickets` — List tickets
+
+Returns all tickets ordered newest first. Empty result returns `[]`.
+
+**Responses:** `200` array of ticket objects · `401` · `500`
+
+---
+
+#### `GET /api/tickets/{id}` — Get ticket
+
+**Responses:** `200` ticket object · `400` bad ID · `401` · `404` not found · `500`
+
+---
+
+#### `PUT /api/tickets/{id}` — Update ticket
+
+Only the author can update. All fields are optional in the body.
+
+**Request body:** `title`, `body`, `status_id` (all optional)
+
+**Responses:** `200` updated ticket · `400` · `401` · `403` not the author · `404` · `500`
+
+---
+
+#### `DELETE /api/tickets/{id}` — Delete ticket
+
+Only the author can delete.
+
+**Responses:** `204` deleted · `400` · `401` · `403` not the author · `404` · `500`
+
+---
 
 ### Admin (maintainer only)
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/admin/config` | Get the current runtime config |
-| `PATCH` | `/api/admin/config` | Update runtime config (persisted to YAML immediately) |
-| `GET` | `/api/admin/ticket-statuses` | List ticket statuses |
-| `POST` | `/api/admin/ticket-statuses` | Create a ticket status |
-| `PUT` | `/api/admin/ticket-statuses/{id}` | Update a ticket status |
-| `DELETE` | `/api/admin/ticket-statuses/{id}` | Delete a ticket status |
-| `GET` | `/api/admin/users` | List all users |
-| `GET` | `/api/admin/users/{id}` | Get a single user |
-| `PATCH` | `/api/admin/users/{id}` | Change a user's active state or type |
+Requires a valid `session_token` cookie **and** `user_type = maintainer`.
 
-Authentication is cookie-based (`ticketa_session`). All authenticated and admin routes return `401` without a valid session cookie and `403` when the role requirement is not met.
+#### `GET /api/admin/config` — Get runtime config
+
+**Responses:** `200` config object · `401` · `403`
+
+---
+
+#### `PATCH /api/admin/config` — Update runtime config
+
+Changes are written atomically to `/config/ticketa.yaml` on the host and take effect immediately without a restart. Providing `ticket_statuses` requires at least 3 entries.
+
+**Request body (all optional)**
+
+```json
+{
+  "logging": { "level": "debug", "dir": "/var/log/ticketa" },
+  "ticket_statuses": [
+    { "title": "Otevřeno", "color": "#3498db" },
+    { "title": "Probíhá",  "color": "#f39c12" },
+    { "title": "Vyřešeno", "color": "#2ecc71" }
+  ]
+}
+```
+
+**Responses:** `200` updated config · `400` bad body or disk write failure · `401` · `403`
+
+---
+
+#### `GET /api/admin/ticket-statuses` — List statuses
+
+Returns statuses ordered by position. Empty result returns `[]`.
+
+**Responses:** `200` array · `401` · `403` · `500`
+
+---
+
+#### `POST /api/admin/ticket-statuses` — Create status
+
+Also appends the new status to the YAML config.
+
+**Request body**
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `title` | string | yes | |
+| `color` | string | no | HEX format, e.g. `#9b59b6`. Defaults to `#808080` |
+| `position` | integer | no | Must be unique |
+
+**Responses:** `201` status object · `400` · `401` · `403` · `422` missing title · `500`
+
+---
+
+#### `PUT /api/admin/ticket-statuses/{id}` — Update status
+
+Syncs change to YAML config.
+
+**Request body:** `title`, `color` (both optional)
+
+**Responses:** `200` updated status · `400` · `401` · `403` · `404` · `500`
+
+---
+
+#### `DELETE /api/admin/ticket-statuses/{id}` — Delete status
+
+Tickets referencing this status will have `status_id` set to `null`. YAML config is synced.
+
+**Responses:** `204` · `400` · `401` · `403` · `500`
+
+---
+
+#### `GET /api/admin/users` — List users
+
+**Responses:** `200` array of user objects · `401` · `403` · `500`
+
+---
+
+#### `GET /api/admin/users/{id}` — Get user
+
+**Responses:** `200` user object · `400` · `401` · `403` · `404` · `500`
+
+---
+
+#### `PATCH /api/admin/users/{id}` — Update user
+
+**Request body (all optional)**
+
+| Field | Type | Notes |
+|---|---|---|
+| `is_active` | boolean | Inactive users cannot log in |
+| `user_type` | string | `student`, `staff`, or `maintainer` |
+
+**Responses:** `200` updated user · `400` · `401` · `403` · `404` · `500`
+
+---
+
+### Data shapes
+
+**Ticket**
+```json
+{
+  "ID": 1,
+  "Title": "Nemohu se přihlásit",
+  "Body": "Po zadání hesla se nic nestane.",
+  "CreatedAt": "2026-06-07T14:22:55Z",
+  "AuthorID": 3,
+  "StatusID": { "Int32": 0, "Valid": false }
+}
+```
+
+**TicketStatus**
+```json
+{ "ID": 1, "Title": "Probíhá", "Color": "#f39c12", "Position": 1 }
+```
+
+**User**
+```json
+{
+  "ID": 3,
+  "Email": "jan.novak@skola.cz",
+  "FirstName": { "String": "Jan", "Valid": true },
+  "LastName":  { "String": "Novák", "Valid": true },
+  "UserType": "student",
+  "Provider": "local",
+  "IsActive": true,
+  "CreatedAt": "2026-06-07T12:00:00Z",
+  "LastLoginAt": { "Time": "0001-01-01T00:00:00Z", "Valid": false }
+}
+```
+
+**Config**
+```json
+{
+  "Logging": { "Level": "info", "Dir": "/var/log/ticketa" },
+  "TicketStatuses": [
+    { "Title": "Otevřeno", "Color": "#3498db" },
+    { "Title": "Probíhá",  "Color": "#f39c12" },
+    { "Title": "Vyřešeno", "Color": "#2ecc71" }
+  ]
+}
+```
 
 ## Configuration
 
@@ -84,8 +302,6 @@ cp .env.example .env
 
 Controls logging and ticket statuses. The file is volume-mounted from the host so changes written via the admin API persist through container restarts.
 
-Copy the example and adjust as needed:
-
 ```shell
 cp config/ticketa.yaml.example config/ticketa.yaml
 ```
@@ -106,9 +322,9 @@ ticket_statuses:
 
 Rules for `ticket_statuses`:
 - Minimum three statuses required
-- First status = open state, last status = resolved state, any middle statuses = in-progress states
+- First = open state, last = resolved state, any middle = in-progress
 - Order in the array determines the `position` stored in the database
-- Changes made via `PATCH /api/admin/ticket-statuses` are written back to this file automatically
+- Changes via `PATCH /api/admin/config` are written back to this file automatically
 
 ## Deployment
 
@@ -122,7 +338,7 @@ make docker-build
 make deploy
 ```
 
-The app is available at `http://localhost:8080` once the containers are healthy.
+The app is available at `http://localhost:8080` once the containers are healthy. Interactive API docs are at `http://localhost:8080/docs`.
 
 ## Development
 
@@ -132,11 +348,11 @@ Requirements: Go 1.24+, Docker, `sqlc` (for query regeneration).
 # Start only the database
 docker compose up -d database
 
-# Build the Go binary and run it locally (frontend not embedded)
+# Build and run locally (frontend not embedded)
 make build
 ./build/ticketa
 
-# Or build frontend + binary together
+# Full local build including frontend
 make build-full
 ./build/ticketa
 ```
@@ -154,6 +370,8 @@ make build-full
 | `deploy` | Start all services via `docker compose up -d` |
 | `test` | Run the Go test suite |
 | `sqlc` | Regenerate database query code via sqlc |
+| `swagger-ui` | Download pinned Swagger UI dist assets into `src/www/docs/` |
+| `docs` | Validate `openapi.yaml` is well-formed YAML |
 | `clean` | Remove `./build` and the frontend embed directory |
 
 ## Database
@@ -169,24 +387,26 @@ Migrations are embedded in the binary and run automatically on startup. The sche
 
 ```
 config/
-  ticketa.yaml.example   runtime config template
+  ticketa.yaml.example     runtime config template
 src/
   cmd/
-    main.go              entrypoint — loads config, starts server
+    main.go                entrypoint — loads config, starts server
     server/
-      logs/              structured file logger
-      startup/           server bootstrap (DB connect, migrate, listen)
-  config/                YAML config types, loader, atomic writer, thread-safe Store
+      logs/                structured file logger
+      startup/             server bootstrap (DB connect, migrate, listen)
+  config/                  YAML config types, loader, atomic writer, thread-safe Store
   database/postgres/
-    migrations/          embedded SQL migrations (UP_000N.sql)
-    queries/             sqlc-generated type-safe query functions
+    migrations/            embedded SQL migrations (UP_000N.sql)
+    queries/               sqlc-generated type-safe query functions
   internal/
-    ctxkeys/             shared context key types (avoids import cycles)
-    security/            session store, token generation, cookie helpers
+    ctxkeys/               shared context key types (avoids import cycles)
+    security/              session store, token generation, cookie helpers
   www/
-    midleware/           AuthMiddleware, MaintainerMiddleware
+    docs/                  embedded Swagger UI assets + openapi.yaml
+    midleware/             AuthMiddleware, MaintainerMiddleware
     router/
-      handlers/          UserHandler, TicketHandler, AdminHandler, StaticHandler
-      router.go          route registration
-    embed.go             //go:embed for static frontend assets
+      handlers/            UserHandler, TicketHandler, AdminHandler, StaticHandler, DocsHandler
+      router.go            route registration
+    embed.go               //go:embed for static frontend assets
+    docs_embed.go          //go:embed for Swagger UI assets
 ```
