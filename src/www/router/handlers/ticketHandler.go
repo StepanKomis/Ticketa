@@ -42,6 +42,22 @@ type createTicketRequest struct {
 	StatusID *int32 `json:"status_id"`
 }
 
+// create vytvoří nový tiket přihlášeného uživatele.
+// Autor tiketu je určen ze session cookie — nelze vytvořit tiket za jiného uživatele.
+//
+// @Summary      Vytvořit tiket
+// @Description  Vytvoří nový tiket. Autor je automaticky nastaven ze session. StatusID je volitelné — pokud není zadáno, tiket nemá přiřazený stav.
+// @Tags         tickets
+// @Accept       json
+// @Produce      json
+// @Param        body  body      createTicketRequest  true  "Nový tiket"
+// @Success      201   {object}  ticketResponse       "Vytvořený tiket"
+// @Failure      400   {object}  errorResponse        "Neplatné tělo požadavku"
+// @Failure      401   {object}  errorResponse        "Chybí nebo vypršel session cookie"
+// @Failure      422   {object}  errorResponse        "Chybí povinné pole (title nebo body)"
+// @Failure      500   {object}  errorResponse        "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/tickets [post]
 func (h *TicketHandler) create(w http.ResponseWriter, r *http.Request) {
 	session, ok := sessionFromContext(w, r)
 	if !ok {
@@ -79,6 +95,18 @@ func (h *TicketHandler) create(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, ticket)
 }
 
+// list vrátí seznam všech tiketů seřazených od nejnovějšího.
+// Prázdný výsledek vrátí [] (nikdy null).
+//
+// @Summary      Seznam tiketů
+// @Description  Vrátí všechny tikety seřazené od nejnovějšího. Přístupné pro všechny přihlášené uživatele.
+// @Tags         tickets
+// @Produce      json
+// @Success      200  {array}   ticketResponse  "Seznam tiketů"
+// @Failure      401  {object}  errorResponse   "Chybí nebo vypršel session cookie"
+// @Failure      500  {object}  errorResponse   "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/tickets [get]
 func (h *TicketHandler) list(w http.ResponseWriter, r *http.Request) {
 	tickets, err := h.queries.ListTickets(r.Context())
 	if err != nil {
@@ -91,6 +119,20 @@ func (h *TicketHandler) list(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, tickets)
 }
 
+// get vrátí jeden tiket podle ID.
+//
+// @Summary      Získat tiket
+// @Description  Vrátí jeden tiket podle jeho ID.
+// @Tags         tickets
+// @Produce      json
+// @Param        id   path      int             true  "ID tiketu"
+// @Success      200  {object}  ticketResponse  "Tiket"
+// @Failure      400  {object}  errorResponse   "Neplatné ID"
+// @Failure      401  {object}  errorResponse   "Chybí nebo vypršel session cookie"
+// @Failure      404  {object}  errorResponse   "Tiket nenalezen"
+// @Failure      500  {object}  errorResponse   "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/tickets/{id} [get]
 func (h *TicketHandler) get(w http.ResponseWriter, r *http.Request) {
 	id, ok := ticketIDFromPath(w, r.URL.Path)
 	if !ok {
@@ -115,6 +157,24 @@ type updateTicketRequest struct {
 	StatusID *int32 `json:"status_id"`
 }
 
+// update aktualizuje tiket. Povoleno pouze autorovi tiketu.
+// Všechna pole v těle jsou volitelná — uvádějte pouze to, co chcete změnit.
+//
+// @Summary      Aktualizovat tiket
+// @Description  Aktualizuje tiket. Povoleno pouze autorovi. Nelze přepisovat tikety ostatních uživatelů.
+// @Tags         tickets
+// @Accept       json
+// @Produce      json
+// @Param        id    path      int                  true  "ID tiketu"
+// @Param        body  body      updateTicketRequest  true  "Aktualizovaná data tiketu"
+// @Success      200   {object}  ticketResponse       "Aktualizovaný tiket"
+// @Failure      400   {object}  errorResponse        "Neplatné ID nebo tělo požadavku"
+// @Failure      401   {object}  errorResponse        "Chybí nebo vypršel session cookie"
+// @Failure      403   {object}  errorResponse        "Nejste autor tohoto tiketu"
+// @Failure      404   {object}  errorResponse        "Tiket nenalezen"
+// @Failure      500   {object}  errorResponse        "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/tickets/{id} [put]
 func (h *TicketHandler) update(w http.ResponseWriter, r *http.Request) {
 	session, ok := sessionFromContext(w, r)
 	if !ok {
@@ -164,6 +224,20 @@ func (h *TicketHandler) update(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, ticket)
 }
 
+// delete smaže tiket. Povoleno pouze autorovi tiketu.
+//
+// @Summary      Smazat tiket
+// @Description  Smaže tiket. Povoleno pouze autorovi. Vrátí 204 bez těla odpovědi.
+// @Tags         tickets
+// @Param        id  path  int  true  "ID tiketu"
+// @Success      204 "Tiket smazán"
+// @Failure      400 {object}  errorResponse  "Neplatné ID"
+// @Failure      401 {object}  errorResponse  "Chybí nebo vypršel session cookie"
+// @Failure      403 {object}  errorResponse  "Nejste autor tohoto tiketu"
+// @Failure      404 {object}  errorResponse  "Tiket nenalezen"
+// @Failure      500 {object}  errorResponse  "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/tickets/{id} [delete]
 func (h *TicketHandler) delete(w http.ResponseWriter, r *http.Request) {
 	session, ok := sessionFromContext(w, r)
 	if !ok {
