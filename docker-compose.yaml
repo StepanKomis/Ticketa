@@ -1,6 +1,7 @@
 services:
   ticketa:
     container_name: ticketa
+    image: ticketa:latest
     build: .
     ports:
       - "8080:8080"

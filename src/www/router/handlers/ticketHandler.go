@@ -85,6 +85,9 @@ func (h *TicketHandler) list(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusInternalServerError, "could not list tickets")
 		return
 	}
+	if tickets == nil {
+		tickets = []db.Ticket{}
+	}
 	writeJSON(w, http.StatusOK, tickets)
 }
 

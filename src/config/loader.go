@@ -14,11 +14,19 @@ import (
 func Load(path string) (*Config, error) {
 	cfg := Defaults()
 
-	data, err := os.ReadFile(path)
+	info, err := os.Stat(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return cfg, nil
 		}
+		return nil, fmt.Errorf("reading config file: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return cfg, nil
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
 		return nil, fmt.Errorf("reading config file: %w", err)
 	}
 
