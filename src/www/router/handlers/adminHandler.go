@@ -101,6 +101,9 @@ func (h *AdminHandler) listStatuses(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusInternalServerError, "could not list statuses")
 		return
 	}
+	if rows == nil {
+		rows = []db.TicketStatus{}
+	}
 	writeJSON(w, http.StatusOK, rows)
 }
 
@@ -223,6 +226,9 @@ func (h *AdminHandler) listUsers(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, "could not list users")
 		return
+	}
+	if rows == nil {
+		rows = []db.User{}
 	}
 	writeJSON(w, http.StatusOK, rows)
 }
