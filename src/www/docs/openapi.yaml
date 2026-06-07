@@ -603,3 +603,198 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/ticket-statuses:
+    get:
+      summary: Seznam stavů tiketů
+      description: Vrátí všechny stavy seřazené podle pozice (od nejnižší). Pouze správci.
+      tags: [Správa — stavy tiketů]
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Seznam stavů (prázdné pole pokud žádné neexistují).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TicketStatus'
+        "401":
+          description: Chybí platná session cookie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Uživatel není správce.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Interní chyba serveru.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Vytvoření stavu tiketu
+      description: |
+        Přidá nový stav. Stav je zároveň přidán do běhové konfigurace YAML.
+        Pokud není zadána barva, použije se výchozí šedá (#808080).
+      tags: [Správa — stavy tiketů]
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: Název stavu.
+                  example: Čeká na odpověď
+                color:
+                  type: string
+                  description: Barva ve formátu HEX.
+                  example: "#9b59b6"
+                position:
+                  type: integer
+                  format: int32
+                  description: Pořadí stavu (musí být unikátní).
+              required: [title]
+      responses:
+        "201":
+          description: Stav byl vytvořen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketStatus'
+        "400":
+          description: Neplatné tělo požadavku.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Chybí platná session cookie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Uživatel není správce.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "422":
+          description: Chybí povinné pole title.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Interní chyba serveru (např. duplicitní pozice).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/ticket-statuses/{id}:
+    parameters:
+      - $ref: '#/components/parameters/id'
+
+    put:
+      summary: Aktualizace stavu tiketu
+      description: Upraví název nebo barvu stavu. Konfigurace YAML je synchronizována.
+      tags: [Správa — stavy tiketů]
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                color:
+                  type: string
+                  pattern: '^#[0-9a-fA-F]{6}$'
+      responses:
+        "200":
+          description: Stav byl upraven.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketStatus'
+        "400":
+          description: Neplatné ID nebo tělo požadavku.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Chybí platná session cookie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Uživatel není správce.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Stav nenalezen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Interní chyba serveru.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Smazání stavu tiketu
+      description: Smaže stav a synchronizuje konfiguraci YAML. Tikety odkazující na tento stav budou mít StatusID nastaven na NULL.
+      tags: [Správa — stavy tiketů]
+      security:
+        - cookieAuth: []
+      responses:
+        "204":
+          description: Stav byl smazán.
+        "400":
+          description: Neplatné ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Chybí platná session cookie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Uživatel není správce.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Interní chyba serveru.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
