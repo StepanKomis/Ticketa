@@ -527,3 +527,79 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/config:
+    get:
+      summary: Získání běhové konfigurace
+      description: Vrátí aktuální konfiguraci aplikace. Pouze správci.
+      tags: [Správa — konfigurace]
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Aktuální konfigurace.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+        "401":
+          description: Chybí platná session cookie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Uživatel není správce.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    patch:
+      summary: Aktualizace běhové konfigurace
+      description: |
+        Částečně aktualizuje konfiguraci. Změny jsou okamžitě uloženy do /config/ticketa.yaml
+        na hostitelském systému (atomickým přejmenováním) a platí bez restartu serveru.
+        Vyžaduje min. 3 stavy tiketů, je-li pole ticket_statuses přítomno.
+      tags: [Správa — konfigurace]
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                logging:
+                  $ref: '#/components/schemas/LoggingConfig'
+                ticket_statuses:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/StatusConfig'
+                  minItems: 3
+      responses:
+        "200":
+          description: Konfigurace byla aktualizována.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+        "400":
+          description: Neplatné tělo nebo selhání uložení na disk.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Chybí platná session cookie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Uživatel není správce.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
