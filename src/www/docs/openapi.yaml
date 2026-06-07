@@ -798,3 +798,143 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/users:
+    get:
+      summary: Seznam uživatelů
+      description: Vrátí seznam všech uživatelů. Pouze správci.
+      tags: [Správa — uživatelé]
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Seznam uživatelů.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        "401":
+          description: Chybí platná session cookie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Uživatel není správce.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Interní chyba serveru.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/users/{id}:
+    parameters:
+      - $ref: '#/components/parameters/id'
+
+    get:
+      summary: Detail uživatele
+      tags: [Správa — uživatelé]
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Uživatel nalezen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        "400":
+          description: Neplatné ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Chybí platná session cookie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Uživatel není správce.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Uživatel nenalezen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Interní chyba serveru.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    patch:
+      summary: Aktualizace uživatele
+      description: |
+        Změní aktivní stav (`is_active`) nebo typ uživatele (`user_type`). Pole jsou volitelná —
+        lze změnit jedno nebo obě najednou. Deaktivovaný uživatel se nemůže přihlásit.
+      tags: [Správa — uživatelé]
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                is_active:
+                  type: boolean
+                  description: Nastaví aktivitu účtu.
+                user_type:
+                  $ref: '#/components/schemas/UserType'
+      responses:
+        "200":
+          description: Uživatel byl aktualizován.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        "400":
+          description: Neplatné ID nebo tělo požadavku.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Chybí platná session cookie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Uživatel není správce.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Uživatel nenalezen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Interní chyba serveru.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
