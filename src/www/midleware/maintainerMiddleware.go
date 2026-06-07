@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
+	"github.com/StepanKomis/Ticketa/src/internal/ctxkeys"
 	"github.com/StepanKomis/Ticketa/src/internal/security"
 	"github.com/StepanKomis/Ticketa/src/www/router/handlers"
 )
@@ -41,7 +42,7 @@ func MaintainerMiddleware(sessions sessionGetter, users userGetter) func(http.Ha
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), SessionContextKey, session)
+			ctx := context.WithValue(r.Context(), ctxkeys.SessionContextKey, session)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

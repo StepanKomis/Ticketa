@@ -5,19 +5,14 @@ import (
 	"net/http"
 
 	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
+	"github.com/StepanKomis/Ticketa/src/internal/ctxkeys"
 	"github.com/StepanKomis/Ticketa/src/internal/security"
 	"github.com/StepanKomis/Ticketa/src/www/router/handlers"
 )
 
-// contextKey is unexported so no other package can construct a colliding key,
-// even if they import this package and know the underlying string value.
-type contextKey string
-
-// SessionContextKey is used to store and retrieve the validated session from
-// the request context. Always use the exported constant — never a raw string:
-//
-//	session := r.Context().Value(middleware.SessionContextKey).(db.Session)
-const SessionContextKey contextKey = "session"
+// SessionContextKey is the context key under which auth middleware stores the
+// validated session. Handlers retrieve it via r.Context().Value(middleware.SessionContextKey).
+const SessionContextKey = ctxkeys.SessionContextKey
 
 // sessionGetter abstracts session-store lookups to make AuthMiddleware testable
 // without a live database. *security.SessionStore satisfies this interface.
