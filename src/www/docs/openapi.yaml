@@ -299,3 +299,231 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  /api/tickets:
+    post:
+      summary: Vytvoření tiketu
+      description: Vytvoří nový tiket. `author_id` je nastaven automaticky ze session.
+      tags: [Tikety]
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: Krátký název tiketu.
+                  example: Nemohu se přihlásit
+                body:
+                  type: string
+                  description: Podrobný popis problému.
+                  example: Po zadání hesla se nic nestane.
+                status_id:
+                  type: integer
+                  format: int32
+                  nullable: true
+                  description: Volitelné ID stavu tiketu.
+              required: [title, body]
+      responses:
+        "201":
+          description: Tiket byl vytvořen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        "400":
+          description: Neplatné tělo požadavku.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Chybí platná session cookie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "422":
+          description: Chybí povinné pole (`title` nebo `body`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Interní chyba serveru.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: Seznam tiketů
+      description: Vrátí všechny tikety seřazené od nejnovějšího.
+      tags: [Tikety]
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Seznam tiketů (prázdné pole pokud žádné neexistují).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ticket'
+        "401":
+          description: Chybí platná session cookie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Interní chyba serveru.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/tickets/{id}:
+    parameters:
+      - $ref: '#/components/parameters/id'
+
+    get:
+      summary: Detail tiketu
+      tags: [Tikety]
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Tiket nalezen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        "400":
+          description: Neplatné ID (není číslo).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Chybí platná session cookie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Tiket nenalezen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Interní chyba serveru.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      summary: Aktualizace tiketu
+      description: Upraví titul, tělo nebo stav tiketu. Povoleno pouze autorovi tiketu.
+      tags: [Tikety]
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                body:
+                  type: string
+                status_id:
+                  type: integer
+                  format: int32
+                  nullable: true
+      responses:
+        "200":
+          description: Tiket byl upraven.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        "400":
+          description: Neplatné ID nebo tělo požadavku.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Chybí platná session cookie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Přihlášený uživatel není autorem tiketu.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Tiket nenalezen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Interní chyba serveru.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Smazání tiketu
+      description: Smaže tiket. Povoleno pouze autorovi tiketu.
+      tags: [Tikety]
+      security:
+        - cookieAuth: []
+      responses:
+        "204":
+          description: Tiket byl smazán.
+        "400":
+          description: Neplatné ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Chybí platná session cookie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Přihlášený uživatel není autorem tiketu.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Tiket nenalezen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Interní chyba serveru.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
