@@ -8,6 +8,7 @@ import (
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
 	"github.com/StepanKomis/Ticketa/src/config"
 	"github.com/StepanKomis/Ticketa/src/internal/security"
+	"github.com/StepanKomis/Ticketa/src/www"
 	middleware "github.com/StepanKomis/Ticketa/src/www/midleware"
 	"github.com/StepanKomis/Ticketa/src/www/router/handlers"
 
@@ -42,6 +43,14 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 		httpLogger.Fatalf("embed: cannot sub into static/: %s", err)
 	}
 	mux.Handle("/", handlers.NewStaticHandler(sub))
+
+	// Docs — public, no auth
+	docsHandler, err := handlers.NewDocsHandler(www.DocsFiles)
+	if err != nil {
+		httpLogger.Fatalf("docs: cannot create handler: %s", err)
+	}
+	mux.Handle("/docs/", docsHandler)
+	mux.Handle("/docs", http.RedirectHandler("/docs/", http.StatusMovedPermanently))
 
 	// Public routes
 	mux.Handle("POST /api/register", userHandler)
