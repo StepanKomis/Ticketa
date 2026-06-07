@@ -1,0 +1,10 @@
+openapi: "3.0.3"
+info:
+  title: Ticketa API
+  description: Ticketovací systém pro školy.
+  version: "0.1.0"
+servers:
+  - url: /
+    description: Aktuální server
+
+paths: {}
