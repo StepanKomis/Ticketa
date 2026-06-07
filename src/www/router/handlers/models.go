@@ -1,7 +1,118 @@
 package handlers
 
+import "time"
+
+// errorResponse je tvar chybové odpovědi vracené pro všechny HTTP chyby.
 type errorResponse struct {
-	Code   int32  `json:"code"`
-	Status string `json:"status"`
-	Msg    string `json:"msg"`
+	Code   int32  `json:"code" example:"404"`
+	Status string `json:"status" example:"Not Found"`
+	Msg    string `json:"msg" example:"ticket not found"`
+}
+
+// nullInt32 reprezentuje nullable int32 tak jak ho serializuje API.
+// Odpovídá Go typu sql.NullInt32 — valid=false znamená NULL v databázi.
+type nullInt32 struct {
+	Int32 int32 `json:"Int32" example:"1"`
+	Valid bool  `json:"Valid" example:"true"`
+}
+
+// nullString reprezentuje nullable string tak jak ho serializuje API.
+// Odpovídá Go typu sql.NullString — valid=false znamená NULL v databázi.
+type nullString struct {
+	String string `json:"String" example:"Jan"`
+	Valid  bool   `json:"Valid" example:"true"`
+}
+
+// nullTime reprezentuje nullable čas tak jak ho serializuje API.
+// Odpovídá Go typu sql.NullTime — valid=false znamená NULL v databázi.
+type nullTime struct {
+	Time  time.Time `json:"Time" example:"2026-06-07T14:22:55Z"`
+	Valid bool      `json:"Valid" example:"false"`
+}
+
+// ticketResponse je JSON tvar odpovědi pro jeden tiket.
+// StatusID je nullable — valid=false pokud tiket nemá přiřazený stav.
+type ticketResponse struct {
+	ID        int64     `json:"ID" example:"1"`
+	Title     string    `json:"Title" example:"Nemohu se přihlásit"`
+	Body      string    `json:"Body" example:"Po zadání hesla se nic nestane."`
+	CreatedAt time.Time `json:"CreatedAt" example:"2026-06-07T14:22:55Z"`
+	AuthorID  int32     `json:"AuthorID" example:"3"`
+	StatusID  nullInt32 `json:"StatusID"`
+}
+
+// userResponse je JSON tvar odpovědi pro jednoho uživatele.
+// FirstName, LastName a LastLoginAt jsou nullable.
+type userResponse struct {
+	ID          int32      `json:"ID" example:"3"`
+	Email       string     `json:"Email" example:"jan.novak@skola.cz"`
+	FirstName   nullString `json:"FirstName"`
+	LastName    nullString `json:"LastName"`
+	UserType    string     `json:"UserType" example:"student" enums:"student,staff,maintainer"`
+	Provider    string     `json:"Provider" example:"local"`
+	IsActive    bool       `json:"IsActive" example:"true"`
+	CreatedAt   time.Time  `json:"CreatedAt" example:"2026-06-07T12:00:00Z"`
+	LastLoginAt nullTime   `json:"LastLoginAt"`
+}
+
+// ticketStatusResponse je JSON tvar odpovědi pro jeden stav tiketu.
+type ticketStatusResponse struct {
+	ID       int32  `json:"ID" example:"1"`
+	Title    string `json:"Title" example:"Probíhá"`
+	Color    string `json:"Color" example:"#f39c12"`
+	Position int32  `json:"Position" example:"1"`
+}
+
+// configLoggingResponse je konfigurace logování v odpovědi.
+type configLoggingResponse struct {
+	Level string `json:"Level" example:"info" enums:"info,debug"`
+	Dir   string `json:"Dir" example:"/var/log/ticketa"`
+}
+
+// configStatusResponse je jeden stav tiketu v odpovědi na konfiguraci.
+type configStatusResponse struct {
+	Title string `json:"Title" example:"Otevřeno"`
+	Color string `json:"Color" example:"#3498db"`
+}
+
+// configResponse je JSON tvar odpovědi pro celou konfiguraci systému.
+type configResponse struct {
+	Logging        configLoggingResponse  `json:"Logging"`
+	TicketStatuses []configStatusResponse `json:"TicketStatuses"`
+}
+
+// registerRequest jsou parametry pro vytvoření nového lokálního účtu.
+type registerRequest struct {
+	Email     string `json:"email" example:"jan.novak@skola.cz"`
+	Password  string `json:"password" example:"Heslo123!"`
+	UserType  string `json:"user_type" example:"student" enums:"student,staff,maintainer"`
+	FirstName string `json:"first_name" example:"Jan"`
+	LastName  string `json:"last_name" example:"Novák"`
+}
+
+// loginRequest jsou přihlašovací údaje.
+type loginRequest struct {
+	Email    string `json:"email" example:"jan.novak@skola.cz"`
+	Password string `json:"password" example:"Heslo123!"`
+}
+
+// patchConfigRequest je tělo požadavku pro PATCH /api/admin/config.
+// Všechna pole jsou volitelná — uvádějte pouze to, co chcete změnit.
+type patchConfigRequest struct {
+	Logging        *patchLoggingRequest `json:"Logging"`
+	TicketStatuses []patchStatusRequest `json:"TicketStatuses"`
+}
+
+// patchLoggingRequest je volitelná část požadavku pro změnu logování.
+type patchLoggingRequest struct {
+	Level string `json:"Level" example:"debug" enums:"info,debug"`
+	Dir   string `json:"Dir" example:"/var/log/ticketa"`
+}
+
+// patchStatusRequest je jeden stav tiketu v požadavku pro PATCH konfigurace.
+// Pokud je uveden seznam TicketStatuses, musí obsahovat alespoň 3 položky
+// (první = otevřeno, poslední = vyřešeno).
+type patchStatusRequest struct {
+	Title string `json:"Title" example:"Otevřeno"`
+	Color string `json:"Color" example:"#3498db"`
 }
