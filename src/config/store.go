@@ -18,6 +18,9 @@ func NewStore(cfg *Config, path string) *Store {
 	return &Store{cfg: cfg, path: path}
 }
 
+// Path returns the file path the Store persists to.
+func (s *Store) Path() string { return s.path }
+
 // Get returns a copy of the current config. Callers must not mutate the returned value.
 func (s *Store) Get() *Config {
 	s.mu.RLock()
