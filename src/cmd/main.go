@@ -6,16 +6,23 @@ import (
 
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
 	"github.com/StepanKomis/Ticketa/src/cmd/server/startup"
+	"github.com/StepanKomis/Ticketa/src/config"
 )
 
 func main() {
-	l, err := logs.NewLogger("server")
+	cfg, err := config.Load("/config/ticketa.yaml")
 	if err != nil {
 		log.Fatalf("[FATAL] %s", err)
 		os.Exit(1)
 	}
 
-	if err := startup.InitializeServer(l); err != nil {
+	l, err := logs.NewLogger("server", cfg)
+	if err != nil {
+		log.Fatalf("[FATAL] %s", err)
+		os.Exit(1)
+	}
+
+	if err := startup.InitializeServer(l, cfg); err != nil {
 		l.Fatalf("Failed to start server: %s", err)
 	}
 }

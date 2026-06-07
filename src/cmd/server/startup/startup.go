@@ -6,6 +6,7 @@ import (
 
 	"github.com/StepanKomis/Ticketa/src/cmd/server/env"
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
+	"github.com/StepanKomis/Ticketa/src/config"
 	migrate "github.com/StepanKomis/Ticketa/src/database/migrations"
 	psql "github.com/StepanKomis/Ticketa/src/database/postgres"
 	psqlmigrations "github.com/StepanKomis/Ticketa/src/database/postgres/migrations"
@@ -13,7 +14,7 @@ import (
 	"github.com/StepanKomis/Ticketa/src/www/router"
 )
 
-func InitializeServer(l *logs.Logger) error {
+func InitializeServer(l *logs.Logger, cfg *config.Config) error {
 	l.Info("Starting server...")
 	l.Info("Initializing Postgres connection...")
 
@@ -55,7 +56,7 @@ func InitializeServer(l *logs.Logger) error {
 	port := env.Get("SERVER_PORT", "8080")
 	addr := ":" + port
 
-	mux := router.NewRouter(www.StaticFiles, db)
+	mux := router.NewRouter(www.StaticFiles, db, cfg)
 
 	l.Infof("Listening on %s", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {

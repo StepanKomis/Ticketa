@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
+	"github.com/StepanKomis/Ticketa/src/config"
 	"github.com/StepanKomis/Ticketa/src/www/router/handlers"
 )
 
@@ -147,15 +148,16 @@ func userQueryResult(id int64, email string) hdlQueryResult {
 
 func newTestHandler(t *testing.T, db *sql.DB) http.Handler {
 	t.Helper()
-	t.Setenv("LOG_DIR", t.TempDir())
+	cfg := config.Defaults()
+	cfg.Logging.Dir = t.TempDir()
 
-	httpLogger, err := logs.NewLogger("http")
+	httpLogger, err := logs.NewLogger("http", cfg)
 	if err != nil {
 		t.Fatalf("NewLogger: %v", err)
 	}
 	t.Cleanup(func() { httpLogger.Close() })
 
-	h, err := handlers.NewUserHandler(httpLogger, db, nil)
+	h, err := handlers.NewUserHandler(httpLogger, db, nil, cfg)
 	if err != nil {
 		t.Fatalf("NewUserHandler: %v", err)
 	}
