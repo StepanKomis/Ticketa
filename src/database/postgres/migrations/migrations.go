@@ -13,6 +13,12 @@ var up00001 string
 //go:embed up/UP_00002.sql
 var up00002 string
 
+//go:embed up/UP_00003.sql
+var up00003 string
+
+//go:embed up/UP_00004.sql
+var up00004 string
+
 var All = func() []migrate.Migration {
 	ms := []migrate.Migration{
 		{
@@ -37,6 +43,28 @@ var All = func() []migrate.Migration {
 			},
 			Down: func(db any) error {
 				_, err := db.(*sql.DB).Exec(`DROP TABLE IF EXISTS sessions CASCADE;`)
+				return err
+			},
+		},
+		{
+			Name: "create_ticket_statuses",
+			Up: func(db any) error {
+				_, err := db.(*sql.DB).Exec(up00003)
+				return err
+			},
+			Down: func(db any) error {
+				_, err := db.(*sql.DB).Exec(`DROP TABLE IF EXISTS ticket_statuses CASCADE;`)
+				return err
+			},
+		},
+		{
+			Name: "create_tickets",
+			Up: func(db any) error {
+				_, err := db.(*sql.DB).Exec(up00004)
+				return err
+			},
+			Down: func(db any) error {
+				_, err := db.(*sql.DB).Exec(`DROP TABLE IF EXISTS tickets CASCADE;`)
 				return err
 			},
 		},
