@@ -51,6 +51,17 @@ UPDATE users
 SET is_active = FALSE
 WHERE id = $1;
 
+-- name: SetUserIsActive :exec
+UPDATE users
+SET is_active = $2
+WHERE id = $1;
+
+-- name: SetUserType :one
+UPDATE users
+SET user_type = $2
+WHERE id = $1
+RETURNING id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at;
+
 -- name: DeleteUser :exec
 DELETE FROM users
 WHERE id = $1;

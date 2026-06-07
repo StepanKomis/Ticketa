@@ -14,20 +14,26 @@ import (
 	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
 )
 
-func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfg *config.Config) *http.ServeMux {
+func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.ServeMux {
+	cfg := cfgStore.Get()
 	httpLogger, err := logs.NewLogger("http", cfg)
 	if err != nil {
 		panic("failed to create http logger for router: " + err.Error())
 	}
 
 	queries := db.New(sqlDB)
-	store := security.NewSessionStore(queries)
-	auth := middleware.AuthMiddleware(store)
+	sessionStore := security.NewSessionStore(queries)
 
-	userHandler, err := handlers.NewUserHandler(httpLogger, sqlDB, store, cfg)
+	auth := middleware.AuthMiddleware(sessionStore)
+	admin := middleware.MaintainerMiddleware(sessionStore, queries)
+
+	userHandler, err := handlers.NewUserHandler(httpLogger, sqlDB, sessionStore, cfg)
 	if err != nil {
 		httpLogger.Fatalf("Failed to create user handler in router: %s", err)
 	}
+
+	ticketHandler := handlers.NewTicketHandler(queries, httpLogger)
+	adminHandler := handlers.NewAdminHandler(queries, cfgStore, httpLogger)
 
 	mux := http.NewServeMux()
 
@@ -41,9 +47,23 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfg *config.Config) *http.Serve
 	mux.Handle("POST /api/register", userHandler)
 	mux.Handle("POST /api/login", userHandler)
 
-	// Protected routes: wrap handlers with auth
-	// mux.Handle("/api/...", auth(someHandler))
-	_ = auth
+	// Authenticated routes (any active user)
+	mux.Handle("POST /api/tickets", auth(ticketHandler))
+	mux.Handle("GET /api/tickets", auth(ticketHandler))
+	mux.Handle("GET /api/tickets/{id}", auth(ticketHandler))
+	mux.Handle("PUT /api/tickets/{id}", auth(ticketHandler))
+	mux.Handle("DELETE /api/tickets/{id}", auth(ticketHandler))
+
+	// Admin routes (maintainer only)
+	mux.Handle("GET /api/admin/config", admin(adminHandler))
+	mux.Handle("PATCH /api/admin/config", admin(adminHandler))
+	mux.Handle("GET /api/admin/ticket-statuses", admin(adminHandler))
+	mux.Handle("POST /api/admin/ticket-statuses", admin(adminHandler))
+	mux.Handle("PUT /api/admin/ticket-statuses/{id}", admin(adminHandler))
+	mux.Handle("DELETE /api/admin/ticket-statuses/{id}", admin(adminHandler))
+	mux.Handle("GET /api/admin/users", admin(adminHandler))
+	mux.Handle("GET /api/admin/users/{id}", admin(adminHandler))
+	mux.Handle("PATCH /api/admin/users/{id}", admin(adminHandler))
 
 	return mux
 }

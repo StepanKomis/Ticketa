@@ -16,13 +16,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	store := config.NewStore(cfg, "/config/ticketa.yaml")
+
 	l, err := logs.NewLogger("server", cfg)
 	if err != nil {
 		log.Fatalf("[FATAL] %s", err)
 		os.Exit(1)
 	}
 
-	if err := startup.InitializeServer(l, cfg); err != nil {
+	if err := startup.InitializeServer(l, store); err != nil {
 		l.Fatalf("Failed to start server: %s", err)
 	}
 }
