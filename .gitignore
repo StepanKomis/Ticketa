@@ -2,3 +2,4 @@
 build
 src/www/static/*
 !src/www/static/.gitkeep
+config/ticketa.yaml

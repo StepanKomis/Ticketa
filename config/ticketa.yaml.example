@@ -1,0 +1,11 @@
+logging:
+  level: info          # debug | info | warn | error
+  dir: /var/log/ticketa
+
+ticket_statuses:
+  - title: "Otevřeno"
+    color: "#3498db"
+  - title: "Probíhá"
+    color: "#f39c12"
+  - title: "Vyřešeno"
+    color: "#2ecc71"
