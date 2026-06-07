@@ -1,10 +1,204 @@
 openapi: "3.0.3"
 info:
   title: Ticketa API
-  description: Ticketovací systém pro školy.
+  description: Ticketovací systém pro školy. Studenti a zaměstnanci zakládají tikety; správci je spravují a konfigurují nasazení za běhu.
   version: "0.1.0"
 servers:
   - url: /
     description: Aktuální server
+
+components:
+
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: session_token
+      description: Relace uložená v HTTP-only cookie. Nastavuje se přihlášením přes `POST /api/login`.
+
+  parameters:
+    id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      description: Číselný identifikátor záznamu.
+
+  schemas:
+
+    ErrorResponse:
+      type: object
+      description: Standardní chybová odpověď vrácená při všech chybách API.
+      properties:
+        code:
+          type: integer
+          example: 404
+        status:
+          type: string
+          example: Not Found
+        msg:
+          type: string
+          example: ticket not found
+      required: [code, status, msg]
+
+    NullableString:
+      type: object
+      description: Nullable textové pole z PostgreSQL (sql.NullString).
+      properties:
+        String:
+          type: string
+        Valid:
+          type: boolean
+      required: [String, Valid]
+
+    NullableTime:
+      type: object
+      description: Nullable časové razítko z PostgreSQL (sql.NullTime).
+      properties:
+        Time:
+          type: string
+          format: date-time
+        Valid:
+          type: boolean
+      required: [Time, Valid]
+
+    NullableInt32:
+      type: object
+      description: Nullable celé číslo z PostgreSQL (sql.NullInt32).
+      properties:
+        Int32:
+          type: integer
+          format: int32
+        Valid:
+          type: boolean
+      required: [Int32, Valid]
+
+    UserType:
+      type: string
+      enum: [student, staff, maintainer]
+      description: |
+        Typ uživatele určuje jeho oprávnění:
+        - `student` — může zakládat a spravovat vlastní tikety
+        - `staff` — může zakládat a spravovat vlastní tikety
+        - `maintainer` — plný přístup ke správě tiketů, uživatelů a konfigurace
+
+    User:
+      type: object
+      description: Uživatelský účet.
+      properties:
+        ID:
+          type: integer
+          format: int32
+        Email:
+          type: string
+          format: email
+        FirstName:
+          $ref: '#/components/schemas/NullableString'
+        LastName:
+          $ref: '#/components/schemas/NullableString'
+        UserType:
+          $ref: '#/components/schemas/UserType'
+        Provider:
+          type: string
+          description: Způsob přihlášení (`local` pro lokální účty).
+          example: local
+        IsActive:
+          type: boolean
+          description: Neaktivní uživatelé se nemohou přihlásit.
+        CreatedAt:
+          type: string
+          format: date-time
+        LastLoginAt:
+          $ref: '#/components/schemas/NullableTime'
+      required: [ID, Email, FirstName, LastName, UserType, Provider, IsActive, CreatedAt, LastLoginAt]
+
+    Ticket:
+      type: object
+      description: Tiket vytvořený uživatelem.
+      properties:
+        ID:
+          type: integer
+          format: int64
+        Title:
+          type: string
+          description: Krátký název tiketu.
+        Body:
+          type: string
+          description: Podrobný popis problému.
+        CreatedAt:
+          type: string
+          format: date-time
+        AuthorID:
+          type: integer
+          format: int32
+          description: ID autora tiketu.
+        StatusID:
+          $ref: '#/components/schemas/NullableInt32'
+      required: [ID, Title, Body, CreatedAt, AuthorID, StatusID]
+
+    TicketStatus:
+      type: object
+      description: Stav tiketu (např. Otevřeno, Probíhá, Vyřešeno).
+      properties:
+        ID:
+          type: integer
+          format: int32
+        Title:
+          type: string
+          description: Název stavu zobrazovaný uživatelům.
+          example: Probíhá
+        Color:
+          type: string
+          description: Barva stavu ve formátu HEX.
+          pattern: '^#[0-9a-fA-F]{6}$'
+          example: "#f39c12"
+        Position:
+          type: integer
+          format: int32
+          description: Pořadí stavu (0 = první/otevřeno, nejvyšší = vyřešeno).
+      required: [ID, Title, Color, Position]
+
+    LoggingConfig:
+      type: object
+      description: Konfigurace logování.
+      properties:
+        Level:
+          type: string
+          enum: [info, debug]
+          description: Úroveň logování.
+        Dir:
+          type: string
+          description: Adresář pro ukládání log souborů.
+          example: /var/log/ticketa
+      required: [Level, Dir]
+
+    StatusConfig:
+      type: object
+      description: Definice stavu tiketu v konfiguraci YAML.
+      properties:
+        Title:
+          type: string
+          example: Otevřeno
+        Color:
+          type: string
+          pattern: '^#[0-9a-fA-F]{6}$'
+          example: "#3498db"
+      required: [Title, Color]
+
+    Config:
+      type: object
+      description: Běhová konfigurace aplikace.
+      properties:
+        Logging:
+          $ref: '#/components/schemas/LoggingConfig'
+        TicketStatuses:
+          type: array
+          description: Seřazený seznam stavů tiketů (min. 3). První = otevřeno, poslední = vyřešeno.
+          items:
+            $ref: '#/components/schemas/StatusConfig'
+          minItems: 3
+      required: [Logging, TicketStatuses]
 
 paths: {}
