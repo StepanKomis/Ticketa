@@ -5,23 +5,23 @@ import (
 	"sync"
 )
 
-// Store holds the live config in memory and keeps it in sync with the YAML file.
-// All methods are safe for concurrent use.
+// Store udržuje živou konfiguraci v paměti a synchronizuje ji s YAML souborem.
+// Všechny metody jsou bezpečné pro souběžné použití.
 type Store struct {
 	mu   sync.RWMutex
 	cfg  *Config
 	path string
 }
 
-// NewStore wraps cfg (already loaded) and the file path it came from.
+// NewStore obalí cfg (již načtenou) a cestu k souboru ze kterého pochází.
 func NewStore(cfg *Config, path string) *Store {
 	return &Store{cfg: cfg, path: path}
 }
 
-// Path returns the file path the Store persists to.
+// Path vrátí cestu k souboru, do kterého Store persistuje.
 func (s *Store) Path() string { return s.path }
 
-// Get returns a copy of the current config. Callers must not mutate the returned value.
+// Get vrátí kopii aktuální konfigurace. Volající nesmí vrácenou hodnotu měnit.
 func (s *Store) Get() *Config {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -29,9 +29,9 @@ func (s *Store) Get() *Config {
 	return &cp
 }
 
-// Update calls fn with a copy of the current config. If fn returns nil, the
-// result is written to disk and replaces the in-memory config atomically.
-// If fn or the file write fails, the in-memory config is unchanged.
+// Update zavolá fn s kopií aktuální konfigurace. Pokud fn vrátí nil, výsledek
+// je zapsán na disk a atomicky nahradí in-memory konfiguraci.
+// Pokud fn nebo zápis souboru selžou, in-memory konfigurace zůstane nezměněna.
 func (s *Store) Update(fn func(*Config) error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

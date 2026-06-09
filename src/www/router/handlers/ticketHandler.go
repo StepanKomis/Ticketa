@@ -66,15 +66,15 @@ func (h *TicketHandler) create(w http.ResponseWriter, r *http.Request) {
 
 	var body createTicketRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		WriteError(w, http.StatusBadRequest, "invalid request body")
+		WriteError(w, http.StatusBadRequest, "neplatné tělo požadavku")
 		return
 	}
 	if body.Title == "" {
-		WriteError(w, http.StatusUnprocessableEntity, "title is required")
+		WriteError(w, http.StatusUnprocessableEntity, "pole title je povinné")
 		return
 	}
 	if body.Body == "" {
-		WriteError(w, http.StatusUnprocessableEntity, "body is required")
+		WriteError(w, http.StatusUnprocessableEntity, "pole body je povinné")
 		return
 	}
 
@@ -89,7 +89,7 @@ func (h *TicketHandler) create(w http.ResponseWriter, r *http.Request) {
 
 	ticket, err := h.queries.CreateTicket(r.Context(), params)
 	if err != nil {
-		WriteError(w, http.StatusInternalServerError, "could not create ticket")
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se vytvořit tiket")
 		return
 	}
 	writeJSON(w, http.StatusCreated, ticket)
@@ -110,7 +110,7 @@ func (h *TicketHandler) create(w http.ResponseWriter, r *http.Request) {
 func (h *TicketHandler) list(w http.ResponseWriter, r *http.Request) {
 	tickets, err := h.queries.ListTickets(r.Context())
 	if err != nil {
-		WriteError(w, http.StatusInternalServerError, "could not list tickets")
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst tikety")
 		return
 	}
 	if tickets == nil {
@@ -142,10 +142,10 @@ func (h *TicketHandler) get(w http.ResponseWriter, r *http.Request) {
 	ticket, err := h.queries.GetTicket(r.Context(), id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			WriteError(w, http.StatusNotFound, "ticket not found")
+			WriteError(w, http.StatusNotFound, "tiket nenalezen")
 			return
 		}
-		WriteError(w, http.StatusInternalServerError, "could not fetch ticket")
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst tiket")
 		return
 	}
 	writeJSON(w, http.StatusOK, ticket)
@@ -189,21 +189,21 @@ func (h *TicketHandler) update(w http.ResponseWriter, r *http.Request) {
 	existing, err := h.queries.GetTicket(r.Context(), id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			WriteError(w, http.StatusNotFound, "ticket not found")
+			WriteError(w, http.StatusNotFound, "tiket nenalezen")
 			return
 		}
-		WriteError(w, http.StatusInternalServerError, "could not fetch ticket")
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst tiket")
 		return
 	}
 
 	if !canModifyTicket(session, existing) {
-		WriteError(w, http.StatusForbidden, "forbidden")
+		WriteError(w, http.StatusForbidden, "přístup odepřen")
 		return
 	}
 
 	var body updateTicketRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		WriteError(w, http.StatusBadRequest, "invalid request body")
+		WriteError(w, http.StatusBadRequest, "neplatné tělo požadavku")
 		return
 	}
 
@@ -218,7 +218,7 @@ func (h *TicketHandler) update(w http.ResponseWriter, r *http.Request) {
 
 	ticket, err := h.queries.UpdateTicket(r.Context(), params)
 	if err != nil {
-		WriteError(w, http.StatusInternalServerError, "could not update ticket")
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se aktualizovat tiket")
 		return
 	}
 	writeJSON(w, http.StatusOK, ticket)
@@ -252,37 +252,37 @@ func (h *TicketHandler) delete(w http.ResponseWriter, r *http.Request) {
 	existing, err := h.queries.GetTicket(r.Context(), id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			WriteError(w, http.StatusNotFound, "ticket not found")
+			WriteError(w, http.StatusNotFound, "tiket nenalezen")
 			return
 		}
-		WriteError(w, http.StatusInternalServerError, "could not fetch ticket")
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst tiket")
 		return
 	}
 
 	if !canModifyTicket(session, existing) {
-		WriteError(w, http.StatusForbidden, "forbidden")
+		WriteError(w, http.StatusForbidden, "přístup odepřen")
 		return
 	}
 
 	if err := h.queries.DeleteTicket(r.Context(), id); err != nil {
-		WriteError(w, http.StatusInternalServerError, "could not delete ticket")
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se smazat tiket")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// sessionFromContext extracts the validated session from the request context.
-// It writes a 401 and returns false if the session is absent.
+// sessionFromContext načte validovanou session z kontextu požadavku.
+// Zapíše 401 a vrátí false pokud session chybí.
 func sessionFromContext(w http.ResponseWriter, r *http.Request) (db.Session, bool) {
 	v := r.Context().Value(ctxkeys.SessionContextKey)
 	if v == nil {
-		WriteError(w, http.StatusUnauthorized, "unauthorized")
+		WriteError(w, http.StatusUnauthorized, "nepřihlášen")
 		return db.Session{}, false
 	}
 	return v.(db.Session), true
 }
 
-// canModifyTicket returns true when the session user is the ticket author or a maintainer.
+// canModifyTicket vrátí true pokud je uživatel session autorem tiketu nebo maintainerem.
 func canModifyTicket(session db.Session, ticket db.Ticket) bool {
 	return int32(session.UserID) == ticket.AuthorID
 }
@@ -290,7 +290,7 @@ func canModifyTicket(session db.Session, ticket db.Ticket) bool {
 func ticketIDFromPath(w http.ResponseWriter, path string) (int64, bool) {
 	id, ok := pathID(path, "/api/tickets/")
 	if !ok {
-		WriteError(w, http.StatusBadRequest, "invalid ticket id")
+		WriteError(w, http.StatusBadRequest, "neplatné ID tiketu")
 	}
 	return id, ok
 }

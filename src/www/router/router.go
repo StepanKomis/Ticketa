@@ -19,7 +19,7 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	cfg := cfgStore.Get()
 	httpLogger, err := logs.NewLogger("http", cfg)
 	if err != nil {
-		panic("failed to create http logger for router: " + err.Error())
+		panic("nepodařilo se vytvořit http logger pro router: " + err.Error())
 	}
 
 	queries := db.New(sqlDB)
@@ -30,7 +30,7 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 
 	userHandler, err := handlers.NewUserHandler(httpLogger, sqlDB, sessionStore, cfg)
 	if err != nil {
-		httpLogger.Fatalf("Failed to create user handler in router: %s", err)
+		httpLogger.Fatalf("nepodařilo se vytvořit user handler v routeru: %s", err)
 	}
 
 	ticketHandler := handlers.NewTicketHandler(queries, httpLogger)
@@ -40,14 +40,14 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 
 	sub, err := fs.Sub(staticFiles, "static")
 	if err != nil {
-		httpLogger.Fatalf("embed: cannot sub into static/: %s", err)
+		httpLogger.Fatalf("embed: nelze načíst podadresář static/: %s", err)
 	}
 	mux.Handle("/", handlers.NewStaticHandler(sub))
 
 	// Docs — public, no auth
 	docsHandler, err := handlers.NewDocsHandler(www.DocsFiles)
 	if err != nil {
-		httpLogger.Fatalf("docs: cannot create handler: %s", err)
+		httpLogger.Fatalf("docs: nelze vytvořit handler: %s", err)
 	}
 	mux.Handle("/docs/", docsHandler)
 	mux.Handle("/docs", http.RedirectHandler("/docs/", http.StatusMovedPermanently))

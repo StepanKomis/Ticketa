@@ -2,11 +2,11 @@ package migrate
 
 import "fmt"
 
-// MigrateUp applies all migrations with Number greater than the currently applied one.
+// MigrateUp aplikuje všechny migrace s číslem vyšším než aktuálně aplikovaná.
 func (r *Runner) MigrateUp() error {
 	applied, err := r.migrator.Applied()
 	if err != nil {
-		return fmt.Errorf("fetching applied migration number: %w", err)
+		return fmt.Errorf("načítání čísla aplikované migrace: %w", err)
 	}
 
 	for _, m := range r.migrations {

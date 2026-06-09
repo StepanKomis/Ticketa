@@ -8,8 +8,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Save marshals cfg to YAML and atomically replaces the file at path.
-// It writes to a sibling temp file first, then renames to avoid partial writes.
+// Save serializuje cfg do YAML a atomicky nahradí soubor na path.
+// Nejprve zapíše do vedlejšího dočasného souboru, poté přejmenuje, aby se předešlo neúplným zápisům.
 func Save(path string, cfg *Config) error {
 	data, err := yaml.Marshal(cfg)
 	if err != nil {

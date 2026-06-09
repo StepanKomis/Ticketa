@@ -8,9 +8,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Load reads the YAML config at path (if present) on top of Defaults.
-// If the file does not exist the defaults are returned without error.
-// The LOG_LEVEL env var overrides the logging level from the file.
+// Load načte YAML konfiguraci na path (pokud existuje) a překryje ji přes Defaults.
+// Pokud soubor neexistuje, vrátí výchozí hodnoty bez chyby.
+// Proměnná prostředí LOG_LEVEL přepisuje úroveň logování ze souboru.
 func Load(path string) (*Config, error) {
 	cfg := Defaults()
 

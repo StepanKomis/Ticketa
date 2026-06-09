@@ -18,58 +18,54 @@ import (
 )
 
 func InitializeServer(l *logs.Logger, cfgStore *config.Store) error {
-	l.Info("Starting server...")
-	l.Info("Initializing Postgres connection...")
+	l.Info("Spouštění serveru...")
+	l.Info("Inicializace připojení k Postgres...")
 
-	// Initializes Postgres connection
 	err := psql.Init()
 	if err != nil {
-		return fmt.Errorf("Error initializing first Postgres connection: %s", err.Error())
+		return fmt.Errorf("chyba inicializace prvního připojení k Postgres: %s", err.Error())
 	}
 
 	db, err := psql.GetNewConnection()
 	if err != nil {
-		return fmt.Errorf(
-			"Error during creation of new database connection whileinitializing the server: %s",
-			err,
-		)
+		return fmt.Errorf("chyba vytváření databázového připojení při inicializaci serveru: %s", err)
 	}
 
-	l.Info("Postgres connection successful.")
+	l.Info("Připojení k Postgres úspěšné.")
 
-	l.Info("Initializing migrations...")
+	l.Info("Inicializace migrací...")
 
 	migrator, err := psql.NewMigrator()
 	if err != nil {
-		return fmt.Errorf("Error creating migrator: %s", err.Error())
+		return fmt.Errorf("chyba vytváření migratoru: %s", err.Error())
 	}
 
 	if err := migrator.Init(); err != nil {
-		return fmt.Errorf("Error initializing migrations: %s", err.Error())
+		return fmt.Errorf("chyba inicializace migrací: %s", err.Error())
 	}
 
 	runner := migrate.NewRunner(migrator, psqlmigrations.All)
 
 	if err := runner.MigrateUp(); err != nil {
-		return fmt.Errorf("Error running migrations: %s", err.Error())
+		return fmt.Errorf("chyba spouštění migrací: %s", err.Error())
 	}
 
-	l.Info("Migrations complete.")
+	l.Info("Migrace dokončeny.")
 
-	l.Info("Seeding ticket statuses from config...")
+	l.Info("Seedování stavů tiketů z konfigurace...")
 	if err := statuses.Seed(context.Background(), dbq.New(db), cfgStore.Get().TicketStatuses); err != nil {
-		return fmt.Errorf("seed ticket statuses: %w", err)
+		return fmt.Errorf("seedování stavů tiketů: %w", err)
 	}
-	l.Info("Ticket statuses seeded.")
+	l.Info("Stavy tiketů seedovány.")
 
 	port := env.Get("SERVER_PORT", "8080")
 	addr := ":" + port
 
 	mux := router.NewRouter(www.StaticFiles, db, cfgStore)
 
-	l.Infof("Listening on %s", addr)
+	l.Infof("Nasloucháno na %s", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
-		return fmt.Errorf("HTTP server error: %s", err.Error())
+		return fmt.Errorf("chyba HTTP serveru: %s", err.Error())
 	}
 
 	return nil

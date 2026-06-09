@@ -28,8 +28,8 @@ func NewSessionStore(q *db.Queries) *SessionStore {
 	return &SessionStore{queries: q}
 }
 
-// Create issues a new session for the user. If one already exists (unique constraint
-// on user_id), the existing row is regenerated with a fresh token and expiry.
+// Create vytvoří novou session pro uživatele. Pokud již existuje (unikátní constraint
+// na user_id), existující řádek se přegeneruje s novým tokenem a expirací.
 func (s *SessionStore) Create(ctx context.Context, userID int64, r *http.Request) (db.Session, error) {
 	token, err := generateToken()
 	if err != nil {
@@ -62,8 +62,8 @@ func (s *SessionStore) Create(ctx context.Context, userID int64, r *http.Request
 	return session, nil
 }
 
-// GetByToken validates the token and bumps last_seen_at atomically.
-// Returns sql.ErrNoRows if the token is missing, expired, or soft-deleted.
+// GetByToken ověří token a atomicky aktualizuje last_seen_at.
+// Vrátí sql.ErrNoRows pokud token chybí, vypršel nebo byl soft-smazán.
 func (s *SessionStore) GetByToken(ctx context.Context, token string) (db.Session, error) {
 	return s.queries.GetSessionByToken(ctx, token)
 }

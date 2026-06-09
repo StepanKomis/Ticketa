@@ -16,15 +16,15 @@ type Logger struct {
 	level  string
 }
 
-// NewLogger creates a logger that writes to stdout and a file under cfg.Logging.Dir.
-// prefix should be lowercase and without [].
+// NewLogger vytvoří logger zapisující na stdout a do souboru v cfg.Logging.Dir.
+// prefix musí být malými písmeny a bez [].
 func NewLogger(prefix string, cfg *config.Config) (*Logger, error) {
 	logPrefix := "[" + strings.ToUpper(prefix) + "] "
 
 	filePath := fmt.Sprintf("%s/%s.log", cfg.Logging.Dir, prefix)
 	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open log file: %w", err)
+		return nil, fmt.Errorf("nepodařilo se otevřít soubor logu: %w", err)
 	}
 
 	return &Logger{

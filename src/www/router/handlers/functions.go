@@ -5,9 +5,8 @@ import (
 	"net/http"
 )
 
-// writeError writes a JSON error body with the shape
+// WriteError zapíše JSON chybovou odpověď ve tvaru
 // {"code": <int32>, "status": "<text>", "msg": "<msg>"}.
-// It mirrors the signature of http.Error so call sites read the same way.
 func WriteError(w http.ResponseWriter, code int, msg string) {
 	body, err := json.Marshal(errorResponse{
 		Code:   int32(code),
@@ -25,5 +24,5 @@ func WriteError(w http.ResponseWriter, code int, msg string) {
 }
 
 func defaultResponse(w http.ResponseWriter) {
-	WriteError(w, http.StatusMethodNotAllowed, "method not allowed")
+	WriteError(w, http.StatusMethodNotAllowed, "metoda není povolena")
 }

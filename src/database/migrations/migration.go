@@ -2,8 +2,8 @@ package migrate
 
 import "sort"
 
-// Migration represents a single schema change unit. Up and Down receive the
-// backend's native connection (e.g. *sql.DB for Postgres) cast as any.
+// Migration představuje jednu jednotku změny schématu. Up a Down obdrží nativní
+// připojení backendu (např. *sql.DB pro Postgres) jako typ any.
 type Migration struct {
 	Number int
 	Name   string
@@ -11,25 +11,25 @@ type Migration struct {
 	Down   func(db any) error
 }
 
-// Migrator is the interface any database backend must satisfy.
+// Migrator je rozhraní, které musí implementovat každý databázový backend.
 type Migrator interface {
-	// Init bootstraps migration tracking infrastructure and records migration 0.
+	// Init inicializuje infrastrukturu pro sledování migrací a zaznamená migraci 0.
 	Init() error
-	// Applied returns the highest migration number that has been recorded.
+	// Applied vrátí nejvyšší zaznamenané číslo migrace.
 	Applied() (int, error)
-	// Up applies a migration and records it.
+	// Up aplikuje migraci a zaznamená ji.
 	Up(m Migration) error
-	// Down rolls back a migration and removes its record.
+	// Down vrátí zpět migraci a odstraní její záznam.
 	Down(m Migration) error
 }
 
-// Runner executes ordered migrations against a Migrator backend.
+// Runner spouští seřazené migrace vůči Migrator backendu.
 type Runner struct {
 	migrator   Migrator
 	migrations []Migration
 }
 
-// NewRunner creates a Runner with migrations sorted ascending by Number.
+// NewRunner vytvoří Runner s migracemi seřazenými vzestupně podle Number.
 func NewRunner(migrator Migrator, migrations []Migration) *Runner {
 	sorted := make([]Migration, len(migrations))
 	copy(sorted, migrations)

@@ -35,7 +35,7 @@ func NewUserHandler(httpLogger *logs.Logger, db *sql.DB, store *security.Session
 	var err error
 	uh.userLogger, err = logs.NewLogger("user", cfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create user logger for user handler: %w", err)
+		return nil, fmt.Errorf("nepodařilo se vytvořit logger pro userHandler: %w", err)
 	}
 
 	return uh, nil
@@ -55,45 +55,45 @@ func NewUserHandler(httpLogger *logs.Logger, db *sql.DB, store *security.Session
 // @Failure      500   {object}  errorResponse         "Interní chyba (např. duplicitní e-mail)"
 // @Router       /api/register [post]
 func (uh *UserHandler) register(w http.ResponseWriter, r *http.Request) {
-	uh.httpLogger.Debugf("POST /api/register from %s", r.RemoteAddr)
+	uh.httpLogger.Debugf("POST /api/register od %s", r.RemoteAddr)
 
 	var body userregistration.RegistrationRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		uh.httpLogger.Debugf("error decoding registration request body: %s", err)
-		WriteError(w, http.StatusBadRequest, "invalid request body")
+		uh.httpLogger.Debugf("chyba dekódování těla požadavku registrace: %s", err)
+		WriteError(w, http.StatusBadRequest, "neplatné tělo požadavku")
 		return
 	}
 
-	uh.httpLogger.Debugf("registration request decoded: email=%s user_type=%s first_name=%s last_name=%s",
+	uh.httpLogger.Debugf("tělo požadavku registrace dekódováno: email=%s user_type=%s first_name=%s last_name=%s",
 		body.Email, body.UserType, body.FirstName, body.LastName)
 
 	err := userregistration.ValidatePassword(body.Password)
 	if err != nil {
-		uh.httpLogger.Debugf("password validation failed for %s: %s", body.Email, err)
+		uh.httpLogger.Debugf("validace hesla selhala pro %s: %s", body.Email, err)
 		WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	userID, err := userregistration.RegisterNewLocalUser(body, uh.db)
 	if err != nil {
-		uh.httpLogger.Debugf("registration failed for %s: %s", body.Email, err)
+		uh.httpLogger.Debugf("registrace selhala pro %s: %s", body.Email, err)
 		if errors.Is(err, userregistration.ErrInvalidUserType) {
 			WriteError(w, http.StatusBadRequest, err.Error())
 		} else {
-			WriteError(w, http.StatusInternalServerError, "failed to register user")
+			WriteError(w, http.StatusInternalServerError, "nepodařilo se registrovat uživatele")
 		}
 		return
 	}
 
-	uh.httpLogger.Debugf("user registered successfully: id=%d email=%s user_type=%s", userID, body.Email, body.UserType)
+	uh.httpLogger.Debugf("uživatel úspěšně zaregistrován: id=%d email=%s user_type=%s", userID, body.Email, body.UserType)
 
 	res := registrationResponse{ID: userID}
 
 	jsonRes, err := json.Marshal(res)
 	if err != nil {
-		uh.httpLogger.Debugf("error marshalling registration response for user %s: %s", body.Email, err)
-		WriteError(w, http.StatusInternalServerError, "internal server error")
+		uh.httpLogger.Debugf("chyba serializace odpovědi registrace pro uživatele %s: %s", body.Email, err)
+		WriteError(w, http.StatusInternalServerError, "interní chyba serveru")
 		return
 	}
 
@@ -116,20 +116,20 @@ func (uh *UserHandler) register(w http.ResponseWriter, r *http.Request) {
 // @Failure      401   {object}  errorResponse  "Špatné přihlašovací údaje nebo neaktivní účet"
 // @Router       /api/login [post]
 func (uh *UserHandler) login(w http.ResponseWriter, r *http.Request) {
-	uh.httpLogger.Debugf("POST /api/login from %s", r.RemoteAddr)
+	uh.httpLogger.Debugf("POST /api/login od %s", r.RemoteAddr)
 
 	var body login.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		uh.httpLogger.Debugf("error decoding login request body: %s", err)
-		WriteError(w, http.StatusBadRequest, "invalid request body")
+		uh.httpLogger.Debugf("chyba dekódování těla požadavku přihlášení: %s", err)
+		WriteError(w, http.StatusBadRequest, "neplatné tělo požadavku")
 		return
 	}
 
 	q := db.New(uh.db)
 	token, err := body.Validate(q, uh.store, r)
 	if err != nil {
-		uh.httpLogger.Debugf("login failed for %s: %s", body.Email, err)
-		WriteError(w, http.StatusUnauthorized, "invalid credentials")
+		uh.httpLogger.Debugf("přihlášení selhalo pro %s: %s", body.Email, err)
+		WriteError(w, http.StatusUnauthorized, "neplatné přihlašovací údaje")
 		return
 	}
 
@@ -150,7 +150,7 @@ func (uh *UserHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "/api/login":
 		uh.login(w, r)
 	default:
-		uh.httpLogger.Debugf("unhandled path: %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
+		uh.httpLogger.Debugf("neošetřená cesta: %s %s od %s", r.Method, r.URL.Path, r.RemoteAddr)
 		defaultResponse(w)
 	}
 }

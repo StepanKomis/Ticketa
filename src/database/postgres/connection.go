@@ -8,16 +8,16 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// returns sql connection string for postgrese instance, takes values from .env file
+// getPsqlString sestaví připojovací řetězec pro Postgres z proměnných prostředí.
 func getPsqlString() (string, error) {
 	user, err := env.GetNeeded("PG_USER")
 	if err != nil {
-		return "", fmt.Errorf("Environment variable PG_USER: %s", err.Error())
+		return "", fmt.Errorf("proměnná prostředí PG_USER: %s", err.Error())
 	}
 
 	passwd, err := env.GetNeeded("PG_PASSWORD")
 	if err != nil {
-		return "", fmt.Errorf("Environment variable PG_PASSWORD: %s", err.Error())
+		return "", fmt.Errorf("proměnná prostředí PG_PASSWORD: %s", err.Error())
 	}
 
 	return fmt.Sprintf("host=%s port=%s user=%s "+
@@ -25,31 +25,31 @@ func getPsqlString() (string, error) {
 		env.Get("PG_HOST", "database"), env.Get("PG_PORT", "5432"), user, passwd, env.Get("PG_DATABASE", "ticketa")), nil
 }
 
-// Returns *sql.DB connection to postgrese instance and error when something goes wrong
+// GetNewConnection vrátí nové připojení *sql.DB k Postgres instanci.
 func GetNewConnection() (*sql.DB, error) {
 	psqlInfo, err := getPsqlString()
 	if err != nil {
-		return nil, fmt.Errorf("Error creating database connection string: %s", err.Error())
+		return nil, fmt.Errorf("chyba vytváření připojovacího řetězce: %s", err.Error())
 	}
 
 	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
-		return nil, fmt.Errorf("Error when trying to connect to postgrese: %s", err.Error())
+		return nil, fmt.Errorf("chyba při připojování k Postgres: %s", err.Error())
 	}
 
 	return db, nil
 }
 
-// Initializes first connectiont to postgrese and tests if the database is reachable
+// Init inicializuje první připojení k Postgres a ověří dosažitelnost databáze.
 func Init() error {
 	db, err := GetNewConnection()
 	if err != nil {
-		return fmt.Errorf("Error when trying to initialize first postgrese connection: %s", err.Error())
+		return fmt.Errorf("chyba inicializace prvního připojení k Postgres: %s", err.Error())
 	}
 
 	err = db.Ping()
 	if err != nil {
-		return fmt.Errorf("Error pinging database after first connection: %s", err.Error())
+		return fmt.Errorf("chyba ping databáze po prvním připojení: %s", err.Error())
 	}
 
 	db.Close()
