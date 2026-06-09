@@ -1,152 +1,150 @@
 # Ticketa
 
-Ticketing system built for schools. Staff and students submit tickets; maintainers manage them and configure the deployment at runtime.
+Helpdesk pro školy. Studenti a zaměstnanci zakládají tikety, udržovatelé je řeší a celý systém spravují za běhu bez restartu.
 
-## Architecture
+## Architektura
 
-Ticketa is a single binary that serves both the REST API and the compiled React frontend. The frontend ([Ticketa-client](https://github.com/StepanKomis/Ticketa-client)) is cloned and built inside the Docker image — no pre-built assets are committed here. The final image is based on `scratch` and contains only the binary.
+Jedna Go binárka — obsluhuje REST API i zkompilovaný React frontend. Frontend ([Ticketa-client](https://github.com/StepanKomis/Ticketa-client)) se klonuje a builduje přímo v Docker image, žádné předbuilděné assety se do tohoto repozitáře necommitují. Výsledná image je postavená na `scratch` a obsahuje jen samotnou binárku.
 
 ```
-Docker build stages
-  1. frontend-builder  — node:22-alpine  — clones Ticketa-client, runs npm build
-  2. builder           — golang:1.24-alpine — embeds compiled frontend via //go:embed, builds binary
-  3. runtime           — scratch — contains only the statically linked binary
+Fáze Docker buildu
+  1. frontend-builder  — node:22-alpine  — klonuje Ticketa-client, spustí npm build
+  2. builder           — golang:1.24-alpine — vloží frontend přes //go:embed, sestaví binárku
+  3. runtime           — scratch — obsahuje pouze staticky linkovanou binárku
 ```
 
-The database is PostgreSQL. Migrations run automatically at startup; no external migration tool is required.
+Databáze je PostgreSQL. Migrace se spustí automaticky při startu — žádný externí nástroj není potřeba.
 
-## User roles
+## Role uživatelů
 
-| Role | Description |
+| Role | Popis |
 |---|---|
-| `student` | Can create and manage their own tickets |
-| `staff` | Can create and manage their own tickets |
-| `maintainer` | Full access — manages all tickets, users, statuses, and runtime config |
+| `student` | Vytváří a spravuje vlastní tikety |
+| `staff` | Vytváří a spravuje vlastní tikety |
+| `maintainer` | Plný přístup — tikety, uživatelé, stavy, runtime konfigurace |
 
 ## API
 
-Interactive documentation is served at `/docs` once the server is running.
+Živá dokumentace běží na `/docs` hned po spuštění serveru.
 
-Authentication is cookie-based (`session_token`, HTTP-only). Authenticated and admin routes return `401` without a valid session cookie and `403` when the role requirement is not met. All error responses share the same shape:
+Přihlašování funguje přes cookie (`session_token`, HTTP-only). Chráněné endpointy vrátí `401` bez platného cookie, `403` při nedostatečné roli. Všechny chyby mají stejný tvar:
 
 ```json
-{ "code": 404, "status": "Not Found", "msg": "ticket not found" }
+{ "code": 404, "status": "Not Found", "msg": "tiket nenalezen" }
 ```
 
-### Public
-
-No authentication required.
+### Veřejné
 
 #### `POST /api/register`
 
-Create a local account.
+Vytvoří lokální účet.
 
-**Request body**
+**Tělo požadavku**
 
-| Field | Type | Required | Notes |
+| Pole | Typ | Povinné | Poznámky |
 |---|---|---|---|
-| `email` | string | yes | Valid e-mail address |
-| `password` | string | yes | Min. 8 chars, must include uppercase, digit, and special character |
-| `user_type` | string | yes | `student`, `staff`, or `maintainer` |
-| `first_name` | string | no | |
-| `last_name` | string | no | |
+| `email` | string | ano | Platná e-mailová adresa |
+| `password` | string | ano | Min. 8 znaků, musí obsahovat velké písmeno, číslici a speciální znak |
+| `user_type` | string | ano | `student`, `staff` nebo `maintainer` |
+| `first_name` | string | ne | |
+| `last_name` | string | ne | |
 
-**Responses**
+**Odpovědi**
 
-| Status | Description |
+| Status | Popis |
 |---|---|
 | `201` | `{ "id": 42 }` |
-| `400` | Missing field, weak password, or unknown user type |
-| `500` | Internal error (e.g. duplicate e-mail) |
+| `400` | Chybí pole, slabé heslo nebo neznámý typ uživatele |
+| `500` | Interní chyba (např. duplicitní e-mail) |
 
 ---
 
 #### `POST /api/login`
 
-Authenticate and receive a session cookie.
+Přihlásí uživatele a nastaví session cookie.
 
-**Request body**
+**Tělo požadavku**
 
-| Field | Type | Required |
+| Pole | Typ | Povinné |
 |---|---|---|
-| `email` | string | yes |
-| `password` | string | yes |
+| `email` | string | ano |
+| `password` | string | ano |
 
-**Responses**
+**Odpovědi**
 
-| Status | Description |
+| Status | Popis |
 |---|---|
-| `200` | Sets `session_token` HTTP-only cookie (7-day TTL) |
-| `400` | Invalid request body |
-| `401` | Wrong credentials or inactive account |
+| `200` | Nastaví HTTP-only cookie `session_token` platný 7 dní |
+| `400` | Neplatné tělo požadavku |
+| `401` | Špatné přihlašovací údaje nebo neaktivní účet |
 
 ---
 
-### Authenticated (any active user)
+### Přihlášení (libovolný aktivní uživatel)
 
-Requires a valid `session_token` cookie.
+Vyžaduje platný cookie `session_token`.
 
-#### `POST /api/tickets` — Create ticket
+#### `POST /api/tickets` — Vytvoření tiketu
 
-**Request body**
+**Tělo požadavku**
 
-| Field | Type | Required | Notes |
+| Pole | Typ | Povinné | Poznámky |
 |---|---|---|---|
-| `title` | string | yes | Short summary |
-| `body` | string | yes | Full description |
-| `status_id` | integer | no | ID of the initial status |
+| `title` | string | ano | Krátký souhrn |
+| `body` | string | ano | Úplný popis |
+| `status_id` | integer | ne | ID počátečního stavu |
 
-**Responses:** `201` ticket object · `400` bad body · `401` no session · `422` missing title or body · `500`
-
----
-
-#### `GET /api/tickets` — List tickets
-
-Returns all tickets ordered newest first. Empty result returns `[]`.
-
-**Responses:** `200` array of ticket objects · `401` · `500`
+**Odpovědi:** `201` tiket · `400` chybné tělo · `401` chybí session · `422` chybí title nebo body · `500`
 
 ---
 
-#### `GET /api/tickets/{id}` — Get ticket
+#### `GET /api/tickets` — Seznam tiketů
 
-**Responses:** `200` ticket object · `400` bad ID · `401` · `404` not found · `500`
+Vrátí všechny tikety od nejnovějšího. Prázdný seznam vrátí `[]`.
 
----
-
-#### `PUT /api/tickets/{id}` — Update ticket
-
-Only the author can update. All fields are optional in the body.
-
-**Request body:** `title`, `body`, `status_id` (all optional)
-
-**Responses:** `200` updated ticket · `400` · `401` · `403` not the author · `404` · `500`
+**Odpovědi:** `200` pole tiketů · `401` · `500`
 
 ---
 
-#### `DELETE /api/tickets/{id}` — Delete ticket
+#### `GET /api/tickets/{id}` — Detail tiketu
 
-Only the author can delete.
-
-**Responses:** `204` deleted · `400` · `401` · `403` not the author · `404` · `500`
+**Odpovědi:** `200` tiket · `400` chybné ID · `401` · `404` · `500`
 
 ---
 
-### Admin (maintainer only)
+#### `PUT /api/tickets/{id}` — Úprava tiketu
 
-Requires a valid `session_token` cookie **and** `user_type = maintainer`.
+Upravovat může jen autor. Všechna pole jsou volitelná.
 
-#### `GET /api/admin/config` — Get runtime config
+**Tělo požadavku:** `title`, `body`, `status_id` (vše volitelné)
 
-**Responses:** `200` config object · `401` · `403`
+**Odpovědi:** `200` tiket · `400` · `401` · `403` nejste autor · `404` · `500`
 
 ---
 
-#### `PATCH /api/admin/config` — Update runtime config
+#### `DELETE /api/tickets/{id}` — Smazání tiketu
 
-Changes are written atomically to `/config/ticketa.yaml` on the host and take effect immediately without a restart. Providing `ticket_statuses` requires at least 3 entries.
+Smazat může jen autor.
 
-**Request body (all optional)**
+**Odpovědi:** `204` · `400` · `401` · `403` nejste autor · `404` · `500`
+
+---
+
+### Admin (jen maintainer)
+
+Vyžaduje platný cookie `session_token` **a** `user_type = maintainer`.
+
+#### `GET /api/admin/config` — Aktuální konfigurace
+
+**Odpovědi:** `200` konfigurace · `401` · `403`
+
+---
+
+#### `PATCH /api/admin/config` — Změna konfigurace
+
+Změny se zapíší atomicky do `/config/ticketa.yaml` a projeví se okamžitě. Pokud posíláte `ticket_statuses`, musí mít aspoň 3 položky.
+
+**Tělo požadavku (vše volitelné)**
 
 ```json
 {
@@ -159,80 +157,80 @@ Changes are written atomically to `/config/ticketa.yaml` on the host and take ef
 }
 ```
 
-**Responses:** `200` updated config · `400` bad body or disk write failure · `401` · `403`
+**Odpovědi:** `200` konfigurace · `400` chybné tělo nebo chyba zápisu · `401` · `403`
 
 ---
 
-#### `GET /api/admin/ticket-statuses` — List statuses
+#### `GET /api/admin/ticket-statuses` — Seznam stavů
 
-Returns statuses ordered by position. Empty result returns `[]`.
+Seřazeno podle pozice. Prázdný seznam vrátí `[]`.
 
-**Responses:** `200` array · `401` · `403` · `500`
+**Odpovědi:** `200` pole · `401` · `403` · `500`
 
 ---
 
-#### `POST /api/admin/ticket-statuses` — Create status
+#### `POST /api/admin/ticket-statuses` — Nový stav
 
-Also appends the new status to the YAML config.
+Nový stav se automaticky přidá i do YAML konfigurace.
 
-**Request body**
+**Tělo požadavku**
 
-| Field | Type | Required | Notes |
+| Pole | Typ | Povinné | Poznámky |
 |---|---|---|---|
-| `title` | string | yes | |
-| `color` | string | no | HEX format, e.g. `#9b59b6`. Defaults to `#808080` |
-| `position` | integer | no | Must be unique |
+| `title` | string | ano | |
+| `color` | string | ne | HEX formát, např. `#9b59b6`. Výchozí `#808080` |
+| `position` | integer | ne | Musí být unikátní |
 
-**Responses:** `201` status object · `400` · `401` · `403` · `422` missing title · `500`
-
----
-
-#### `PUT /api/admin/ticket-statuses/{id}` — Update status
-
-Syncs change to YAML config.
-
-**Request body:** `title`, `color` (both optional)
-
-**Responses:** `200` updated status · `400` · `401` · `403` · `404` · `500`
+**Odpovědi:** `201` stav · `400` · `401` · `403` · `422` chybí title · `500`
 
 ---
 
-#### `DELETE /api/admin/ticket-statuses/{id}` — Delete status
+#### `PUT /api/admin/ticket-statuses/{id}` — Úprava stavu
 
-Tickets referencing this status will have `status_id` set to `null`. YAML config is synced.
+Změna se synchronizuje do YAML konfigurace.
 
-**Responses:** `204` · `400` · `401` · `403` · `500`
+**Tělo požadavku:** `title`, `color` (obojí volitelné)
 
----
-
-#### `GET /api/admin/users` — List users
-
-**Responses:** `200` array of user objects · `401` · `403` · `500`
+**Odpovědi:** `200` stav · `400` · `401` · `403` · `404` · `500`
 
 ---
 
-#### `GET /api/admin/users/{id}` — Get user
+#### `DELETE /api/admin/ticket-statuses/{id}` — Smazání stavu
 
-**Responses:** `200` user object · `400` · `401` · `403` · `404` · `500`
+Tikety s tímto stavem budou mít `status_id` nastaveno na `null`. YAML se synchronizuje automaticky.
+
+**Odpovědi:** `204` · `400` · `401` · `403` · `500`
 
 ---
 
-#### `PATCH /api/admin/users/{id}` — Update user
+#### `GET /api/admin/users` — Seznam uživatelů
 
-**Request body (all optional)**
+**Odpovědi:** `200` pole uživatelů · `401` · `403` · `500`
 
-| Field | Type | Notes |
+---
+
+#### `GET /api/admin/users/{id}` — Detail uživatele
+
+**Odpovědi:** `200` uživatel · `400` · `401` · `403` · `404` · `500`
+
+---
+
+#### `PATCH /api/admin/users/{id}` — Úprava uživatele
+
+**Tělo požadavku (vše volitelné)**
+
+| Pole | Typ | Poznámky |
 |---|---|---|
-| `is_active` | boolean | Inactive users cannot log in |
-| `user_type` | string | `student`, `staff`, or `maintainer` |
+| `is_active` | boolean | Neaktivní uživatelé se nepřihlásí |
+| `user_type` | string | `student`, `staff` nebo `maintainer` |
 
-**Responses:** `200` updated user · `400` · `401` · `403` · `404` · `500`
+**Odpovědi:** `200` uživatel · `400` · `401` · `403` · `404` · `500`
 
 ---
 
-### Data shapes
+### Datové struktury
 
-**Ticket**
+**Tiket**
 ```json
 {
   "ID": 1,
@@ -244,12 +242,12 @@ Tickets referencing this status will have `status_id` set to `null`. YAML config
 }
 ```
 
-**TicketStatus**
+**Stav tiketu**
 ```json
 { "ID": 1, "Title": "Probíhá", "Color": "#f39c12", "Position": 1 }
 ```
 
-**User**
+**Uživatel**
 ```json
 {
   "ID": 3,
@@ -264,7 +262,7 @@ Tickets referencing this status will have `status_id` set to `null`. YAML config
 }
 ```
 
-**Config**
+**Konfigurace**
 ```json
 {
   "Logging": { "Level": "info", "Dir": "/var/log/ticketa" },
@@ -276,31 +274,29 @@ Tickets referencing this status will have `status_id` set to `null`. YAML config
 }
 ```
 
-## Configuration
+## Konfigurace
 
-Configuration is split into two layers:
+Konfigurace jsou ve dvou souborech:
 
-### `.env` — secrets and infrastructure
-
-Copy `.env.example` and fill in your values:
+### `.env` — přístupy a infrastruktura
 
 ```shell
 cp .env.example .env
 ```
 
-| Variable | Default | Description |
+| Proměnná | Výchozí | Popis |
 |---|---|---|
-| `PG_HOST` | `database` | Postgres hostname |
-| `PG_PORT` | `5432` | Postgres port |
-| `PG_USER` | — | Postgres user (required) |
-| `PG_PASSWORD` | — | Postgres password (required) |
-| `PG_DATABASE` | `ticketa` | Postgres database name |
-| `SERVER_PORT` | `8080` | HTTP port the server listens on |
-| `LOG_LEVEL` | `info` | Overrides the log level from YAML (`info` or `debug`) |
+| `PG_HOST` | `database` | Hostname Postgres |
+| `PG_PORT` | `5432` | Port Postgres |
+| `PG_USER` | — | Uživatel Postgres (povinné) |
+| `PG_PASSWORD` | — | Heslo Postgres (povinné) |
+| `PG_DATABASE` | `ticketa` | Název databáze |
+| `SERVER_PORT` | `8080` | HTTP port serveru |
+| `LOG_LEVEL` | `info` | Přepíše úroveň logování z YAML (`info` nebo `debug`) |
 
-### `config/ticketa.yaml` — runtime config
+### `config/ticketa.yaml` — runtime nastavení
 
-Controls logging and ticket statuses. The file is volume-mounted from the host so changes written via the admin API persist through container restarts.
+Logování a stavy tiketů. Soubor je volume-mountován z hostu, takže změny provedené přes admin API přežijí restart kontejneru.
 
 ```shell
 cp config/ticketa.yaml.example config/ticketa.yaml
@@ -320,93 +316,93 @@ ticket_statuses:
     color: "#2ecc71"
 ```
 
-Rules for `ticket_statuses`:
-- Minimum three statuses required
-- First = open state, last = resolved state, any middle = in-progress
-- Order in the array determines the `position` stored in the database
-- Changes via `PATCH /api/admin/config` are written back to this file automatically
+Pár pravidel pro `ticket_statuses`:
+- Minimum jsou tři stavy
+- První = otevřeno, poslední = vyřešeno, prostřední = cokoliv mezitím
+- Pořadí v poli se uloží jako `position` v databázi
+- Změny přes `PATCH /api/admin/config` se automaticky zapíší zpět do souboru
 
-## Deployment
+## Nasazení
 
 ```shell
 git clone https://github.com/StepanKomis/Ticketa.git
 cd Ticketa
 cp .env.example .env
 cp config/ticketa.yaml.example config/ticketa.yaml
-# edit both files with your values
+# doplňte hodnoty v obou souborech
 make docker-build
 make deploy
 ```
 
-The app is available at `http://localhost:8080` once the containers are healthy. Interactive API docs are at `http://localhost:8080/docs`.
+Aplikace běží na `http://localhost:8080`, API dokumentace je na `http://localhost:8080/docs`.
 
-## Development
+## Vývoj
 
-Requirements: Go 1.24+, Docker, `sqlc` (for query regeneration).
+Potřebujete: Go 1.24+, Docker, `sqlc` (pro regeneraci dotazů).
 
 ```shell
-# Start only the database
+# jen databáze
 docker compose up -d database
 
-# Build and run locally (frontend not embedded)
+# sestavit a spustit lokálně (bez frontendu)
 make build
 ./build/ticketa
 
-# Full local build including frontend
+# kompletní sestavení včetně frontendu
 make build-full
 ./build/ticketa
 ```
 
-## Make targets
+## Make cíle
 
-| Target | Description |
+| Cíl | Popis |
 |---|---|
-| `build` | Compile Go binary to `./build/ticketa` |
-| `build-frontend` | Clone Ticketa-client, build it, copy `dist/` into the embed directory |
-| `build-full` | `build-frontend` + `build` — full local build including the frontend |
-| `run-local` | Start database via Docker, then run the local binary |
-| `docker-build` | Build Docker image (with layer cache) |
-| `docker-build-nc` | Build Docker image without cache |
-| `deploy` | Start all services via `docker compose up -d` |
-| `test` | Run the Go test suite |
-| `sqlc` | Regenerate database query code via sqlc |
-| `swagger-ui` | Download pinned Swagger UI dist assets into `src/www/docs/` |
-| `swag` | Regenerate `swagger.yaml` from swag annotations in handler source files |
-| `clean` | Remove `./build` and the frontend embed directory |
+| `build` | Zkompiluje Go binárku do `./build/ticketa` |
+| `build-frontend` | Klonuje Ticketa-client, sestaví ho a zkopíruje `dist/` do embed adresáře |
+| `build-full` | `build-frontend` + `build` |
+| `run-local` | Spustí databázi přes Docker a pak lokální binárku |
+| `docker-build` | Sestaví Docker image (s cache) |
+| `docker-build-nc` | Sestaví Docker image bez cache |
+| `deploy` | `docker compose up -d` |
+| `test` | Spustí testy |
+| `sqlc` | Regeneruje kód dotazů přes sqlc |
+| `swagger-ui` | Stáhne Swagger UI assety do `src/www/docs/` |
+| `swag` | Regeneruje `swagger.yaml` ze swag anotací v handlerech |
+| `clean` | Smaže `./build` a embed adresář frontendu |
 
-## Database
+## Databáze
 
-Migrations are embedded in the binary and run automatically on startup. The schema includes:
+Migrace jsou součástí binárky a spustí se automaticky. Schéma:
 
-- `users` — accounts with role (`student`, `staff`, `maintainer`) and active flag
-- `sessions` — HTTP-only cookie sessions with expiry
-- `ticket_statuses` — ordered list of statuses (position-aware, synced with YAML config)
-- `tickets` — support tickets with title, body, author reference, and optional status
+- `users` — účty s rolí (`student`, `staff`, `maintainer`) a příznakem aktivity
+- `sessions` — HTTP-only cookie sessions s expirací
+- `ticket_statuses` — seřazený seznam stavů synchronizovaný s YAML konfigurací
+- `tickets` — tikety s nadpisem, popisem, autorem a volitelným stavem
 
-## Project structure
+## Struktura projektu
 
 ```
 config/
-  ticketa.yaml.example     runtime config template
+  ticketa.yaml.example     šablona runtime konfigurace
 src/
   cmd/
-    main.go                entrypoint — loads config, starts server
+    main.go                vstupní bod — načte konfiguraci, spustí server
     server/
-      logs/                structured file logger
-      startup/             server bootstrap (DB connect, migrate, listen)
-  config/                  YAML config types, loader, atomic writer, thread-safe Store
+      logs/                file logger
+      startup/             připojení k DB, migrace, start HTTP serveru
+  config/                  YAML typy, loader, atomický writer, thread-safe Store
   database/postgres/
-    migrations/            embedded SQL migrations (UP_000N.sql)
-    queries/               sqlc-generated type-safe query functions
+    migrations/            vložené SQL migrace (UP_000N.sql)
+    queries/               sqlc-generované dotazy
   internal/
-    ctxkeys/               shared context key types (avoids import cycles)
-    security/              session store, token generation, cookie helpers
+    ctxkeys/               sdílené klíče kontextu (zamezuje cyklickým importům)
+    security/              session store, generování tokenů, cookie helpers
   www/
-    docs/                  embedded Swagger UI assets + swagger.yaml (generováno přes make swag)
+    docs/                  Swagger UI assety + swagger.yaml (generováno přes make swag)
     midleware/             AuthMiddleware, MaintainerMiddleware
     router/
       handlers/            UserHandler, TicketHandler, AdminHandler, StaticHandler, DocsHandler
-      router.go            route registration
-    embed.go               //go:embed for static frontend assets
-    docs_embed.go          //go:embed for Swagger UI assets
+      router.go            registrace routes
+    embed.go               //go:embed pro frontend assety
+    docs_embed.go          //go:embed pro Swagger UI assety
 ```

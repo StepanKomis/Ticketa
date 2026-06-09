@@ -8,27 +8,27 @@ import (
 
 const bcryptCost = 12
 
-// HashPassword hashes a plaintext password using bcrypt.
-// Returns the hashed password as a string or an error.
+// HashPassword zahashuje plaintext heslo pomocí bcrypt.
+// Vrátí zahashované heslo jako řetězec nebo chybu.
 func HashPassword(rawPassword string) (string, error) {
 	if rawPassword == "" {
-		return "", fmt.Errorf("password must not be empty")
+		return "", fmt.Errorf("heslo nesmí být prázdné")
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(rawPassword), bcryptCost)
 	if err != nil {
-		return "", fmt.Errorf("failed to hash password: %w", err)
+		return "", fmt.Errorf("nepodařilo se zahashovat heslo: %w", err)
 	}
 
 	return string(hash), nil
 }
 
-// CheckPassword compares a plaintext password against a bcrypt hash.
-// Returns nil on match, error on mismatch or failure.
+// CheckPassword porovná plaintext heslo s bcrypt hashem.
+// Vrátí nil při shodě, chybu při neshodě nebo selhání.
 func CheckPassword(rawPassword, hashedPassword string) error {
 	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(rawPassword))
 	if err != nil {
-		return fmt.Errorf("password does not match: %w", err)
+		return fmt.Errorf("heslo se neshoduje: %w", err)
 	}
 
 	return nil

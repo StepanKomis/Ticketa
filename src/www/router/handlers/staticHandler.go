@@ -24,7 +24,7 @@ func (h *StaticHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	f, err := h.fs.Open(path)
 	if err != nil {
-		// Unknown path — let the SPA router handle it
+		// Neznámá cesta — předáme SPA routeru
 		r2 := r.Clone(r.Context())
 		r2.URL.Path = "/"
 		http.FileServer(h.fs).ServeHTTP(w, r2)

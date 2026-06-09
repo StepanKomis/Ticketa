@@ -39,7 +39,7 @@ func TestNewLogger_ErrorWrapped(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for invalid prefix")
 	}
-	if !strings.Contains(err.Error(), "failed to open log file") {
+	if !strings.Contains(err.Error(), "nepodařilo se otevřít soubor logu") {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }

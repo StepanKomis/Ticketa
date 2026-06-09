@@ -9,16 +9,16 @@ import (
 	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
 )
 
-// upserter is the subset of db.Queries needed by Seed.
-// db.Queries satisfies this interface automatically.
+// upserter je podmnožina db.Queries potřebná pro Seed.
+// db.Queries toto rozhraní implementuje automaticky.
 type upserter interface {
 	UpsertTicketStatusByPosition(ctx context.Context, arg db.UpsertTicketStatusByPositionParams) (db.TicketStatus, error)
 }
 
-// Seed upserts ticket statuses from config into the database.
-// Position is the zero-based slice index (0 = open state, last = solved state).
-// The upsert is idempotent — re-running with the same config is safe.
-// Empty Color fields receive a random CSS hex value.
+// Seed upsertuje stavy tiketů z konfigurace do databáze.
+// Position je nulově indexovaný index v poli (0 = otevřeno, poslední = vyřešeno).
+// Upsert je idempotentní — opakované spuštění se stejnou konfigurací je bezpečné.
+// Prázdná pole Color obdrží náhodnou CSS hex hodnotu.
 func Seed(ctx context.Context, q upserter, statuses []config.StatusConfig) error {
 	if len(statuses) < 3 {
 		return fmt.Errorf("statuses: at least 3 ticket statuses required, got %d", len(statuses))

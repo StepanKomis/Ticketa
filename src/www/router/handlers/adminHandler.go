@@ -50,7 +50,7 @@ func (h *AdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// matchesIDPath returns true when path starts with prefix and has a non-empty suffix.
+// matchesIDPath vrátí true pokud cesta začíná prefixem a má neprázdný suffix.
 func matchesIDPath(path, prefix string) bool {
 	return len(path) > len(prefix) && path[:len(prefix)] == prefix
 }
@@ -98,7 +98,7 @@ func (h *AdminHandler) getConfig(w http.ResponseWriter, r *http.Request) {
 func (h *AdminHandler) patchConfig(w http.ResponseWriter, r *http.Request) {
 	var patch config.Config
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
-		WriteError(w, http.StatusBadRequest, "invalid request body")
+		WriteError(w, http.StatusBadRequest, "neplatné tělo požadavku")
 		return
 	}
 
@@ -139,7 +139,7 @@ func (h *AdminHandler) patchConfig(w http.ResponseWriter, r *http.Request) {
 func (h *AdminHandler) listStatuses(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.queries.ListTicketStatuses(r.Context())
 	if err != nil {
-		WriteError(w, http.StatusInternalServerError, "could not list statuses")
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst stavy")
 		return
 	}
 	if rows == nil {
@@ -174,11 +174,11 @@ type createStatusRequest struct {
 func (h *AdminHandler) createStatus(w http.ResponseWriter, r *http.Request) {
 	var body createStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		WriteError(w, http.StatusBadRequest, "invalid request body")
+		WriteError(w, http.StatusBadRequest, "neplatné tělo požadavku")
 		return
 	}
 	if body.Title == "" {
-		WriteError(w, http.StatusUnprocessableEntity, "title is required")
+		WriteError(w, http.StatusUnprocessableEntity, "pole title je povinné")
 		return
 	}
 	if body.Color == "" {
@@ -191,11 +191,11 @@ func (h *AdminHandler) createStatus(w http.ResponseWriter, r *http.Request) {
 		Position: body.Position,
 	})
 	if err != nil {
-		WriteError(w, http.StatusInternalServerError, "could not create status")
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se vytvořit stav")
 		return
 	}
 
-	// Keep config in sync
+	// Synchronizace konfigurace
 	_ = h.cfgStore.Update(func(c *config.Config) error {
 		c.TicketStatuses = append(c.TicketStatuses, config.StatusConfig{
 			Title: row.Title,
@@ -232,14 +232,14 @@ type updateStatusRequest struct {
 func (h *AdminHandler) updateStatus(w http.ResponseWriter, r *http.Request) {
 	id64, ok := pathID(r.URL.Path, "/api/admin/ticket-statuses/")
 	if !ok {
-		WriteError(w, http.StatusBadRequest, "invalid id")
+		WriteError(w, http.StatusBadRequest, "neplatné ID")
 		return
 	}
 	id := int32(id64)
 
 	var body updateStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		WriteError(w, http.StatusBadRequest, "invalid request body")
+		WriteError(w, http.StatusBadRequest, "neplatné tělo požadavku")
 		return
 	}
 
@@ -250,14 +250,14 @@ func (h *AdminHandler) updateStatus(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		if err == sql.ErrNoRows {
-			WriteError(w, http.StatusNotFound, "status not found")
+			WriteError(w, http.StatusNotFound, "stav nenalezen")
 			return
 		}
-		WriteError(w, http.StatusInternalServerError, "could not update status")
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se aktualizovat stav")
 		return
 	}
 
-	// Rebuild config statuses from DB to stay authoritative
+	// Přegenerování stavů konfigurace z DB jako autoritativního zdroje
 	h.syncStatusesToConfig(r.Context())
 
 	writeJSON(w, http.StatusOK, row)
@@ -280,12 +280,12 @@ func (h *AdminHandler) updateStatus(w http.ResponseWriter, r *http.Request) {
 func (h *AdminHandler) deleteStatus(w http.ResponseWriter, r *http.Request) {
 	id64, ok := pathID(r.URL.Path, "/api/admin/ticket-statuses/")
 	if !ok {
-		WriteError(w, http.StatusBadRequest, "invalid id")
+		WriteError(w, http.StatusBadRequest, "neplatné ID")
 		return
 	}
 
 	if err := h.queries.DeleteTicketStatus(r.Context(), int32(id64)); err != nil {
-		WriteError(w, http.StatusInternalServerError, "could not delete status")
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se smazat stav")
 		return
 	}
 
@@ -293,7 +293,7 @@ func (h *AdminHandler) deleteStatus(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// syncStatusesToConfig refreshes the in-memory config and YAML file from the DB.
+// syncStatusesToConfig aktualizuje in-memory konfiguraci a YAML soubor z DB.
 func (h *AdminHandler) syncStatusesToConfig(ctx context.Context) {
 	rows, err := h.queries.ListTicketStatuses(ctx)
 	if err != nil {
@@ -326,7 +326,7 @@ func (h *AdminHandler) syncStatusesToConfig(ctx context.Context) {
 func (h *AdminHandler) listUsers(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.queries.ListUsers(r.Context())
 	if err != nil {
-		WriteError(w, http.StatusInternalServerError, "could not list users")
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst uživatele")
 		return
 	}
 	if rows == nil {
@@ -353,17 +353,17 @@ func (h *AdminHandler) listUsers(w http.ResponseWriter, r *http.Request) {
 func (h *AdminHandler) getUser(w http.ResponseWriter, r *http.Request) {
 	id64, ok := pathID(r.URL.Path, "/api/admin/users/")
 	if !ok {
-		WriteError(w, http.StatusBadRequest, "invalid id")
+		WriteError(w, http.StatusBadRequest, "neplatné ID")
 		return
 	}
 
 	user, err := h.queries.GetUserByID(r.Context(), int32(id64))
 	if err != nil {
 		if err == sql.ErrNoRows {
-			WriteError(w, http.StatusNotFound, "user not found")
+			WriteError(w, http.StatusNotFound, "uživatel nenalezen")
 			return
 		}
-		WriteError(w, http.StatusInternalServerError, "could not fetch user")
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst uživatele")
 		return
 	}
 	writeJSON(w, http.StatusOK, user)
@@ -395,14 +395,14 @@ type patchUserRequest struct {
 func (h *AdminHandler) patchUser(w http.ResponseWriter, r *http.Request) {
 	id64, ok := pathID(r.URL.Path, "/api/admin/users/")
 	if !ok {
-		WriteError(w, http.StatusBadRequest, "invalid id")
+		WriteError(w, http.StatusBadRequest, "neplatné ID")
 		return
 	}
 	id := int32(id64)
 
 	var body patchUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		WriteError(w, http.StatusBadRequest, "invalid request body")
+		WriteError(w, http.StatusBadRequest, "neplatné tělo požadavku")
 		return
 	}
 
@@ -413,7 +413,7 @@ func (h *AdminHandler) patchUser(w http.ResponseWriter, r *http.Request) {
 			ID:       id,
 			IsActive: *body.IsActive,
 		}); err != nil {
-			WriteError(w, http.StatusInternalServerError, "could not update user")
+			WriteError(w, http.StatusInternalServerError, "nepodařilo se aktualizovat uživatele")
 			return
 		}
 	}
@@ -424,7 +424,7 @@ func (h *AdminHandler) patchUser(w http.ResponseWriter, r *http.Request) {
 			ID:       id,
 			UserType: ut,
 		}); err != nil {
-			WriteError(w, http.StatusInternalServerError, "could not update user type")
+			WriteError(w, http.StatusInternalServerError, "nepodařilo se aktualizovat typ uživatele")
 			return
 		}
 	}
@@ -432,20 +432,20 @@ func (h *AdminHandler) patchUser(w http.ResponseWriter, r *http.Request) {
 	user, err := h.queries.GetUserByID(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			WriteError(w, http.StatusNotFound, "user not found")
+			WriteError(w, http.StatusNotFound, "uživatel nenalezen")
 			return
 		}
-		WriteError(w, http.StatusInternalServerError, "could not fetch updated user")
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst aktualizovaného uživatele")
 		return
 	}
 	writeJSON(w, http.StatusOK, user)
 }
 
-// writeJSON is a convenience helper used across handlers.
+// writeJSON je pomocná funkce pro zápis JSON odpovědi.
 func writeJSON(w http.ResponseWriter, code int, v any) {
 	body, err := json.Marshal(v)
 	if err != nil {
-		WriteError(w, http.StatusInternalServerError, "internal server error")
+		WriteError(w, http.StatusInternalServerError, "interní chyba serveru")
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

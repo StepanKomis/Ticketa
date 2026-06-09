@@ -2,7 +2,7 @@ package userregistration
 
 import "errors"
 
-var ErrInvalidUserType = errors.New("invalid user_type")
+var ErrInvalidUserType = errors.New("neplatný user_type")
 
 type RegistrationRequest struct {
 	Email     string `json:"email"`

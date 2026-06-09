@@ -10,9 +10,9 @@ import (
 	"github.com/StepanKomis/Ticketa/src/internal/security"
 )
 
-// userQuerier fetches the full local-login row including the bcrypt password hash.
-// GetUserWithLocalLogin only returns rows where is_active = TRUE, so inactive
-// accounts are rejected at the query level.
+// userQuerier načte kompletní řádek lokálního přihlášení včetně bcrypt hashe hesla.
+// GetUserWithLocalLogin vrací pouze řádky kde is_active = TRUE, takže neaktivní
+// účty jsou odmítnuty na úrovni dotazu.
 type userQuerier interface {
 	GetUserWithLocalLogin(ctx context.Context, email string) (db.GetUserWithLocalLoginRow, error)
 }
@@ -21,9 +21,8 @@ type sessionCreator interface {
 	Create(ctx context.Context, userID int64, r *http.Request) (db.Session, error)
 }
 
-// ! ToJson serialises the request including the plaintext Password field.
-// ! Never log or transmit the result — it exposes the user's password in cleartext.
-// ? Consider returning ([]byte, error) so callers are not silently given nil on failure.
+// ToJson serializuje požadavek včetně plaintext pole Password.
+// Výsledek nikdy nelogujte ani nepřeposílejte — odhaluje heslo uživatele v čitelné podobě.
 func (lr *LoginRequest) ToJson() []byte {
 	data, err := json.Marshal(lr)
 	if err != nil {
@@ -33,25 +32,25 @@ func (lr *LoginRequest) ToJson() []byte {
 	return data
 }
 
-// Validate looks up the user by email, verifies the password against the stored
-// bcrypt hash, and creates a new session on success. Returns the session token.
-// Both "user not found" and "wrong password" return the same opaque error to
-// prevent account-enumeration attacks.
+// Validate vyhledá uživatele podle e-mailu, ověří heslo vůči uloženému bcrypt hashi
+// a při úspěchu vytvoří novou session. Vrátí token session.
+// Chyby "uživatel nenalezen" i "špatné heslo" vrátí stejnou nepřímou chybu,
+// aby nebylo možné provádět enumeraci platných e-mailových adres.
 func (lr *LoginRequest) Validate(q userQuerier, store sessionCreator, r *http.Request) (string, error) {
 	user, err := q.GetUserWithLocalLogin(r.Context(), lr.Email)
 	if err != nil {
-		// * Intentionally opaque: distinguishing "user not found" from "wrong password"
-		// * would let an attacker enumerate valid email addresses.
-		return "", fmt.Errorf("invalid credentials")
+		// Záměrně nepřímé: rozlišení "uživatel nenalezen" od "špatné heslo"
+		// by útočníkovi umožnilo enumerovat platné e-mailové adresy.
+		return "", fmt.Errorf("neplatné přihlašovací údaje")
 	}
 
 	if err := security.CheckPassword(lr.Password, user.PasswordHash); err != nil {
-		return "", fmt.Errorf("invalid credentials")
+		return "", fmt.Errorf("neplatné přihlašovací údaje")
 	}
 
 	session, err := store.Create(r.Context(), int64(user.ID), r)
 	if err != nil {
-		return "", fmt.Errorf("creating session: %w", err)
+		return "", fmt.Errorf("vytváření session: %w", err)
 	}
 
 	return session.Token, nil

@@ -5,7 +5,7 @@ import (
 	"os"
 )
 
-// Returns environment variable value, or a default value specified in the parameters
+// Get vrátí hodnotu proměnné prostředí, nebo výchozí hodnotu pokud není nastavena.
 func Get(name string, defaultValue string) string {
 	value := os.Getenv(name)
 	if value == "" {
@@ -15,11 +15,11 @@ func Get(name string, defaultValue string) string {
 	return value
 }
 
-// Returns environment variable value or error if the variable is empty
+// GetNeeded vrátí hodnotu proměnné prostředí nebo chybu pokud je prázdná.
 func GetNeeded(name string) (string, error) {
 	value := os.Getenv(name)
 	if value == "" {
-		return "", fmt.Errorf("Environment variable with the name %s doen't exist, or is empty.", name)
+		return "", fmt.Errorf("proměnná prostředí %s neexistuje nebo je prázdná", name)
 	}
 
 	return value, nil

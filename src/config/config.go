@@ -10,14 +10,14 @@ type LoggingConfig struct {
 	Dir   string `yaml:"dir"`
 }
 
-// StatusConfig represents a single ticket status entry from the config file.
-// Position in the slice is semantically significant: first=open, last=solved.
+// StatusConfig představuje jeden stav tiketu v konfiguračním souboru.
+// Pozice v poli je sémanticky významná: první=otevřeno, poslední=vyřešeno.
 type StatusConfig struct {
 	Title string `yaml:"title"`
 	Color string `yaml:"color"`
 }
 
-// Defaults returns a Config populated with sane defaults and three Czech statuses.
+// Defaults vrátí Config s rozumnými výchozími hodnotami a třemi českými stavy.
 func Defaults() *Config {
 	return &Config{
 		Logging: LoggingConfig{

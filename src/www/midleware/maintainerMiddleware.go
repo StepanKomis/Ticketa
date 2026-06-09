@@ -14,31 +14,31 @@ type userGetter interface {
 	GetUserByID(ctx context.Context, id int32) (db.User, error)
 }
 
-// MaintainerMiddleware validates the session cookie and then checks that the
-// authenticated user has user_type = 'maintainer'. Non-maintainers receive 403.
+// MaintainerMiddleware ověří session cookie a zkontroluje, že přihlášený uživatel
+// má user_type = 'maintainer'. Uživatelé bez role maintainer obdrží 403.
 func MaintainerMiddleware(sessions sessionGetter, users userGetter) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			cookie, err := r.Cookie(security.TokenCookieName)
 			if err != nil {
-				handlers.WriteError(w, http.StatusUnauthorized, "unauthorized")
+				handlers.WriteError(w, http.StatusUnauthorized, "nepřihlášen")
 				return
 			}
 
 			session, err := sessions.GetByToken(r.Context(), cookie.Value)
 			if err != nil {
-				handlers.WriteError(w, http.StatusUnauthorized, "unauthorized")
+				handlers.WriteError(w, http.StatusUnauthorized, "nepřihlášen")
 				return
 			}
 
 			user, err := users.GetUserByID(r.Context(), int32(session.UserID))
 			if err != nil {
-				handlers.WriteError(w, http.StatusUnauthorized, "unauthorized")
+				handlers.WriteError(w, http.StatusUnauthorized, "nepřihlášen")
 				return
 			}
 
 			if user.UserType != db.UserTypeMaintainer {
-				handlers.WriteError(w, http.StatusForbidden, "forbidden")
+				handlers.WriteError(w, http.StatusForbidden, "přístup odepřen")
 				return
 			}
 

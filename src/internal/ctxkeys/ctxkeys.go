@@ -1,8 +1,8 @@
 package ctxkeys
 
-// contextKey is a private type preventing collisions with other packages.
+// contextKey je privátní typ zabraňující kolizím s ostatními balíčky.
 type contextKey string
 
-// SessionContextKey is stored in the request context by auth middleware
-// and read by any handler that needs the validated session.
+// SessionContextKey je uložen do kontextu požadavku autentizačním middlewarem
+// a čten libovolným handlerem, který potřebuje validovanou session.
 const SessionContextKey contextKey = "session"

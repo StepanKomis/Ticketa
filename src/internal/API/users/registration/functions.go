@@ -15,17 +15,17 @@ const (
 	maxPasswordLength = 72
 )
 
-// ValidatePassword validates that a password meets minimum security requirements:
-// at least 8 characters, at most 72, one digit, one special character.
+// ValidatePassword ověří, že heslo splňuje minimální bezpečnostní požadavky:
+// alespoň 8 znaků, nejvýše 72, jedna číslice a jeden speciální znak.
 func ValidatePassword(rawPassword string) error {
 	length := len(rawPassword)
 
 	if length < minPasswordLength {
-		return fmt.Errorf("password must be at least %d characters long", minPasswordLength)
+		return fmt.Errorf("heslo musí mít alespoň %d znaků", minPasswordLength)
 	}
 
 	if length > maxPasswordLength {
-		return fmt.Errorf("password must be at most %d characters long", maxPasswordLength)
+		return fmt.Errorf("heslo musí mít nejvýše %d znaků", maxPasswordLength)
 	}
 
 	var hasDigit, hasSpecial bool
@@ -40,11 +40,11 @@ func ValidatePassword(rawPassword string) error {
 	}
 
 	if !hasDigit {
-		return fmt.Errorf("password must contain at least one digit")
+		return fmt.Errorf("heslo musí obsahovat alespoň jednu číslici")
 	}
 
 	if !hasSpecial {
-		return fmt.Errorf("password must contain at least one special character")
+		return fmt.Errorf("heslo musí obsahovat alespoň jeden speciální znak")
 	}
 
 	return nil
@@ -56,21 +56,21 @@ var validUserTypes = map[string]db.UserType{
 	"maintainer": db.UserTypeMaintainer,
 }
 
-// RegisterNewUser registers a new user and their local login credentials within a single transaction.
+// RegisterNewLocalUser zaregistruje nového uživatele a jeho lokální přihlašovací údaje v rámci jedné transakce.
 func RegisterNewLocalUser(b RegistrationRequest, psql *sql.DB) (int32, error) {
 	userType, ok := validUserTypes[b.UserType]
 	if !ok {
-		return 0, fmt.Errorf("%w %q: must be student, staff, or maintainer", ErrInvalidUserType, b.UserType)
+		return 0, fmt.Errorf("%w %q: musí být student, staff nebo maintainer", ErrInvalidUserType, b.UserType)
 	}
 
 	hash, err := security.HashPassword(b.Password)
 	if err != nil {
-		return 0, fmt.Errorf("error hashing password for user %s: %w", b.Email, err)
+		return 0, fmt.Errorf("nepodařilo se zahashovat heslo pro uživatele %s: %w", b.Email, err)
 	}
 
 	tx, err := psql.BeginTx(context.Background(), nil)
 	if err != nil {
-		return 0, fmt.Errorf("error starting transaction for user %s: %w", b.Email, err)
+		return 0, fmt.Errorf("nepodařilo se zahájit transakci pro uživatele %s: %w", b.Email, err)
 	}
 	defer tx.Rollback()
 
@@ -86,7 +86,7 @@ func RegisterNewLocalUser(b RegistrationRequest, psql *sql.DB) (int32, error) {
 
 	user, err := queries.CreateUser(context.Background(), userParams)
 	if err != nil {
-		return 0, fmt.Errorf("error creating user record for %s: %w", b.Email, err)
+		return 0, fmt.Errorf("nepodařilo se vytvořit záznam uživatele %s: %w", b.Email, err)
 	}
 
 	loginParams := db.CreateLocalLoginParams{
@@ -96,11 +96,11 @@ func RegisterNewLocalUser(b RegistrationRequest, psql *sql.DB) (int32, error) {
 	}
 
 	if err = queries.CreateLocalLogin(context.Background(), loginParams); err != nil {
-		return 0, fmt.Errorf("error creating local login record for %s: %w", b.Email, err)
+		return 0, fmt.Errorf("nepodařilo se vytvořit lokální přihlášení pro %s: %w", b.Email, err)
 	}
 
 	if err = tx.Commit(); err != nil {
-		return 0, fmt.Errorf("error committing transaction for user %s: %w", b.Email, err)
+		return 0, fmt.Errorf("nepodařilo se potvrdit transakci pro uživatele %s: %w", b.Email, err)
 	}
 
 	return user.ID, nil
