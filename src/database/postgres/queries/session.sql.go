@@ -51,12 +51,17 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 const getSessionByToken = `-- name: GetSessionByToken :one
 UPDATE sessions
 SET    last_seen_at = NOW()
-WHERE  token      = $1
-  AND  deleted    = FALSE
-  AND  expires_at > NOW()
-RETURNING id, user_id, token, ip, user_agent, created_at, expires_at, last_seen_at, deleted
+FROM   users
+WHERE  sessions.token      = $1
+  AND  sessions.deleted    = FALSE
+  AND  sessions.expires_at > NOW()
+  AND  users.id            = sessions.user_id
+  AND  users.is_active     = TRUE
+RETURNING sessions.id, sessions.user_id, sessions.token, sessions.ip, sessions.user_agent, sessions.created_at, sessions.expires_at, sessions.last_seen_at, sessions.deleted
 `
 
+// Session je platná jen pokud je její uživatel stále aktivní — deaktivace účtu
+// tak okamžitě zneplatní všechny jeho požadavky.
 func (q *Queries) GetSessionByToken(ctx context.Context, token string) (Session, error) {
 	row := q.db.QueryRowContext(ctx, getSessionByToken, token)
 	var i Session

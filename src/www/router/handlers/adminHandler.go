@@ -378,7 +378,7 @@ type patchUserRequest struct {
 // Lze měnit samostatně nebo obojí naráz. Neaktivní uživatelé se nemohou přihlásit.
 //
 // @Summary      Aktualizovat uživatele
-// @Description  Aktualizuje is_active nebo user_type uživatele. Obě pole jsou volitelná. Neaktivní uživatelé se nemohou přihlásit — existující session jim jsou zneplatněny při dalším požadavku.
+// @Description  Aktualizuje is_active nebo user_type uživatele. Obě pole jsou volitelná. Neaktivní uživatelé se nemohou přihlásit — při deaktivaci je jejich existující session okamžitě zneplatněna.
 // @Tags         admin
 // @Accept       json
 // @Produce      json
@@ -415,6 +415,15 @@ func (h *AdminHandler) patchUser(w http.ResponseWriter, r *http.Request) {
 		}); err != nil {
 			WriteError(w, http.StatusInternalServerError, "nepodařilo se aktualizovat uživatele")
 			return
+		}
+
+		// Deaktivace musí mít okamžitý účinek — session uživatele se zneplatní hned,
+		// ne až při jeho dalším požadavku.
+		if !*body.IsActive {
+			if err := h.queries.SoftDeleteSessionByUserID(ctx, int64(id)); err != nil {
+				WriteError(w, http.StatusInternalServerError, "nepodařilo se zneplatnit session uživatele")
+				return
+			}
 		}
 	}
 
