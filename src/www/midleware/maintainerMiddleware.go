@@ -15,7 +15,8 @@ type userGetter interface {
 }
 
 // MaintainerMiddleware ověří session cookie a zkontroluje, že přihlášený uživatel
-// má user_type = 'maintainer'. Uživatelé bez role maintainer obdrží 403.
+// je aktivní a má user_type = 'maintainer'. Neaktivní uživatelé obdrží 401,
+// uživatelé bez role maintainer 403.
 func MaintainerMiddleware(sessions sessionGetter, users userGetter) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -33,6 +34,13 @@ func MaintainerMiddleware(sessions sessionGetter, users userGetter) func(http.Ha
 
 			user, err := users.GetUserByID(r.Context(), int32(session.UserID))
 			if err != nil {
+				handlers.WriteError(w, http.StatusUnauthorized, "nepřihlášen")
+				return
+			}
+
+			// Defense-in-depth: neaktivní účet nesmí projít, i kdyby jeho session
+			// prošla validací (primární kontrola je v GetSessionByToken).
+			if !user.IsActive {
 				handlers.WriteError(w, http.StatusUnauthorized, "nepřihlášen")
 				return
 			}

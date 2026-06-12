@@ -65,7 +65,7 @@ func TestMaintainerMiddleware_InvalidSession(t *testing.T) {
 
 func TestMaintainerMiddleware_NonMaintainer_Gets403(t *testing.T) {
 	sessions := &mockSessionStore{session: validSession()}
-	users := &mockUserStore{user: db.User{UserType: db.UserTypeStudent}}
+	users := &mockUserStore{user: db.User{UserType: db.UserTypeStudent, IsActive: true}}
 	h := maintainerMiddleware(sessions, users)
 	req := httptest.NewRequest(http.MethodGet, "/api/admin/config", nil)
 	req.AddCookie(&http.Cookie{Name: security.TokenCookieName, Value: "valid-token"})
@@ -78,7 +78,7 @@ func TestMaintainerMiddleware_NonMaintainer_Gets403(t *testing.T) {
 
 func TestMaintainerMiddleware_Maintainer_PassesThrough(t *testing.T) {
 	sessions := &mockSessionStore{session: validSession()}
-	users := &mockUserStore{user: db.User{UserType: db.UserTypeMaintainer}}
+	users := &mockUserStore{user: db.User{UserType: db.UserTypeMaintainer, IsActive: true}}
 	h := maintainerMiddleware(sessions, users)
 	req := httptest.NewRequest(http.MethodGet, "/api/admin/config", nil)
 	req.AddCookie(&http.Cookie{Name: security.TokenCookieName, Value: "valid-token"})
@@ -86,6 +86,19 @@ func TestMaintainerMiddleware_Maintainer_PassesThrough(t *testing.T) {
 	h.ServeHTTP(rr, req)
 	if rr.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", rr.Code)
+	}
+}
+
+func TestMaintainerMiddleware_InactiveMaintainer_Gets401(t *testing.T) {
+	sessions := &mockSessionStore{session: validSession()}
+	users := &mockUserStore{user: db.User{UserType: db.UserTypeMaintainer, IsActive: false}}
+	h := maintainerMiddleware(sessions, users)
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/config", nil)
+	req.AddCookie(&http.Cookie{Name: security.TokenCookieName, Value: "valid-token"})
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", rr.Code)
 	}
 }
 
