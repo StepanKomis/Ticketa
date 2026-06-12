@@ -20,9 +20,12 @@ func getPsqlString() (string, error) {
 		return "", fmt.Errorf("proměnná prostředí PG_PASSWORD: %s", err.Error())
 	}
 
+	// Výchozí sslmode=disable odpovídá docker-compose nasazení s DB na interní síti.
+	// Pro externí/managed databázi nastavte PG_SSLMODE=verify-full (případně require).
 	return fmt.Sprintf("host=%s port=%s user=%s "+
-		"password=%s dbname=%s sslmode=disable",
-		env.Get("PG_HOST", "database"), env.Get("PG_PORT", "5432"), user, passwd, env.Get("PG_DATABASE", "ticketa")), nil
+		"password=%s dbname=%s sslmode=%s",
+		env.Get("PG_HOST", "database"), env.Get("PG_PORT", "5432"), user, passwd,
+		env.Get("PG_DATABASE", "ticketa"), env.Get("PG_SSLMODE", "disable")), nil
 }
 
 // GetNewConnection vrátí nové připojení *sql.DB k Postgres instanci.
