@@ -43,9 +43,9 @@ func (l *Logger) Close() error { return l.file.Close() }
 
 func (l *Logger) Info(msg string)  { l.logger.Println("[INFO] " + msg) }
 func (l *Logger) Error(msg string) { l.logger.Println("[ERROR] " + msg) }
-func (l *Logger) Warn(msg string)  { l.logger.Panicln("[WARN] " + msg) }
+func (l *Logger) Warn(msg string)  { l.logger.Println("[WARN] " + msg) }
 func (l *Logger) Fatal(msg string) {
-	l.logger.Panicln("[FATAL] " + msg)
+	l.logger.Println("[FATAL] " + msg)
 	os.Exit(1)
 }
 
