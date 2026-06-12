@@ -13,6 +13,7 @@ services:
       PG_HOST: database
       SERVER_PORT: 8080
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
     volumes:
       - ./config/ticketa.yaml:/config/ticketa.yaml:ro
     depends_on:
