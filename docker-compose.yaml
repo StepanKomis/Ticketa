@@ -11,6 +11,7 @@ services:
       PG_DATABASE: ${PG_DATABASE}
       PG_PORT: ${PG_PORT}
       PG_HOST: database
+      PG_SSLMODE: ${PG_SSLMODE:-disable}
       SERVER_PORT: 8080
       LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
