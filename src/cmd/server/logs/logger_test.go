@@ -2,6 +2,9 @@ package logs_test
 
 import (
 	"bytes"
+	"errors"
+	"os"
+	"os/exec"
 	"strings"
 	"testing"
 
@@ -68,15 +71,12 @@ func TestError(t *testing.T) {
 	}
 }
 
-// TestWarn_Panics documents that Warn uses log.Panicln and therefore panics.
-func TestWarn_Panics(t *testing.T) {
-	l, _ := newTestLogger(t, "test")
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected Warn to panic (it uses log.Panicln)")
-		}
-	}()
-	l.Warn("this panics")
+func TestWarn(t *testing.T) {
+	l, buf := newTestLogger(t, "test")
+	l.Warn("watch out")
+	if !strings.Contains(buf.String(), "[WARN] watch out") {
+		t.Errorf("expected [WARN] watch out in output, got: %s", buf.String())
+	}
 }
 
 func TestDebug_SuppressedByDefault(t *testing.T) {
@@ -143,40 +143,40 @@ func TestErrorf(t *testing.T) {
 	}
 }
 
-func TestWarnf_Panics(t *testing.T) {
-	l, _ := newTestLogger(t, "test")
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected Warnf to panic")
-		}
-	}()
+func TestWarnf(t *testing.T) {
+	l, buf := newTestLogger(t, "test")
 	l.Warnf("warn %s", "formatted")
+	if !strings.Contains(buf.String(), "[WARN] warn formatted") {
+		t.Errorf("expected formatted warn output, got: %s", buf.String())
+	}
 }
 
-func TestFatal_Panics(t *testing.T) {
-	l, buf := newTestLogger(t, "test")
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected Fatal to panic")
+// TestFatal_ExitsProcess spustí sám sebe jako podproces, protože Fatal volá
+// os.Exit(1) a ukončil by testovací běh. Ověří exit code i zalogovanou zprávu
+// (logger píše mimo soubor i na stdout).
+func TestFatal_ExitsProcess(t *testing.T) {
+	if os.Getenv("LOGGER_TEST_FATAL") == "1" {
+		cfg := config.Defaults()
+		cfg.Logging.Dir = os.Getenv("LOGGER_TEST_DIR")
+		l, err := logs.NewLogger("fatal", cfg)
+		if err != nil {
+			t.Fatalf("NewLogger: %v", err)
 		}
-		if !strings.Contains(buf.String(), "[FATAL] fatal message") {
-			t.Errorf("expected [FATAL] in output, got: %s", buf.String())
-		}
-	}()
-	l.Fatal("fatal message")
-}
+		l.Fatalf("code %d", 503)
+		return // nedosažitelné — Fatal ukončí proces
+	}
 
-func TestFatalf_Panics(t *testing.T) {
-	l, buf := newTestLogger(t, "test")
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected Fatalf to panic")
-		}
-		if !strings.Contains(buf.String(), "[FATAL] code 503") {
-			t.Errorf("expected [FATAL] formatted output, got: %s", buf.String())
-		}
-	}()
-	l.Fatalf("code %d", 503)
+	cmd := exec.Command(os.Args[0], "-test.run=TestFatal_ExitsProcess")
+	cmd.Env = append(os.Environ(), "LOGGER_TEST_FATAL=1", "LOGGER_TEST_DIR="+t.TempDir())
+	out, err := cmd.CombinedOutput()
+
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
+		t.Fatalf("expected exit code 1, got %v; output: %s", err, out)
+	}
+	if !strings.Contains(string(out), "[FATAL] code 503") {
+		t.Errorf("expected [FATAL] code 503 in output, got: %s", out)
+	}
 }
 
 func TestDebugf_SuppressedByDefault(t *testing.T) {
