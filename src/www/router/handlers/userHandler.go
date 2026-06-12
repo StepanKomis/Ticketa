@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/StepanKomis/Ticketa/src/cmd/server/env"
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
 	"github.com/StepanKomis/Ticketa/src/config"
 	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
@@ -20,6 +21,10 @@ type UserHandler struct {
 	userLogger *logs.Logger
 	db         *sql.DB
 	store      *security.SessionStore
+	// secureCookie nastaví Secure flag na session cookie. Výchozí false, protože
+	// server zatím neumí TLS — nasazení za HTTPS proxy musí nastavit COOKIE_SECURE=true,
+	// jinak prohlížeč cookie odešle i přes nešifrované HTTP.
+	secureCookie bool
 }
 
 type registrationResponse struct {
@@ -31,6 +36,7 @@ func NewUserHandler(httpLogger *logs.Logger, db *sql.DB, store *security.Session
 	uh.httpLogger = httpLogger
 	uh.db = db
 	uh.store = store
+	uh.secureCookie = env.Get("COOKIE_SECURE", "false") == "true"
 
 	var err error
 	uh.userLogger, err = logs.NewLogger("user", cfg)
@@ -137,7 +143,9 @@ func (uh *UserHandler) login(w http.ResponseWriter, r *http.Request) {
 		Name:     security.TokenCookieName,
 		Value:    token,
 		Path:     "/",
+		MaxAge:   int(security.SessionTTLSeconds),
 		HttpOnly: true,
+		Secure:   uh.secureCookie,
 		SameSite: http.SameSiteLaxMode,
 	})
 	w.WriteHeader(http.StatusOK)
