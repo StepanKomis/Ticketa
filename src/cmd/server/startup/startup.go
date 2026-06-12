@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/StepanKomis/Ticketa/src/cmd/server/env"
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
@@ -63,8 +64,18 @@ func InitializeServer(l *logs.Logger, cfgStore *config.Store) error {
 
 	mux := router.NewRouter(www.StaticFiles, db, cfgStore)
 
+	// Timeouty brání vyčerpání zdrojů pomalými či nedokončenými požadavky (Slowloris).
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+
 	l.Infof("Nasloucháno na %s", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := srv.ListenAndServe(); err != nil {
 		return fmt.Errorf("chyba HTTP serveru: %s", err.Error())
 	}
 
