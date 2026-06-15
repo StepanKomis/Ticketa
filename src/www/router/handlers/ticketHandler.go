@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
 	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
@@ -92,7 +94,8 @@ func (h *TicketHandler) create(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se vytvořit tiket")
 		return
 	}
-	writeJSON(w, http.StatusCreated, ticket)
+	authorName := resolveAuthorName(r.Context(), h.queries, ticket.AuthorID)
+	writeJSON(w, http.StatusCreated, toTicketResponse(ticket, authorName))
 }
 
 // list vrátí seznam všech tiketů seřazených od nejnovějšího.
@@ -113,10 +116,18 @@ func (h *TicketHandler) list(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst tikety")
 		return
 	}
-	if tickets == nil {
-		tickets = []db.Ticket{}
+
+	// Resolve author names with a per-request cache to avoid duplicate DB queries
+	// when multiple tickets share the same author (common in a school setting).
+	nameCache := make(map[int32]string, len(tickets))
+	result := make([]ticketResponse, len(tickets))
+	for i, t := range tickets {
+		if _, ok := nameCache[t.AuthorID]; !ok {
+			nameCache[t.AuthorID] = resolveAuthorName(r.Context(), h.queries, t.AuthorID)
+		}
+		result[i] = toTicketResponse(t, nameCache[t.AuthorID])
 	}
-	writeJSON(w, http.StatusOK, tickets)
+	writeJSON(w, http.StatusOK, result)
 }
 
 // get vrátí jeden tiket podle ID.
@@ -148,7 +159,8 @@ func (h *TicketHandler) get(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst tiket")
 		return
 	}
-	writeJSON(w, http.StatusOK, ticket)
+	authorName := resolveAuthorName(r.Context(), h.queries, ticket.AuthorID)
+	writeJSON(w, http.StatusOK, toTicketResponse(ticket, authorName))
 }
 
 type updateTicketRequest struct {
@@ -221,7 +233,8 @@ func (h *TicketHandler) update(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se aktualizovat tiket")
 		return
 	}
-	writeJSON(w, http.StatusOK, ticket)
+	authorName := resolveAuthorName(r.Context(), h.queries, ticket.AuthorID)
+	writeJSON(w, http.StatusOK, toTicketResponse(ticket, authorName))
 }
 
 // delete smaže tiket. Povoleno pouze autorovi tiketu.
@@ -269,6 +282,39 @@ func (h *TicketHandler) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// resolveAuthorName vrátí zobrazitelné jméno uživatele. Pokud uživatel nemá
+// vyplněné jméno ani příjmení, vrátí e-mailovou adresu jako zálohu.
+// Chyba při načtení uživatele není fatální — vrátí prázdný řetězec.
+func resolveAuthorName(ctx context.Context, q *db.Queries, authorID int32) string {
+	user, err := q.GetUserByID(ctx, authorID)
+	if err != nil {
+		return ""
+	}
+	parts := make([]string, 0, 2)
+	if user.FirstName.Valid && user.FirstName.String != "" {
+		parts = append(parts, user.FirstName.String)
+	}
+	if user.LastName.Valid && user.LastName.String != "" {
+		parts = append(parts, user.LastName.String)
+	}
+	if len(parts) > 0 {
+		return strings.Join(parts, " ")
+	}
+	return user.Email
+}
+
+func toTicketResponse(t db.Ticket, authorName string) ticketResponse {
+	return ticketResponse{
+		ID:         t.ID,
+		Title:      t.Title,
+		Body:       t.Body,
+		CreatedAt:  t.CreatedAt,
+		AuthorID:   t.AuthorID,
+		AuthorName: authorName,
+		StatusID:   nullInt32{Int32: t.StatusID.Int32, Valid: t.StatusID.Valid},
+	}
 }
 
 // sessionFromContext načte validovanou session z kontextu požadavku.
