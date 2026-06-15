@@ -15,15 +15,25 @@ import (
 // validovanou session. Handlery ji čtou přes r.Context().Value(middleware.SessionContextKey).
 const SessionContextKey = ctxkeys.SessionContextKey
 
+// UserContextKey je klíč kontextu pod kterým autentizační middleware ukládá
+// načteného uživatele. Handlery ho čtou přes r.Context().Value(middleware.UserContextKey).
+const UserContextKey = ctxkeys.UserContextKey
+
 // sessionGetter abstrahuje vyhledávání v session store, aby byl AuthMiddleware testovatelný
 // bez živé databáze. *security.SessionStore toto rozhraní implementuje.
 type sessionGetter interface {
 	GetByToken(ctx context.Context, token string) (db.Session, error)
 }
 
-// AuthMiddleware ověří session cookie a vloží validovanou session do kontextu požadavku.
-// Vrátí 401 pokud cookie chybí, token má nesprávný formát nebo v DB neexistuje/vypršel/byl soft-smazán.
-func AuthMiddleware(store sessionGetter) func(http.Handler) http.Handler {
+// userGetter abstrahuje načítání uživatele z DB. *db.Queries toto rozhraní implementuje.
+type userGetter interface {
+	GetUserByID(ctx context.Context, id int32) (db.User, error)
+}
+
+// AuthMiddleware ověří session cookie, načte uživatele z DB a vloží obojí do kontextu.
+// Vrátí 401 pokud cookie chybí, token má nesprávný formát, session neexistuje/vypršela
+// nebo účet je neaktivní.
+func AuthMiddleware(store sessionGetter, users userGetter) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			cookie, err := r.Cookie(security.TokenCookieName)
@@ -49,7 +59,18 @@ func AuthMiddleware(store sessionGetter) func(http.Handler) http.Handler {
 				return
 			}
 
+			user, err := users.GetUserByID(r.Context(), int32(session.UserID))
+			if err != nil {
+				handlers.WriteError(w, http.StatusUnauthorized, "nepřihlášen")
+				return
+			}
+			if !user.IsActive {
+				handlers.WriteError(w, http.StatusUnauthorized, "nepřihlášen")
+				return
+			}
+
 			ctx := context.WithValue(r.Context(), SessionContextKey, session)
+			ctx = context.WithValue(ctx, UserContextKey, user)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

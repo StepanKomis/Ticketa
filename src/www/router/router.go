@@ -25,8 +25,8 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	queries := db.New(sqlDB)
 	sessionStore := security.NewSessionStore(queries)
 
-	auth := middleware.AuthMiddleware(sessionStore)
-	admin := middleware.MaintainerMiddleware(sessionStore, queries)
+	auth := middleware.AuthMiddleware(sessionStore, queries)
+	admin := func(h http.Handler) http.Handler { return auth(middleware.MaintainerMiddleware()(h)) }
 
 	userHandler, err := handlers.NewUserHandler(httpLogger, sqlDB, sessionStore, cfg)
 	if err != nil {
