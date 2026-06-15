@@ -19,6 +19,7 @@ type UserHandler struct {
 	httpLogger *logs.Logger
 	userLogger *logs.Logger
 	db         *sql.DB
+	queries    *db.Queries
 	store      *security.SessionStore
 }
 
@@ -26,10 +27,11 @@ type registrationResponse struct {
 	ID int32 `json:"id"`
 }
 
-func NewUserHandler(httpLogger *logs.Logger, db *sql.DB, store *security.SessionStore, cfg *config.Config) (*UserHandler, error) {
+func NewUserHandler(httpLogger *logs.Logger, sqlDB *sql.DB, store *security.SessionStore, cfg *config.Config) (*UserHandler, error) {
 	uh := &UserHandler{}
 	uh.httpLogger = httpLogger
-	uh.db = db
+	uh.db = sqlDB
+	uh.queries = db.New(sqlDB)
 	uh.store = store
 
 	var err error
@@ -102,18 +104,17 @@ func (uh *UserHandler) register(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonRes) //nolint:errcheck // a failed write after WriteHeader cannot be recovered
 }
 
-// login ověří přihlašovací údaje a nastaví session cookie.
-// Cookie `session_token` je HTTP-only a platí 7 dní.
+// login ověří přihlašovací údaje, nastaví session cookie a vrátí data přihlášeného uživatele.
 //
 // @Summary      Přihlášení
-// @Description  Ověří e-mail a heslo. Při úspěchu nastaví HTTP-only cookie `session_token` platný 7 dní.
+// @Description  Ověří e-mail a heslo. Při úspěchu nastaví HTTP-only cookie `session_token` platný 7 dní a vrátí profil uživatele.
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        body  body  loginRequest  true  "Přihlašovací údaje"
-// @Success      200   "Session cookie nastaven"
-// @Failure      400   {object}  errorResponse  "Neplatné tělo požadavku"
-// @Failure      401   {object}  errorResponse  "Špatné přihlašovací údaje nebo neaktivní účet"
+// @Param        body  body      loginRequest   true  "Přihlašovací údaje"
+// @Success      200   {object}  currentUserResponse  "Profil přihlášeného uživatele"
+// @Failure      400   {object}  errorResponse        "Neplatné tělo požadavku"
+// @Failure      401   {object}  errorResponse        "Špatné přihlašovací údaje nebo neaktivní účet"
 // @Router       /api/login [post]
 func (uh *UserHandler) login(w http.ResponseWriter, r *http.Request) {
 	uh.httpLogger.Debugf("POST /api/login od %s", r.RemoteAddr)
@@ -125,8 +126,7 @@ func (uh *UserHandler) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := db.New(uh.db)
-	token, err := body.Validate(q, uh.store, r)
+	user, token, err := body.Validate(uh.queries, uh.store, r)
 	if err != nil {
 		uh.httpLogger.Debugf("přihlášení selhalo pro %s: %s", body.Email, err)
 		WriteError(w, http.StatusUnauthorized, "neplatné přihlašovací údaje")
@@ -137,10 +137,106 @@ func (uh *UserHandler) login(w http.ResponseWriter, r *http.Request) {
 		Name:     security.TokenCookieName,
 		Value:    token,
 		Path:     "/",
+		MaxAge:   int(security.SessionTTLSeconds),
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
+
+	res := currentUserResponse{
+		ID:        user.ID,
+		Email:     user.Email,
+		FirstName: user.FirstName.String,
+		LastName:  user.LastName.String,
+		UserType:  string(user.UserType),
+	}
+
+	jsonRes, err := json.Marshal(res)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "interní chyba serveru")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	w.Write(jsonRes) //nolint:errcheck
+}
+
+// me vrátí profil aktuálně přihlášeného uživatele.
+//
+// @Summary      Profil přihlášeného uživatele
+// @Description  Vrátí id, e-mail, jméno, příjmení a roli uživatele identifikovaného platným session cookie.
+// @Tags         auth
+// @Produce      json
+// @Success      200  {object}  currentUserResponse  "Profil uživatele"
+// @Failure      401  {object}  errorResponse  "Chybí nebo vypršel session cookie"
+// @Failure      500  {object}  errorResponse  "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/me [get]
+func (uh *UserHandler) me(w http.ResponseWriter, r *http.Request) {
+	session, ok := sessionFromContext(w, r)
+	if !ok {
+		return
+	}
+
+	u, err := uh.queries.GetUserByID(r.Context(), int32(session.UserID))
+	if err != nil {
+		uh.httpLogger.Debugf("GET /api/me: GetUserByID selhalo pro user_id=%d: %s", session.UserID, err)
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst uživatele")
+		return
+	}
+
+	res := currentUserResponse{
+		ID:        u.ID,
+		Email:     u.Email,
+		FirstName: u.FirstName.String,
+		LastName:  u.LastName.String,
+		UserType:  string(u.UserType),
+	}
+
+	jsonRes, err := json.Marshal(res)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "interní chyba serveru")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(jsonRes) //nolint:errcheck
+}
+
+// logout zneplatní serverovou session a smaže cookie v prohlížeči.
+//
+// @Summary      Odhlášení
+// @Description  Smaže session cookie a označí session jako smazanou v databázi. Po odhlášení je session token okamžitě neplatný.
+// @Tags         auth
+// @Success      204  "Úspěšně odhlášen"
+// @Failure      401  {object}  errorResponse  "Chybí nebo vypršel session cookie"
+// @Failure      500  {object}  errorResponse  "Interní chyba při rušení session"
+// @Security     cookieAuth
+// @Router       /api/logout [post]
+func (uh *UserHandler) logout(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie(security.TokenCookieName)
+	if err != nil {
+		WriteError(w, http.StatusUnauthorized, "nepřihlášen")
+		return
+	}
+
+	if err := uh.store.Invalidate(r.Context(), cookie.Value); err != nil {
+		uh.httpLogger.Debugf("POST /api/logout: Invalidate selhalo: %s", err)
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se zrušit session")
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     security.TokenCookieName,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (uh *UserHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -149,6 +245,10 @@ func (uh *UserHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		uh.register(w, r)
 	case "/api/login":
 		uh.login(w, r)
+	case "/api/me":
+		uh.me(w, r)
+	case "/api/logout":
+		uh.logout(w, r)
 	default:
 		uh.httpLogger.Debugf("neošetřená cesta: %s %s od %s", r.Method, r.URL.Path, r.RemoteAddr)
 		defaultResponse(w)

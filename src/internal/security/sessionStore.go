@@ -17,7 +17,7 @@ import (
 
 const (
 	TokenCookieName   = "session_token"
-	sessionTTLSeconds = int64(7 * 24 * 60 * 60)
+	SessionTTLSeconds = int64(7 * 24 * 60 * 60)
 )
 
 type SessionStore struct {
@@ -43,7 +43,7 @@ func (s *SessionStore) Create(ctx context.Context, userID int64, r *http.Request
 		Token:     token,
 		Ip:        ip,
 		UserAgent: r.UserAgent(),
-		Column5:   sessionTTLSeconds,
+		Column5:   SessionTTLSeconds,
 	})
 	if err != nil {
 		var pqErr *pq.Error
@@ -53,7 +53,7 @@ func (s *SessionStore) Create(ctx context.Context, userID int64, r *http.Request
 				Token:     token,
 				Ip:        ip,
 				UserAgent: r.UserAgent(),
-				Column5:   sessionTTLSeconds,
+				Column5:   SessionTTLSeconds,
 			})
 		}
 		return db.Session{}, fmt.Errorf("creating session: %w", err)

@@ -33,25 +33,25 @@ func (lr *LoginRequest) ToJson() []byte {
 }
 
 // Validate vyhledá uživatele podle e-mailu, ověří heslo vůči uloženému bcrypt hashi
-// a při úspěchu vytvoří novou session. Vrátí token session.
+// a při úspěchu vytvoří novou session. Vrátí ověřený řádek uživatele a token session.
 // Chyby "uživatel nenalezen" i "špatné heslo" vrátí stejnou nepřímou chybu,
 // aby nebylo možné provádět enumeraci platných e-mailových adres.
-func (lr *LoginRequest) Validate(q userQuerier, store sessionCreator, r *http.Request) (string, error) {
+func (lr *LoginRequest) Validate(q userQuerier, store sessionCreator, r *http.Request) (db.GetUserWithLocalLoginRow, string, error) {
 	user, err := q.GetUserWithLocalLogin(r.Context(), lr.Email)
 	if err != nil {
 		// Záměrně nepřímé: rozlišení "uživatel nenalezen" od "špatné heslo"
 		// by útočníkovi umožnilo enumerovat platné e-mailové adresy.
-		return "", fmt.Errorf("neplatné přihlašovací údaje")
+		return db.GetUserWithLocalLoginRow{}, "", fmt.Errorf("neplatné přihlašovací údaje")
 	}
 
 	if err := security.CheckPassword(lr.Password, user.PasswordHash); err != nil {
-		return "", fmt.Errorf("neplatné přihlašovací údaje")
+		return db.GetUserWithLocalLoginRow{}, "", fmt.Errorf("neplatné přihlašovací údaje")
 	}
 
 	session, err := store.Create(r.Context(), int64(user.ID), r)
 	if err != nil {
-		return "", fmt.Errorf("vytváření session: %w", err)
+		return db.GetUserWithLocalLoginRow{}, "", fmt.Errorf("vytváření session: %w", err)
 	}
 
-	return session.Token, nil
+	return user, session.Token, nil
 }

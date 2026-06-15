@@ -90,6 +90,16 @@ type registerRequest struct {
 	LastName  string `json:"last_name" example:"Novák"`
 }
 
+// currentUserResponse je JSON tvar odpovědi pro GET /api/me a POST /api/login.
+// Obsahuje pouze pole nezbytná pro autentizaci a zobrazení v UI.
+type currentUserResponse struct {
+	ID        int32  `json:"id" example:"3"`
+	Email     string `json:"email" example:"jan.novak@skola.cz"`
+	FirstName string `json:"first_name" example:"Jan"`
+	LastName  string `json:"last_name" example:"Novák"`
+	UserType  string `json:"user_type" example:"student" enums:"student,staff,maintainer"`
+}
+
 // loginRequest jsou přihlašovací údaje.
 type loginRequest struct {
 	Email    string `json:"email" example:"jan.novak@skola.cz"`
