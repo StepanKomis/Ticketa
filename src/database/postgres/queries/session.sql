@@ -1,10 +1,15 @@
 -- name: GetSessionByToken :one
+-- Session je platná jen pokud je její uživatel stále aktivní — deaktivace účtu
+-- tak okamžitě zneplatní všechny jeho požadavky.
 UPDATE sessions
 SET    last_seen_at = NOW()
-WHERE  token      = $1
-  AND  deleted    = FALSE
-  AND  expires_at > NOW()
-RETURNING *;
+FROM   users
+WHERE  sessions.token      = $1
+  AND  sessions.deleted    = FALSE
+  AND  sessions.expires_at > NOW()
+  AND  users.id            = sessions.user_id
+  AND  users.is_active     = TRUE
+RETURNING sessions.*;
 
 -- name: GetSessionByUserID :one
 SELECT * FROM sessions

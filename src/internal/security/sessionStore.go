@@ -16,7 +16,10 @@ import (
 )
 
 const (
-	TokenCookieName   = "session_token"
+	TokenCookieName = "session_token"
+
+	// SessionTTLSeconds určuje životnost session na serveru i Max-Age cookie —
+	// obě expirace musí zůstat sjednocené.
 	SessionTTLSeconds = int64(7 * 24 * 60 * 60)
 )
 
