@@ -10,6 +10,8 @@ import (
 	"github.com/StepanKomis/Ticketa/src/www/router/handlers"
 )
 
+// userGetter abstrahuje načítání uživatele z DB, aby byl MaintainerMiddleware testovatelný
+// bez živé databáze. *db.Queries toto rozhraní implementuje automaticky.
 type userGetter interface {
 	GetUserByID(ctx context.Context, id int32) (db.User, error)
 }

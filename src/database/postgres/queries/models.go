@@ -164,6 +164,17 @@ type Ticket struct {
 	StatusID  sql.NullInt32
 }
 
+type TicketComment struct {
+	ID        int64
+	TicketID  int64
+	AuthorID  int32
+	ParentID  sql.NullInt64
+	Body      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Deleted   bool
+}
+
 type TicketStatus struct {
 	ID       int32
 	Title    string
