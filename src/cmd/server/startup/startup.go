@@ -18,6 +18,9 @@ import (
 	"github.com/StepanKomis/Ticketa/src/www/router"
 )
 
+// InitializeServer spustí celý server: připojí se k DB, aplikuje migrace, seeduje stavy
+// tiketů, sestaví router a začne naslouchat na SERVER_PORT (výchozí 8080).
+// Blokuje dokud server nespadne nebo nevrátí chybu.
 func InitializeServer(l *logs.Logger, cfgStore *config.Store) error {
 	l.Info("Spouštění serveru...")
 	l.Info("Inicializace připojení k Postgres...")

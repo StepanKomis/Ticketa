@@ -71,6 +71,8 @@ func (s *SessionStore) GetByToken(ctx context.Context, token string) (db.Session
 	return s.queries.GetSessionByToken(ctx, token)
 }
 
+// Invalidate provede soft delete session — nastaví deleted=true v databázi.
+// Token přestane být platný okamžitě; záznam zůstane pro účely auditu.
 func (s *SessionStore) Invalidate(ctx context.Context, token string) error {
 	return s.queries.SoftDeleteSession(ctx, token)
 }

@@ -61,10 +61,14 @@ func TestAuthMiddleware_InvalidToken(t *testing.T) {
 	}
 }
 
+// validHexToken je testovací token splňující formátové požadavky middleware
+// (64znakový hex řetězec odpovídající 32 náhodným bajtům).
+const validHexToken = "a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890a1b2c3d4e5f67890"
+
 func TestAuthMiddleware_ValidToken_PropagatesSession(t *testing.T) {
 	now := time.Now()
 	want := db.Session{
-		Token:      "valid-token",
+		Token:      validHexToken,
 		CreatedAt:  now,
 		ExpiresAt:  now.Add(time.Hour),
 		LastSeenAt: now,
@@ -82,7 +86,7 @@ func TestAuthMiddleware_ValidToken_PropagatesSession(t *testing.T) {
 
 	handler := middleware.AuthMiddleware(store)(next)
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
-	req.AddCookie(&http.Cookie{Name: security.TokenCookieName, Value: "valid-token"})
+	req.AddCookie(&http.Cookie{Name: security.TokenCookieName, Value: validHexToken})
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 

@@ -92,6 +92,19 @@ type registerRequest struct {
 	LastName  string `json:"last_name" example:"Novák"`
 }
 
+// commentResponse je JSON tvar odpovědi pro jeden komentář.
+// ParentID je null pro kořenové komentáře (přímo pod tiketem).
+type commentResponse struct {
+	ID         int64     `json:"id"`
+	TicketID   int64     `json:"ticket_id"`
+	AuthorID   int32     `json:"author_id"`
+	AuthorName string    `json:"author_name"`
+	ParentID   *int64    `json:"parent_id"`
+	Body       string    `json:"body"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
 // currentUserResponse je JSON tvar odpovědi pro GET /api/me a POST /api/login.
 // Obsahuje pouze pole nezbytná pro autentizaci a zobrazení v UI.
 type currentUserResponse struct {

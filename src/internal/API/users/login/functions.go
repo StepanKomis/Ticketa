@@ -17,6 +17,8 @@ type userQuerier interface {
 	GetUserWithLocalLogin(ctx context.Context, email string) (db.GetUserWithLocalLoginRow, error)
 }
 
+// sessionCreator vytvoří nebo přegeneruje session pro uživatele po úspěšném přihlášení.
+// *security.SessionStore toto rozhraní implementuje.
 type sessionCreator interface {
 	Create(ctx context.Context, userID int64, r *http.Request) (db.Session, error)
 }

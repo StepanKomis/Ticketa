@@ -34,6 +34,7 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	}
 
 	ticketHandler := handlers.NewTicketHandler(queries, httpLogger)
+	commentHandler := handlers.NewCommentHandler(queries, httpLogger)
 	adminHandler := handlers.NewAdminHandler(queries, cfgStore, httpLogger)
 
 	mux := http.NewServeMux()
@@ -66,6 +67,12 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	mux.Handle("GET /api/tickets/{id}", auth(ticketHandler))
 	mux.Handle("PUT /api/tickets/{id}", auth(ticketHandler))
 	mux.Handle("DELETE /api/tickets/{id}", auth(ticketHandler))
+
+	// Comment routes (any active user; delete also allowed for staff/maintainer)
+	mux.Handle("POST /api/tickets/{id}/comments", auth(commentHandler))
+	mux.Handle("GET /api/tickets/{id}/comments", auth(commentHandler))
+	mux.Handle("PUT /api/comments/{id}", auth(commentHandler))
+	mux.Handle("DELETE /api/comments/{id}", auth(commentHandler))
 
 	// Admin routes (maintainer only)
 	mux.Handle("GET /api/admin/config", admin(adminHandler))
