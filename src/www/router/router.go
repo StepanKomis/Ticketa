@@ -56,6 +56,10 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	mux.Handle("POST /api/register", userHandler)
 	mux.Handle("POST /api/login", userHandler)
 
+	// User routes (authenticated)
+	mux.Handle("GET /api/me", auth(userHandler))
+	mux.Handle("POST /api/logout", auth(userHandler))
+
 	// Authenticated routes (any active user)
 	mux.Handle("POST /api/tickets", auth(ticketHandler))
 	mux.Handle("GET /api/tickets", auth(ticketHandler))

@@ -98,12 +98,15 @@ func TestValidate_Success(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/login", nil)
 
 	lr := &login.LoginRequest{Email: "user@example.com", Password: pw}
-	token, err := lr.Validate(q, store, req)
+	user, token, err := lr.Validate(q, store, req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if token != "tok123" {
 		t.Errorf("expected token %q, got %q", "tok123", token)
+	}
+	if user.Email != "user@example.com" {
+		t.Errorf("expected email %q, got %q", "user@example.com", user.Email)
 	}
 }
 
@@ -115,7 +118,7 @@ func TestValidate_WrongPassword(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/login", nil)
 
 	lr := &login.LoginRequest{Email: "user@example.com", Password: "wrong-pw"}
-	token, err := lr.Validate(q, store, req)
+	_, token, err := lr.Validate(q, store, req)
 	if err == nil {
 		t.Fatal("expected error for wrong password, got nil")
 	}
@@ -130,7 +133,7 @@ func TestValidate_UserNotFound(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/login", nil)
 
 	lr := &login.LoginRequest{Email: "missing@example.com", Password: "s3cr3t!"}
-	_, err := lr.Validate(q, store, req)
+	_, _, err := lr.Validate(q, store, req)
 	if err == nil {
 		t.Fatal("expected error for missing user, got nil")
 	}
@@ -143,7 +146,7 @@ func TestValidate_SessionCreateError(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/login", nil)
 
 	lr := &login.LoginRequest{Email: "user@example.com", Password: pw}
-	_, err := lr.Validate(q, store, req)
+	_, _, err := lr.Validate(q, store, req)
 	if err == nil {
 		t.Fatal("expected error from session creation, got nil")
 	}
