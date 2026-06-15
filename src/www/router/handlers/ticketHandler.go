@@ -208,7 +208,11 @@ func (h *TicketHandler) update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !canModifyTicket(session, existing) {
+	user, ok := userFromContext(w, r)
+	if !ok {
+		return
+	}
+	if !canModifyTicket(session, existing, user.UserType) {
 		WriteError(w, http.StatusForbidden, "přístup odepřen")
 		return
 	}
@@ -272,9 +276,8 @@ func (h *TicketHandler) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.queries.GetUserByID(r.Context(), int32(session.UserID))
-	if err != nil {
-		WriteError(w, http.StatusInternalServerError, "nepodařilo se ověřit oprávnění")
+	user, ok := userFromContext(w, r)
+	if !ok {
 		return
 	}
 	if !canDeleteTicket(session, existing, user.UserType) {
@@ -333,9 +336,22 @@ func sessionFromContext(w http.ResponseWriter, r *http.Request) (db.Session, boo
 	return v.(db.Session), true
 }
 
-// canModifyTicket vrátí true pokud je uživatel session autorem tiketu (pro update).
-func canModifyTicket(session db.Session, ticket db.Ticket) bool {
-	return int32(session.UserID) == ticket.AuthorID
+// userFromContext načte uživatele z kontextu požadavku (uložen AuthMiddleware).
+// Zapíše 401 a vrátí false pokud uživatel v kontextu chybí.
+func userFromContext(w http.ResponseWriter, r *http.Request) (db.User, bool) {
+	v := r.Context().Value(ctxkeys.UserContextKey)
+	if v == nil {
+		WriteError(w, http.StatusUnauthorized, "nepřihlášen")
+		return db.User{}, false
+	}
+	return v.(db.User), true
+}
+
+// canModifyTicket vrátí true pro autora tiketu a pro staff/maintainer (správa školy).
+func canModifyTicket(session db.Session, ticket db.Ticket, userType db.UserType) bool {
+	return int32(session.UserID) == ticket.AuthorID ||
+		userType == db.UserTypeStaff ||
+		userType == db.UserTypeMaintainer
 }
 
 // canDeleteTicket vrátí true pro autora tiketu a pro staff/maintainer (správa školy).

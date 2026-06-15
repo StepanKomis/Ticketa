@@ -247,9 +247,8 @@ func (h *CommentHandler) softDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.queries.GetUserByID(r.Context(), int32(session.UserID))
-	if err != nil {
-		WriteError(w, http.StatusInternalServerError, "nepodařilo se ověřit oprávnění")
+	user, ok := userFromContext(w, r)
+	if !ok {
 		return
 	}
 	if !canDeleteComment(session, existing, user.UserType) {
