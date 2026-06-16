@@ -1,10 +1,10 @@
 -- name: GetUserByID :one
-SELECT id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at
+SELECT id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at, requested_role, approved_by
 FROM users
 WHERE id = $1;
 
 -- name: GetUserByEmail :one
-SELECT id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at
+SELECT id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at, requested_role, approved_by
 FROM users
 WHERE email = $1;
 
@@ -12,7 +12,7 @@ WHERE email = $1;
 SELECT id FROM users WHERE email = $1;
 
 -- name: ListUsers :many
-SELECT id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at
+SELECT id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at, requested_role, approved_by
 FROM users
 ORDER BY created_at DESC;
 
@@ -31,7 +31,7 @@ ORDER BY created_at DESC;
 -- name: CreateUser :one
 INSERT INTO users (email, first_name, last_name, user_type, provider)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at;
+RETURNING id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at, requested_role, approved_by;
 
 -- name: UpdateUser :one
 UPDATE users
@@ -39,7 +39,7 @@ SET email      = $2,
     first_name = $3,
     last_name  = $4
 WHERE id = $1
-RETURNING id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at;
+RETURNING id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at, requested_role, approved_by;
 
 -- name: UpdateLastLogin :exec
 UPDATE users
@@ -60,7 +60,7 @@ WHERE id = $1;
 UPDATE users
 SET user_type = $2
 WHERE id = $1
-RETURNING id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at;
+RETURNING id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at, requested_role, approved_by;
 
 -- name: DeleteUser :exec
 DELETE FROM users
@@ -169,3 +169,23 @@ WHERE id = $1;
 
 -- name: CountUsers :one
 SELECT COUNT(*) FROM users;
+
+-- name: SetRequestedRole :exec
+UPDATE users SET requested_role = $2 WHERE id = $1;
+
+-- name: GetPendingUsers :many
+SELECT id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at, requested_role, approved_by
+FROM users WHERE user_type = 'pending' ORDER BY created_at DESC;
+
+-- name: ApprovePendingUser :exec
+UPDATE users SET user_type = requested_role, approved_by = $2 WHERE id = $1;
+
+-- name: RejectPendingUser :exec
+UPDATE users SET is_active = FALSE WHERE id = $1;
+
+-- name: UpdateMyProfile :one
+UPDATE users
+SET first_name = COALESCE($2, first_name),
+    last_name  = COALESCE($3, last_name)
+WHERE id = $1
+RETURNING id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at;

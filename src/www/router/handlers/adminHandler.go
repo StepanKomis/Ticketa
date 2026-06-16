@@ -44,6 +44,10 @@ func (h *AdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.getUser(w, r)
 	case r.Method == http.MethodPatch && matchesIDPath(r.URL.Path, "/api/admin/users/"):
 		h.patchUser(w, r)
+	case r.Method == http.MethodPost && matchesIDActionPath(r.URL.Path, "/api/admin/users/", "/approve"):
+		h.approveUser(w, r)
+	case r.Method == http.MethodPost && matchesIDActionPath(r.URL.Path, "/api/admin/users/", "/reject"):
+		h.rejectUser(w, r)
 
 	default:
 		defaultResponse(w)
@@ -53,6 +57,21 @@ func (h *AdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // matchesIDPath vrátí true pokud cesta začíná prefixem a má neprázdný suffix.
 func matchesIDPath(path, prefix string) bool {
 	return len(path) > len(prefix) && path[:len(prefix)] == prefix
+}
+
+// matchesIDActionPath vrátí true pokud cesta odpovídá vzoru /prefix{id}/action.
+func matchesIDActionPath(path, prefix, action string) bool {
+	if !matchesIDPath(path, prefix) {
+		return false
+	}
+	return len(path) > len(prefix)+len(action) && path[len(path)-len(action):] == action
+}
+
+// pathIDWithAction extrahuje číselné ID z cesty ve tvaru /prefix{id}/action.
+func pathIDWithAction(path, prefix, action string) (int64, bool) {
+	s := path[len(prefix) : len(path)-len(action)]
+	id, err := strconv.ParseInt(s, 10, 64)
+	return id, err == nil
 }
 
 func pathID(path, prefix string) (int64, bool) {
@@ -448,6 +467,92 @@ func (h *AdminHandler) patchUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, user)
+}
+
+// approveUser schválí čekajícího uživatele — nastaví user_type = requested_role a zapíše kdo schválil.
+//
+// @Summary      Schválit čekajícího uživatele
+// @Description  Nastaví user_type na requested_role a zapíše ID schvalovatele. Přístupné pro staff a admin.
+// @Tags         admin
+// @Param        id   path      int  true  "ID uživatele"
+// @Success      200  {object}  userResponse  "Schválený uživatel"
+// @Failure      400  {object}  errorResponse "Neplatné ID"
+// @Failure      401  {object}  errorResponse "Nepřihlášen"
+// @Failure      403  {object}  errorResponse "Přístup odepřen"
+// @Failure      404  {object}  errorResponse "Uživatel nenalezen"
+// @Failure      500  {object}  errorResponse "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/admin/users/{id}/approve [post]
+func (h *AdminHandler) approveUser(w http.ResponseWriter, r *http.Request) {
+	id64, ok := pathIDWithAction(r.URL.Path, "/api/admin/users/", "/approve")
+	if !ok {
+		WriteError(w, http.StatusBadRequest, "neplatné ID")
+		return
+	}
+	id := int32(id64)
+
+	approver, ok := userFromContext(w, r)
+	if !ok {
+		return
+	}
+
+	ctx := r.Context()
+
+	if err := h.queries.ApprovePendingUser(ctx, db.ApprovePendingUserParams{
+		ID:         id,
+		ApprovedBy: sql.NullInt32{Int32: approver.ID, Valid: true},
+	}); err != nil {
+		if err == sql.ErrNoRows {
+			WriteError(w, http.StatusNotFound, "uživatel nenalezen nebo nebyl ve stavu pending")
+			return
+		}
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se schválit uživatele")
+		return
+	}
+
+	user, err := h.queries.GetUserByID(ctx, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			WriteError(w, http.StatusNotFound, "uživatel nenalezen")
+			return
+		}
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst uživatele")
+		return
+	}
+	writeJSON(w, http.StatusOK, user)
+}
+
+// rejectUser zamítne čekajícího uživatele — deaktivuje jeho účet a okamžitě zneplatní session.
+//
+// @Summary      Zamítnout čekajícího uživatele
+// @Description  Deaktivuje účet a zneplatní session. Přístupné pro staff a admin.
+// @Tags         admin
+// @Param        id   path      int  true  "ID uživatele"
+// @Success      204  "Zamítnuto"
+// @Failure      400  {object}  errorResponse "Neplatné ID"
+// @Failure      401  {object}  errorResponse "Nepřihlášen"
+// @Failure      403  {object}  errorResponse "Přístup odepřen"
+// @Failure      500  {object}  errorResponse "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/admin/users/{id}/reject [post]
+func (h *AdminHandler) rejectUser(w http.ResponseWriter, r *http.Request) {
+	id64, ok := pathIDWithAction(r.URL.Path, "/api/admin/users/", "/reject")
+	if !ok {
+		WriteError(w, http.StatusBadRequest, "neplatné ID")
+		return
+	}
+	id := int32(id64)
+
+	ctx := r.Context()
+
+	if err := h.queries.RejectPendingUser(ctx, id); err != nil {
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se zamítnout uživatele")
+		return
+	}
+	if err := h.queries.SoftDeleteSessionByUserID(ctx, int64(id)); err != nil {
+		h.httpLogger.Debugf("rejectUser: SoftDeleteSessionByUserID selhalo pro user_id=%d: %s", id, err)
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // writeJSON je pomocná funkce pro zápis JSON odpovědi.

@@ -266,7 +266,7 @@ func (h *CommentHandler) softDelete(w http.ResponseWriter, r *http.Request) {
 func canDeleteComment(session db.Session, comment db.TicketComment, userType db.UserType) bool {
 	return int32(session.UserID) == comment.AuthorID ||
 		userType == db.UserTypeStaff ||
-		userType == db.UserTypeMaintainer
+		userType == db.UserTypeAdmin
 }
 
 func toCommentResponse(c db.TicketComment, authorName string) commentResponse {

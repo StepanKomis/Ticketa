@@ -25,6 +25,9 @@ var up00005 string
 //go:embed up/UP_00006.sql
 var up00006 string
 
+//go:embed up/UP_00007.sql
+var up00007 string
+
 var All = func() []migrate.Migration {
 	ms := []migrate.Migration{
 		{
@@ -93,6 +96,20 @@ var All = func() []migrate.Migration {
 			},
 			// PostgreSQL enum values cannot be removed; down is a no-op.
 			Down: func(db any) error { return nil },
+		},
+		{
+			Name: "add_requested_role_and_approved_by",
+			Up: func(db any) error {
+				_, err := db.(*sql.DB).Exec(up00007)
+				return err
+			},
+			Down: func(db any) error {
+				_, err := db.(*sql.DB).Exec(`
+					ALTER TABLE users DROP COLUMN IF EXISTS requested_role;
+					ALTER TABLE users DROP COLUMN IF EXISTS approved_by;
+				`)
+				return err
+			},
 		},
 	}
 	for i := range ms {

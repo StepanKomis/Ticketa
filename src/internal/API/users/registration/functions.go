@@ -109,6 +109,20 @@ func RegisterNewLocalUser(b RegistrationRequest, psql *sql.DB) (int32, error) {
 		return 0, fmt.Errorf("nepodařilo se vytvořit lokální přihlášení pro %s: %w", b.Email, err)
 	}
 
+	// Pro pending uživatele uložíme požadovanou roli — správce ji přiřadí při schválení.
+	if userType == db.UserTypePending {
+		requestedType, ok := ValidUserTypes[b.UserType]
+		if !ok {
+			requestedType = db.UserTypeStudent
+		}
+		if err = queries.SetRequestedRole(context.Background(), db.SetRequestedRoleParams{
+			ID:            user.ID,
+			RequestedRole: db.NullUserType{UserType: requestedType, Valid: true},
+		}); err != nil {
+			return 0, fmt.Errorf("nepodařilo se uložit požadovanou roli pro %s: %w", b.Email, err)
+		}
+	}
+
 	if err = tx.Commit(); err != nil {
 		return 0, fmt.Errorf("nepodařilo se potvrdit transakci pro uživatele %s: %w", b.Email, err)
 	}

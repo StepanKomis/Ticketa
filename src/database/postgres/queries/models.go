@@ -185,13 +185,15 @@ type TicketStatus struct {
 }
 
 type User struct {
-	ID          int32
-	Email       string
-	FirstName   sql.NullString
-	LastName    sql.NullString
-	UserType    UserType
-	Provider    AuthProvider
-	IsActive    bool
-	CreatedAt   time.Time
-	LastLoginAt sql.NullTime
+	ID            int32
+	Email         string
+	FirstName     sql.NullString
+	LastName      sql.NullString
+	UserType      UserType
+	Provider      AuthProvider
+	IsActive      bool
+	CreatedAt     time.Time
+	LastLoginAt   sql.NullTime
+	RequestedRole NullUserType
+	ApprovedBy    sql.NullInt32
 }

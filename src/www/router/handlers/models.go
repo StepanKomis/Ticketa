@@ -46,15 +46,17 @@ type ticketResponse struct {
 // userResponse je JSON tvar odpovědi pro jednoho uživatele.
 // FirstName, LastName a LastLoginAt jsou nullable.
 type userResponse struct {
-	ID          int32      `json:"ID" example:"3"`
-	Email       string     `json:"Email" example:"jan.novak@skola.cz"`
-	FirstName   nullString `json:"FirstName"`
-	LastName    nullString `json:"LastName"`
-	UserType    string     `json:"UserType" example:"student" enums:"student,staff,maintainer"`
-	Provider    string     `json:"Provider" example:"local"`
-	IsActive    bool       `json:"IsActive" example:"true"`
-	CreatedAt   time.Time  `json:"CreatedAt" example:"2026-06-07T12:00:00Z"`
-	LastLoginAt nullTime   `json:"LastLoginAt"`
+	ID            int32      `json:"ID" example:"3"`
+	Email         string     `json:"Email" example:"jan.novak@skola.cz"`
+	FirstName     nullString `json:"FirstName"`
+	LastName      nullString `json:"LastName"`
+	UserType      string     `json:"UserType" example:"student" enums:"student,staff,maintainer,admin,pending"`
+	RequestedRole nullString `json:"RequestedRole"`
+	ApprovedBy    nullInt32  `json:"ApprovedBy"`
+	Provider      string     `json:"Provider" example:"local"`
+	IsActive      bool       `json:"IsActive" example:"true"`
+	CreatedAt     time.Time  `json:"CreatedAt" example:"2026-06-07T12:00:00Z"`
+	LastLoginAt   nullTime   `json:"LastLoginAt"`
 }
 
 // ticketStatusResponse je JSON tvar odpovědi pro jeden stav tiketu.
