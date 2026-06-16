@@ -98,7 +98,7 @@ func pathID(path, prefix string) (int64, bool) {
 // @Produce      json
 // @Success      200  {object}  configResponse  "Aktuální konfigurace"
 // @Failure      401  {object}  errorResponse   "Chybí nebo vypršel session cookie"
-// @Failure      403  {object}  errorResponse   "Přístup pouze pro maintainer"
+// @Failure      403  {object}  errorResponse   "Přístup pouze pro admin"
 // @Security     cookieAuth
 // @Router       /api/admin/config [get]
 func (h *AdminHandler) getConfig(w http.ResponseWriter, r *http.Request) {
@@ -118,7 +118,7 @@ func (h *AdminHandler) getConfig(w http.ResponseWriter, r *http.Request) {
 // @Success      200   {object}  configResponse      "Aktualizovaná konfigurace"
 // @Failure      400   {object}  errorResponse       "Neplatné tělo nebo chyba zápisu na disk"
 // @Failure      401   {object}  errorResponse       "Chybí nebo vypršel session cookie"
-// @Failure      403   {object}  errorResponse       "Přístup pouze pro maintainer"
+// @Failure      403   {object}  errorResponse       "Přístup pouze pro admin"
 // @Security     cookieAuth
 // @Router       /api/admin/config [patch]
 func (h *AdminHandler) patchConfig(w http.ResponseWriter, r *http.Request) {
@@ -158,7 +158,7 @@ func (h *AdminHandler) patchConfig(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Success      200  {array}   ticketStatusResponse  "Seznam stavů"
 // @Failure      401  {object}  errorResponse         "Chybí nebo vypršel session cookie"
-// @Failure      403  {object}  errorResponse         "Přístup pouze pro maintainer"
+// @Failure      403  {object}  errorResponse         "Přístup pouze pro admin"
 // @Failure      500  {object}  errorResponse         "Interní chyba"
 // @Security     cookieAuth
 // @Router       /api/admin/ticket-statuses [get]
@@ -192,7 +192,7 @@ type createStatusRequest struct {
 // @Success      201   {object}  ticketStatusResponse  "Vytvořený stav"
 // @Failure      400   {object}  errorResponse         "Neplatné tělo požadavku"
 // @Failure      401   {object}  errorResponse         "Chybí nebo vypršel session cookie"
-// @Failure      403   {object}  errorResponse         "Přístup pouze pro maintainer"
+// @Failure      403   {object}  errorResponse         "Přístup pouze pro admin"
 // @Failure      422   {object}  errorResponse         "Chybí povinné pole title"
 // @Failure      500   {object}  errorResponse         "Interní chyba"
 // @Security     cookieAuth
@@ -250,7 +250,7 @@ type updateStatusRequest struct {
 // @Success      200   {object}  ticketStatusResponse  "Aktualizovaný stav"
 // @Failure      400   {object}  errorResponse         "Neplatné ID nebo tělo požadavku"
 // @Failure      401   {object}  errorResponse         "Chybí nebo vypršel session cookie"
-// @Failure      403   {object}  errorResponse         "Přístup pouze pro maintainer"
+// @Failure      403   {object}  errorResponse         "Přístup pouze pro admin"
 // @Failure      404   {object}  errorResponse         "Stav nenalezen"
 // @Failure      500   {object}  errorResponse         "Interní chyba"
 // @Security     cookieAuth
@@ -299,7 +299,7 @@ func (h *AdminHandler) updateStatus(w http.ResponseWriter, r *http.Request) {
 // @Success      204 "Stav smazán"
 // @Failure      400 {object}  errorResponse  "Neplatné ID"
 // @Failure      401 {object}  errorResponse  "Chybí nebo vypršel session cookie"
-// @Failure      403 {object}  errorResponse  "Přístup pouze pro maintainer"
+// @Failure      403 {object}  errorResponse  "Přístup pouze pro admin"
 // @Failure      500 {object}  errorResponse  "Interní chyba"
 // @Security     cookieAuth
 // @Router       /api/admin/ticket-statuses/{id} [delete]
@@ -427,14 +427,14 @@ func (h *AdminHandler) listUsers(w http.ResponseWriter, r *http.Request) {
 // getUser vrátí jednoho uživatele podle ID.
 //
 // @Summary      Získat uživatele
-// @Description  Vrátí uživatele podle jeho ID. Přístupné pouze pro maintainer.
+// @Description  Vrátí uživatele podle jeho ID. Přístupné pouze pro admin.
 // @Tags         admin
 // @Produce      json
 // @Param        id   path      int           true  "ID uživatele"
 // @Success      200  {object}  userResponse  "Uživatel"
 // @Failure      400  {object}  errorResponse "Neplatné ID"
 // @Failure      401  {object}  errorResponse "Chybí nebo vypršel session cookie"
-// @Failure      403  {object}  errorResponse "Přístup pouze pro maintainer"
+// @Failure      403  {object}  errorResponse "Přístup pouze pro admin"
 // @Failure      404  {object}  errorResponse "Uživatel nenalezen"
 // @Failure      500  {object}  errorResponse "Interní chyba"
 // @Security     cookieAuth
@@ -476,7 +476,7 @@ type patchUserRequest struct {
 // @Success      200   {object}  userResponse      "Aktualizovaný uživatel"
 // @Failure      400   {object}  errorResponse     "Neplatné ID nebo tělo požadavku"
 // @Failure      401   {object}  errorResponse     "Chybí nebo vypršel session cookie"
-// @Failure      403   {object}  errorResponse     "Přístup pouze pro maintainer"
+// @Failure      403   {object}  errorResponse     "Přístup pouze pro admin"
 // @Failure      404   {object}  errorResponse     "Uživatel nenalezen"
 // @Failure      500   {object}  errorResponse     "Interní chyba"
 // @Security     cookieAuth

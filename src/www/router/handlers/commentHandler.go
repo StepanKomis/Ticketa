@@ -207,11 +207,11 @@ func (h *CommentHandler) update(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, toCommentResponse(comment, authorName))
 }
 
-// softDelete označí komentář jako smazaný (soft delete). Povoleno autorovi nebo uživateli s rolí staff/maintainer.
+// softDelete označí komentář jako smazaný (soft delete). Povoleno autorovi nebo uživateli s rolí staff/admin.
 // Komentář zůstane v databázi, ale přestane se zobrazovat v seznamu.
 //
 // @Summary      Smazat komentář
-// @Description  Provede soft delete komentáře. Povoleno autorovi, učitelům (staff) a správcům (maintainer). Vrátí 204 bez těla odpovědi.
+// @Description  Provede soft delete komentáře. Povoleno autorovi, učitelům (staff) a správcům systému (admin). Vrátí 204 bez těla odpovědi.
 // @Tags         comments
 // @Param        id  path  int  true  "ID komentáře"
 // @Success      204 "Komentář smazán"
