@@ -13,6 +13,17 @@ import (
 	"github.com/google/uuid"
 )
 
+const countUsers = `-- name: CountUsers :one
+SELECT COUNT(*) FROM users
+`
+
+func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUsers)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createLDAPLogin = `-- name: CreateLDAPLogin :one
 INSERT INTO ldap_login (id, distinguished_name, uid, sam_account_name, upn, object_guid, object_sid, ldap_server, base_dn)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)

@@ -54,6 +54,7 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	mux.Handle("/docs", http.RedirectHandler("/docs/", http.StatusMovedPermanently))
 
 	// Public routes
+	mux.Handle("GET /api/setup-status", userHandler)
 	mux.Handle("POST /api/register", userHandler)
 	mux.Handle("POST /api/login", userHandler)
 

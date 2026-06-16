@@ -166,3 +166,6 @@ UPDATE maintainer_profile
 SET access_level  = $2,
     managed_scope = $3
 WHERE id = $1;
+
+-- name: CountUsers :one
+SELECT COUNT(*) FROM users;

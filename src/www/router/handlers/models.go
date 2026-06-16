@@ -121,6 +121,11 @@ type loginRequest struct {
 	Password string `json:"password" example:"Heslo123!"`
 }
 
+// setupStatusResponse informuje, zda je systém nakonfigurován (existuje alespoň jeden uživatel).
+type setupStatusResponse struct {
+	NeedsSetup bool `json:"needs_setup" example:"true"`
+}
+
 // patchConfigRequest je tělo požadavku pro PATCH /api/admin/config.
 // Všechna pole jsou volitelná — uvádějte pouze to, co chcete změnit.
 type patchConfigRequest struct {

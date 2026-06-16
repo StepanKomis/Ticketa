@@ -246,6 +246,33 @@ func (uh *UserHandler) logout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// setupStatus vrátí, zda je systém inicializovaný (alespoň jeden uživatel existuje).
+// Pokud needs_setup = true, první registrace automaticky vytvoří administrátora.
+//
+// @Summary      Stav inicializace systému
+// @Description  Vrátí needs_setup=true pokud žádný uživatel neexistuje — první registrace pak automaticky dostane roli admin.
+// @Tags         auth
+// @Produce      json
+// @Success      200  {object}  setupStatusResponse
+// @Failure      500  {object}  errorResponse
+// @Router       /api/setup-status [get]
+func (uh *UserHandler) setupStatus(w http.ResponseWriter, r *http.Request) {
+	count, err := uh.queries.CountUsers(r.Context())
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se ověřit stav systému")
+		return
+	}
+	res := setupStatusResponse{NeedsSetup: count == 0}
+	jsonRes, err := json.Marshal(res)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "interní chyba serveru")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(jsonRes) //nolint:errcheck
+}
+
 func (uh *UserHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case "/api/register":
@@ -256,6 +283,8 @@ func (uh *UserHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		uh.me(w, r)
 	case "/api/logout":
 		uh.logout(w, r)
+	case "/api/setup-status":
+		uh.setupStatus(w, r)
 	default:
 		uh.httpLogger.Debugf("neošetřená cesta: %s %s od %s", r.Method, r.URL.Path, r.RemoteAddr)
 		defaultResponse(w)

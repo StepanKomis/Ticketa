@@ -50,19 +50,16 @@ func ValidatePassword(rawPassword string) error {
 	return nil
 }
 
-var validUserTypes = map[string]db.UserType{
+// ValidUserTypes obsahuje přípustné hodnoty role při registraci (ukládají se jako requested_role).
+var ValidUserTypes = map[string]db.UserType{
 	"student":    db.UserTypeStudent,
 	"staff":      db.UserTypeStaff,
 	"maintainer": db.UserTypeMaintainer,
 }
 
 // RegisterNewLocalUser zaregistruje nového uživatele a jeho lokální přihlašovací údaje v rámci jedné transakce.
+// První uživatel v systému automaticky dostane roli admin; všichni ostatní začínají jako pending.
 func RegisterNewLocalUser(b RegistrationRequest, psql *sql.DB) (int32, error) {
-	userType, ok := validUserTypes[b.UserType]
-	if !ok {
-		return 0, fmt.Errorf("%w %q: musí být student, staff nebo maintainer", ErrInvalidUserType, b.UserType)
-	}
-
 	hash, err := security.HashPassword(b.Password)
 	if err != nil {
 		return 0, fmt.Errorf("nepodařilo se zahashovat heslo pro uživatele %s: %w", b.Email, err)
@@ -75,6 +72,19 @@ func RegisterNewLocalUser(b RegistrationRequest, psql *sql.DB) (int32, error) {
 	defer tx.Rollback()
 
 	queries := db.New(tx)
+
+	count, err := queries.CountUsers(context.Background())
+	if err != nil {
+		return 0, fmt.Errorf("nepodařilo se ověřit počet uživatelů: %w", err)
+	}
+
+	var userType db.UserType
+	if count == 0 {
+		// První registrace — automaticky admin, bez ohledu na odeslanou roli.
+		userType = db.UserTypeAdmin
+	} else {
+		userType = db.UserTypePending
+	}
 
 	userParams := db.CreateUserParams{
 		Email:     b.Email,

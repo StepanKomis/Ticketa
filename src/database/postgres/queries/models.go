@@ -63,6 +63,8 @@ const (
 	UserTypeStudent    UserType = "student"
 	UserTypeStaff      UserType = "staff"
 	UserTypeMaintainer UserType = "maintainer"
+	UserTypePending    UserType = "pending"
+	UserTypeAdmin      UserType = "admin"
 )
 
 func (e *UserType) Scan(src interface{}) error {
