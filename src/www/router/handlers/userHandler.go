@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/StepanKomis/Ticketa/src/cmd/server/env"
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
@@ -308,6 +309,105 @@ func (uh *UserHandler) patchMe(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonRes) //nolint:errcheck
 }
 
+// acceptInvite přijme pozvánku — ověří token, zaregistruje uživatele a zneplatní token.
+//
+// @Summary      Přijmout pozvánku
+// @Description  Ověří pozvánkový token, vytvoří účet s rolí z pozvánky (přeskočí pending schvalování) a token označí jako použitý.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      acceptInviteRequest    true  "Token, heslo a jméno"
+// @Success      201   {object}  acceptInviteResponse   "Vytvořený účet"
+// @Failure      400   {object}  errorResponse          "Chybí povinné pole nebo neplatné heslo"
+// @Failure      410   {object}  errorResponse          "Token vypršel nebo byl již použit"
+// @Failure      500   {object}  errorResponse          "Interní chyba"
+// @Router       /api/auth/invite/accept [post]
+func (uh *UserHandler) acceptInvite(w http.ResponseWriter, r *http.Request) {
+	var body acceptInviteRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		WriteError(w, http.StatusBadRequest, "neplatné tělo požadavku")
+		return
+	}
+	if body.Token == "" || body.Password == "" {
+		WriteError(w, http.StatusBadRequest, "token a password jsou povinné")
+		return
+	}
+
+	if err := userregistration.ValidatePassword(body.Password); err != nil {
+		WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	ctx := r.Context()
+	inv, err := uh.queries.GetInvitationByToken(ctx, body.Token)
+	if err != nil {
+		// Nerozlišujeme "nenalezeno" od "chyba DB" — oba případy jsou 410 z pohledu klienta.
+		WriteError(w, http.StatusGone, "pozvánka neexistuje, vypršela nebo byla již použita")
+		return
+	}
+
+	if inv.UsedAt.Valid || inv.ExpiresAt.Before(time.Now()) {
+		WriteError(w, http.StatusGone, "pozvánka vypršela nebo byla již použita")
+		return
+	}
+
+	hash, err := security.HashPassword(body.Password)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se zpracovat heslo")
+		return
+	}
+
+	tx, err := uh.db.BeginTx(ctx, nil)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "interní chyba serveru")
+		return
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	txQ := db.New(tx)
+
+	user, err := txQ.CreateUser(ctx, db.CreateUserParams{
+		Email:     inv.Email,
+		FirstName: sql.NullString{String: body.FirstName, Valid: body.FirstName != ""},
+		LastName:  sql.NullString{String: body.LastName, Valid: body.LastName != ""},
+		UserType:  inv.UserType,
+		Provider:  db.AuthProviderLocal,
+	})
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se vytvořit účet")
+		return
+	}
+
+	if err = txQ.CreateLocalLogin(ctx, db.CreateLocalLoginParams{
+		ID:           user.ID,
+		PasswordHash: hash,
+		MustChangePw: false,
+	}); err != nil {
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se vytvořit přihlašovací údaje")
+		return
+	}
+
+	if err = txQ.MarkInvitationUsed(ctx, inv.ID); err != nil {
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se označit pozvánku jako použitou")
+		return
+	}
+
+	if err = tx.Commit(); err != nil {
+		WriteError(w, http.StatusInternalServerError, "interní chyba serveru")
+		return
+	}
+
+	res := acceptInviteResponse{ID: user.ID, Email: user.Email}
+	jsonRes, err := json.Marshal(res)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "interní chyba serveru")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	w.Write(jsonRes) //nolint:errcheck
+}
+
 // setupStatus vrátí, zda je systém inicializovaný (alespoň jeden uživatel existuje).
 // Pokud needs_setup = true, první registrace automaticky vytvoří administrátora.
 //
@@ -351,6 +451,8 @@ func (uh *UserHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		uh.logout(w, r)
 	case "/api/setup-status":
 		uh.setupStatus(w, r)
+	case "/api/auth/invite/accept":
+		uh.acceptInvite(w, r)
 	default:
 		uh.httpLogger.Debugf("neošetřená cesta: %s %s od %s", r.Method, r.URL.Path, r.RemoteAddr)
 		defaultResponse(w)

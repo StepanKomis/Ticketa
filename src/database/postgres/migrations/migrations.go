@@ -28,6 +28,9 @@ var up00006 string
 //go:embed up/UP_00007.sql
 var up00007 string
 
+//go:embed up/UP_00008.sql
+var up00008 string
+
 var All = func() []migrate.Migration {
 	ms := []migrate.Migration{
 		{
@@ -108,6 +111,17 @@ var All = func() []migrate.Migration {
 					ALTER TABLE users DROP COLUMN IF EXISTS requested_role;
 					ALTER TABLE users DROP COLUMN IF EXISTS approved_by;
 				`)
+				return err
+			},
+		},
+		{
+			Name: "create_invitations",
+			Up: func(db any) error {
+				_, err := db.(*sql.DB).Exec(up00008)
+				return err
+			},
+			Down: func(db any) error {
+				_, err := db.(*sql.DB).Exec(`DROP TABLE IF EXISTS invitations CASCADE;`)
 				return err
 			},
 		},

@@ -143,6 +143,34 @@ type pagedUsersResponse struct {
 	Offset int   `json:"offset"`
 }
 
+// createInvitationRequest jsou parametry pro vytvoření pozvánky.
+type createInvitationRequest struct {
+	Email    string `json:"email" example:"jan.novak@skola.cz"`
+	UserType string `json:"user_type" example:"staff" enums:"student,staff,maintainer"`
+}
+
+// createInvitationResponse je odpověď po vytvoření pozvánky.
+type createInvitationResponse struct {
+	Token     string `json:"token" example:"a1b2c3..."`
+	Email     string `json:"email" example:"jan.novak@skola.cz"`
+	UserType  string `json:"user_type" example:"staff"`
+	ExpiresAt string `json:"expires_at" example:"2026-06-23T14:22:55Z"`
+}
+
+// acceptInviteRequest jsou parametry pro přijetí pozvánky a vytvoření účtu.
+type acceptInviteRequest struct {
+	Token     string `json:"token" example:"a1b2c3..."`
+	Password  string `json:"password" example:"Heslo123!"`
+	FirstName string `json:"first_name" example:"Jan"`
+	LastName  string `json:"last_name" example:"Novák"`
+}
+
+// acceptInviteResponse je odpověď po úspěšném přijetí pozvánky.
+type acceptInviteResponse struct {
+	ID    int32  `json:"id" example:"42"`
+	Email string `json:"email" example:"jan.novak@skola.cz"`
+}
+
 // patchConfigRequest je tělo požadavku pro PATCH /api/admin/config.
 // Všechna pole jsou volitelná — uvádějte pouze to, co chcete změnit.
 type patchConfigRequest struct {

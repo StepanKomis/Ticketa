@@ -2,11 +2,14 @@ package handlers
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
 	"github.com/StepanKomis/Ticketa/src/config"
@@ -49,6 +52,9 @@ func (h *AdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.approveUser(w, r)
 	case r.Method == http.MethodPost && matchesIDActionPath(r.URL.Path, "/api/admin/users/", "/reject"):
 		h.rejectUser(w, r)
+
+	case r.Method == http.MethodPost && r.URL.Path == "/api/admin/invitations":
+		h.createInvitation(w, r)
 
 	default:
 		defaultResponse(w)
@@ -617,6 +623,77 @@ func (h *AdminHandler) rejectUser(w http.ResponseWriter, r *http.Request) {
 		h.httpLogger.Debugf("rejectUser: SoftDeleteSessionByUserID selhalo pro user_id=%d: %s", id, err)
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// ---- Invitations -----------------------------------------------------------
+
+// createInvitation vytvoří pozvánku pro konkrétní e-mail a roli.
+// Token je platný 7 dní. Admin ho zkopíruje a pošle uživateli ručně.
+//
+// @Summary      Vytvořit pozvánku
+// @Description  Vygeneruje unikátní 64-znakový token platný 7 dní. Admin ho sdílí s uživatelem.
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Param        body  body      createInvitationRequest    true  "E-mail a role pozvaného"
+// @Success      201   {object}  createInvitationResponse   "Vygenerovaný token"
+// @Failure      400   {object}  errorResponse              "Chybí e-mail nebo neplatná role"
+// @Failure      401   {object}  errorResponse              "Nepřihlášen"
+// @Failure      403   {object}  errorResponse              "Přístup odepřen"
+// @Failure      500   {object}  errorResponse              "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/admin/invitations [post]
+func (h *AdminHandler) createInvitation(w http.ResponseWriter, r *http.Request) {
+	var body createInvitationRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		WriteError(w, http.StatusBadRequest, "neplatné tělo požadavku")
+		return
+	}
+	if body.Email == "" {
+		WriteError(w, http.StatusBadRequest, "pole email je povinné")
+		return
+	}
+
+	validInviteTypes := map[string]db.UserType{
+		"student":    db.UserTypeStudent,
+		"staff":      db.UserTypeStaff,
+		"maintainer": db.UserTypeMaintainer,
+	}
+	userType, ok := validInviteTypes[body.UserType]
+	if !ok {
+		WriteError(w, http.StatusBadRequest, "neplatný user_type; povolené hodnoty: student, staff, maintainer")
+		return
+	}
+
+	approver, ok := userFromContext(w, r)
+	if !ok {
+		return
+	}
+
+	rawToken := make([]byte, 32)
+	if _, err := rand.Read(rawToken); err != nil {
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se vygenerovat token")
+		return
+	}
+	token := hex.EncodeToString(rawToken)
+
+	inv, err := h.queries.CreateInvitation(r.Context(), db.CreateInvitationParams{
+		Email:     body.Email,
+		InvitedBy: approver.ID,
+		Token:     token,
+		UserType:  userType,
+	})
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se vytvořit pozvánku")
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, createInvitationResponse{
+		Token:     inv.Token,
+		Email:     inv.Email,
+		UserType:  string(inv.UserType),
+		ExpiresAt: inv.ExpiresAt.Format(time.RFC3339),
+	})
 }
 
 // writeJSON je pomocná funkce pro zápis JSON odpovědi.

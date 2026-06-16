@@ -58,6 +58,7 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	mux.Handle("GET /api/setup-status", userHandler)
 	mux.Handle("POST /api/register", userHandler)
 	mux.Handle("POST /api/login", userHandler)
+	mux.Handle("POST /api/auth/invite/accept", userHandler)
 
 	// User routes (authenticated)
 	mux.Handle("GET /api/me", auth(userHandler))
@@ -89,6 +90,7 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	mux.Handle("PATCH /api/admin/users/{id}", admin(adminHandler))
 	mux.Handle("POST /api/admin/users/{id}/approve", staffAdmin(adminHandler))
 	mux.Handle("POST /api/admin/users/{id}/reject", staffAdmin(adminHandler))
+	mux.Handle("POST /api/admin/invitations", admin(adminHandler))
 
 	return mux
 }

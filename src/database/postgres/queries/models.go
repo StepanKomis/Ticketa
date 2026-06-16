@@ -102,6 +102,17 @@ func (ns NullUserType) Value() (driver.Value, error) {
 	return string(ns.UserType), nil
 }
 
+type Invitation struct {
+	ID        int64
+	Email     string
+	InvitedBy int32
+	Token     string
+	UserType  UserType
+	CreatedAt time.Time
+	ExpiresAt time.Time
+	UsedAt    sql.NullTime
+}
+
 type LdapLogin struct {
 	ID                int32
 	DistinguishedName string
