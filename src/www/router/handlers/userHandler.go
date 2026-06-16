@@ -246,6 +246,68 @@ func (uh *UserHandler) logout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// patchMe aktualizuje jméno a příjmení přihlášeného uživatele.
+//
+// @Summary      Aktualizovat vlastní profil
+// @Description  Aktualizuje first_name a/nebo last_name. Email nelze změnit. Obě pole jsou volitelná.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      patchMeRequest        true  "Nové jméno a/nebo příjmení"
+// @Success      200   {object}  currentUserResponse   "Aktualizovaný profil"
+// @Failure      400   {object}  errorResponse         "Neplatné tělo požadavku"
+// @Failure      401   {object}  errorResponse         "Chybí nebo vypršel session cookie"
+// @Failure      500   {object}  errorResponse         "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/me [patch]
+func (uh *UserHandler) patchMe(w http.ResponseWriter, r *http.Request) {
+	session, ok := sessionFromContext(w, r)
+	if !ok {
+		return
+	}
+
+	var body patchMeRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		WriteError(w, http.StatusBadRequest, "neplatné tělo požadavku")
+		return
+	}
+
+	var firstName, lastName sql.NullString
+	if body.FirstName != nil {
+		firstName = sql.NullString{String: *body.FirstName, Valid: true}
+	}
+	if body.LastName != nil {
+		lastName = sql.NullString{String: *body.LastName, Valid: true}
+	}
+
+	u, err := uh.queries.UpdateMyProfile(r.Context(), db.UpdateMyProfileParams{
+		ID:        int32(session.UserID),
+		FirstName: firstName,
+		LastName:  lastName,
+	})
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se aktualizovat profil")
+		return
+	}
+
+	res := currentUserResponse{
+		ID:        u.ID,
+		Email:     u.Email,
+		FirstName: u.FirstName.String,
+		LastName:  u.LastName.String,
+		UserType:  string(u.UserType),
+	}
+
+	jsonRes, err := json.Marshal(res)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "interní chyba serveru")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(jsonRes) //nolint:errcheck
+}
+
 // setupStatus vrátí, zda je systém inicializovaný (alespoň jeden uživatel existuje).
 // Pokud needs_setup = true, první registrace automaticky vytvoří administrátora.
 //
@@ -280,7 +342,11 @@ func (uh *UserHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "/api/login":
 		uh.login(w, r)
 	case "/api/me":
-		uh.me(w, r)
+		if r.Method == http.MethodPatch {
+			uh.patchMe(w, r)
+		} else {
+			uh.me(w, r)
+		}
 	case "/api/logout":
 		uh.logout(w, r)
 	case "/api/setup-status":

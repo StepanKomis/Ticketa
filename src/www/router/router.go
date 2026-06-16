@@ -61,6 +61,7 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 
 	// User routes (authenticated)
 	mux.Handle("GET /api/me", auth(userHandler))
+	mux.Handle("PATCH /api/me", auth(userHandler))
 	mux.Handle("POST /api/logout", auth(userHandler))
 
 	// Authenticated routes (any active user)
