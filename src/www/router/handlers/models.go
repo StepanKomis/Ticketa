@@ -128,6 +128,21 @@ type setupStatusResponse struct {
 	NeedsSetup bool `json:"needs_setup" example:"true"`
 }
 
+// patchMeRequest je tělo požadavku pro PATCH /api/me.
+// Obě pole jsou volitelná — null/vynechané pole zůstane beze změny.
+type patchMeRequest struct {
+	FirstName *string `json:"first_name" example:"Jan"`
+	LastName  *string `json:"last_name" example:"Novák"`
+}
+
+// pagedUsersResponse je stránkovaná odpověď pro GET /api/admin/users.
+type pagedUsersResponse struct {
+	Items  any   `json:"items"`
+	Total  int64 `json:"total"`
+	Limit  int   `json:"limit"`
+	Offset int   `json:"offset"`
+}
+
 // patchConfigRequest je tělo požadavku pro PATCH /api/admin/config.
 // Všechna pole jsou volitelná — uvádějte pouze to, co chcete změnit.
 type patchConfigRequest struct {

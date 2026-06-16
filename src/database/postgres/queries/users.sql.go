@@ -38,6 +38,26 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countUsersFiltered = `-- name: CountUsersFiltered :one
+SELECT COUNT(*) FROM users
+WHERE ($1::user_type IS NULL OR user_type = $1)
+  AND ($2::boolean IS NULL OR is_active = $2)
+  AND ($3::text = '' OR email ILIKE '%' || $3 || '%')
+`
+
+type CountUsersFilteredParams struct {
+	UserType NullUserType
+	IsActive sql.NullBool
+	Search   string
+}
+
+func (q *Queries) CountUsersFiltered(ctx context.Context, arg CountUsersFilteredParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUsersFiltered, arg.UserType, arg.IsActive, arg.Search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createLDAPLogin = `-- name: CreateLDAPLogin :one
 INSERT INTO ldap_login (id, distinguished_name, uid, sam_account_name, upn, object_guid, object_sid, ldap_server, base_dn)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -709,6 +729,66 @@ func (q *Queries) ListUsersByType(ctx context.Context, userType UserType) ([]Lis
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.LastLoginAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUsersFiltered = `-- name: ListUsersFiltered :many
+SELECT id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at, requested_role, approved_by
+FROM users
+WHERE ($1::user_type IS NULL OR user_type = $1)
+  AND ($2::boolean IS NULL OR is_active = $2)
+  AND ($3::text = '' OR email ILIKE '%' || $3 || '%')
+ORDER BY created_at DESC
+LIMIT $5
+OFFSET $4
+`
+
+type ListUsersFilteredParams struct {
+	UserType NullUserType
+	IsActive sql.NullBool
+	Search   string
+	Off      int32
+	Lim      int32
+}
+
+func (q *Queries) ListUsersFiltered(ctx context.Context, arg ListUsersFilteredParams) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, listUsersFiltered,
+		arg.UserType,
+		arg.IsActive,
+		arg.Search,
+		arg.Off,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.FirstName,
+			&i.LastName,
+			&i.UserType,
+			&i.Provider,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.LastLoginAt,
+			&i.RequestedRole,
+			&i.ApprovedBy,
 		); err != nil {
 			return nil, err
 		}

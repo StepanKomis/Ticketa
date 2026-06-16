@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
 	"github.com/StepanKomis/Ticketa/src/config"
@@ -329,21 +330,67 @@ func (h *AdminHandler) syncStatusesToConfig(ctx context.Context) {
 
 // ---- Users -----------------------------------------------------------------
 
-// listUsers vrátí seznam všech uživatelů.
-// Prázdný výsledek vrátí [] (nikdy null).
+const defaultUsersLimit = 50
+const maxUsersLimit = 200
+
+// listUsers vrátí stránkovaný seznam uživatelů s volitelným filtrováním.
+// Podporuje parametry: ?type=student|staff|maintainer|admin|pending, ?active=true|false,
+// ?q=<hledaný text v e-mailu>, ?limit=50 (max 200), ?offset=0.
 //
 // @Summary      Seznam uživatelů
-// @Description  Vrátí všechny uživatele systému. Přístupné pouze pro maintainer.
+// @Description  Vrátí stránkovaný seznam uživatelů. Přístupné pouze pro admin.
 // @Tags         admin
 // @Produce      json
-// @Success      200  {array}   userResponse   "Seznam uživatelů"
-// @Failure      401  {object}  errorResponse  "Chybí nebo vypršel session cookie"
-// @Failure      403  {object}  errorResponse  "Přístup pouze pro maintainer"
-// @Failure      500  {object}  errorResponse  "Interní chyba"
+// @Param        type    query     string          false  "Filtr podle role"
+// @Param        active  query     bool            false  "Filtr podle aktivity"
+// @Param        q       query     string          false  "Hledání v e-mailu (substring)"
+// @Param        limit   query     int             false  "Počet výsledků (výchozí 50, max 200)"
+// @Param        offset  query     int             false  "Offset pro stránkování (výchozí 0)"
+// @Success      200  {object}  pagedUsersResponse  "Stránkovaný seznam uživatelů"
+// @Failure      401  {object}  errorResponse       "Chybí nebo vypršel session cookie"
+// @Failure      403  {object}  errorResponse       "Přístup pouze pro admin"
+// @Failure      500  {object}  errorResponse       "Interní chyba"
 // @Security     cookieAuth
 // @Router       /api/admin/users [get]
 func (h *AdminHandler) listUsers(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.queries.ListUsers(r.Context())
+	q := r.URL.Query()
+
+	var userTypeFilter db.NullUserType
+	if t := strings.TrimSpace(q.Get("type")); t != "" {
+		userTypeFilter = db.NullUserType{UserType: db.UserType(t), Valid: true}
+	}
+
+	var activeFilter sql.NullBool
+	if a := q.Get("active"); a != "" {
+		activeFilter = sql.NullBool{Bool: a == "true", Valid: true}
+	}
+
+	search := strings.TrimSpace(q.Get("q"))
+
+	limit := defaultUsersLimit
+	if l, err := strconv.Atoi(q.Get("limit")); err == nil && l > 0 {
+		if l > maxUsersLimit {
+			l = maxUsersLimit
+		}
+		limit = l
+	}
+
+	offset := 0
+	if o, err := strconv.Atoi(q.Get("offset")); err == nil && o >= 0 {
+		offset = o
+	}
+
+	ctx := r.Context()
+
+	params := db.ListUsersFilteredParams{
+		UserType: userTypeFilter,
+		IsActive: activeFilter,
+		Search:   search,
+		Lim:      int32(limit),
+		Off:      int32(offset),
+	}
+
+	rows, err := h.queries.ListUsersFiltered(ctx, params)
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst uživatele")
 		return
@@ -351,7 +398,24 @@ func (h *AdminHandler) listUsers(w http.ResponseWriter, r *http.Request) {
 	if rows == nil {
 		rows = []db.User{}
 	}
-	writeJSON(w, http.StatusOK, rows)
+
+	countParams := db.CountUsersFilteredParams{
+		UserType: userTypeFilter,
+		IsActive: activeFilter,
+		Search:   search,
+	}
+	total, err := h.queries.CountUsersFiltered(ctx, countParams)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se spočítat uživatele")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, pagedUsersResponse{
+		Items:  rows,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
+	})
 }
 
 // getUser vrátí jednoho uživatele podle ID.

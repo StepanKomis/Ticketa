@@ -170,6 +170,22 @@ WHERE id = $1;
 -- name: CountUsers :one
 SELECT COUNT(*) FROM users;
 
+-- name: ListUsersFiltered :many
+SELECT id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at, requested_role, approved_by
+FROM users
+WHERE (sqlc.narg(user_type)::user_type IS NULL OR user_type = sqlc.narg(user_type))
+  AND (sqlc.narg(is_active)::boolean IS NULL OR is_active = sqlc.narg(is_active))
+  AND (sqlc.arg(search)::text = '' OR email ILIKE '%' || sqlc.arg(search) || '%')
+ORDER BY created_at DESC
+LIMIT sqlc.arg(lim)
+OFFSET sqlc.arg(off);
+
+-- name: CountUsersFiltered :one
+SELECT COUNT(*) FROM users
+WHERE (sqlc.narg(user_type)::user_type IS NULL OR user_type = sqlc.narg(user_type))
+  AND (sqlc.narg(is_active)::boolean IS NULL OR is_active = sqlc.narg(is_active))
+  AND (sqlc.arg(search)::text = '' OR email ILIKE '%' || sqlc.arg(search) || '%');
+
 -- name: SetRequestedRole :exec
 UPDATE users SET requested_role = $2 WHERE id = $1;
 
