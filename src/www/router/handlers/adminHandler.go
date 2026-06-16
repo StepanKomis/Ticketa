@@ -2,10 +2,14 @@ package handlers
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
 	"github.com/StepanKomis/Ticketa/src/config"
@@ -44,6 +48,13 @@ func (h *AdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.getUser(w, r)
 	case r.Method == http.MethodPatch && matchesIDPath(r.URL.Path, "/api/admin/users/"):
 		h.patchUser(w, r)
+	case r.Method == http.MethodPost && matchesIDActionPath(r.URL.Path, "/api/admin/users/", "/approve"):
+		h.approveUser(w, r)
+	case r.Method == http.MethodPost && matchesIDActionPath(r.URL.Path, "/api/admin/users/", "/reject"):
+		h.rejectUser(w, r)
+
+	case r.Method == http.MethodPost && r.URL.Path == "/api/admin/invitations":
+		h.createInvitation(w, r)
 
 	default:
 		defaultResponse(w)
@@ -53,6 +64,21 @@ func (h *AdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // matchesIDPath vrátí true pokud cesta začíná prefixem a má neprázdný suffix.
 func matchesIDPath(path, prefix string) bool {
 	return len(path) > len(prefix) && path[:len(prefix)] == prefix
+}
+
+// matchesIDActionPath vrátí true pokud cesta odpovídá vzoru /prefix{id}/action.
+func matchesIDActionPath(path, prefix, action string) bool {
+	if !matchesIDPath(path, prefix) {
+		return false
+	}
+	return len(path) > len(prefix)+len(action) && path[len(path)-len(action):] == action
+}
+
+// pathIDWithAction extrahuje číselné ID z cesty ve tvaru /prefix{id}/action.
+func pathIDWithAction(path, prefix, action string) (int64, bool) {
+	s := path[len(prefix) : len(path)-len(action)]
+	id, err := strconv.ParseInt(s, 10, 64)
+	return id, err == nil
 }
 
 func pathID(path, prefix string) (int64, bool) {
@@ -310,21 +336,67 @@ func (h *AdminHandler) syncStatusesToConfig(ctx context.Context) {
 
 // ---- Users -----------------------------------------------------------------
 
-// listUsers vrátí seznam všech uživatelů.
-// Prázdný výsledek vrátí [] (nikdy null).
+const defaultUsersLimit = 50
+const maxUsersLimit = 200
+
+// listUsers vrátí stránkovaný seznam uživatelů s volitelným filtrováním.
+// Podporuje parametry: ?type=student|staff|maintainer|admin|pending, ?active=true|false,
+// ?q=<hledaný text v e-mailu>, ?limit=50 (max 200), ?offset=0.
 //
 // @Summary      Seznam uživatelů
-// @Description  Vrátí všechny uživatele systému. Přístupné pouze pro maintainer.
+// @Description  Vrátí stránkovaný seznam uživatelů. Přístupné pouze pro admin.
 // @Tags         admin
 // @Produce      json
-// @Success      200  {array}   userResponse   "Seznam uživatelů"
-// @Failure      401  {object}  errorResponse  "Chybí nebo vypršel session cookie"
-// @Failure      403  {object}  errorResponse  "Přístup pouze pro maintainer"
-// @Failure      500  {object}  errorResponse  "Interní chyba"
+// @Param        type    query     string          false  "Filtr podle role"
+// @Param        active  query     bool            false  "Filtr podle aktivity"
+// @Param        q       query     string          false  "Hledání v e-mailu (substring)"
+// @Param        limit   query     int             false  "Počet výsledků (výchozí 50, max 200)"
+// @Param        offset  query     int             false  "Offset pro stránkování (výchozí 0)"
+// @Success      200  {object}  pagedUsersResponse  "Stránkovaný seznam uživatelů"
+// @Failure      401  {object}  errorResponse       "Chybí nebo vypršel session cookie"
+// @Failure      403  {object}  errorResponse       "Přístup pouze pro admin"
+// @Failure      500  {object}  errorResponse       "Interní chyba"
 // @Security     cookieAuth
 // @Router       /api/admin/users [get]
 func (h *AdminHandler) listUsers(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.queries.ListUsers(r.Context())
+	q := r.URL.Query()
+
+	var userTypeFilter db.NullUserType
+	if t := strings.TrimSpace(q.Get("type")); t != "" {
+		userTypeFilter = db.NullUserType{UserType: db.UserType(t), Valid: true}
+	}
+
+	var activeFilter sql.NullBool
+	if a := q.Get("active"); a != "" {
+		activeFilter = sql.NullBool{Bool: a == "true", Valid: true}
+	}
+
+	search := strings.TrimSpace(q.Get("q"))
+
+	limit := defaultUsersLimit
+	if l, err := strconv.Atoi(q.Get("limit")); err == nil && l > 0 {
+		if l > maxUsersLimit {
+			l = maxUsersLimit
+		}
+		limit = l
+	}
+
+	offset := 0
+	if o, err := strconv.Atoi(q.Get("offset")); err == nil && o >= 0 {
+		offset = o
+	}
+
+	ctx := r.Context()
+
+	params := db.ListUsersFilteredParams{
+		UserType: userTypeFilter,
+		IsActive: activeFilter,
+		Search:   search,
+		Lim:      int32(limit),
+		Off:      int32(offset),
+	}
+
+	rows, err := h.queries.ListUsersFiltered(ctx, params)
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst uživatele")
 		return
@@ -332,7 +404,24 @@ func (h *AdminHandler) listUsers(w http.ResponseWriter, r *http.Request) {
 	if rows == nil {
 		rows = []db.User{}
 	}
-	writeJSON(w, http.StatusOK, rows)
+
+	countParams := db.CountUsersFilteredParams{
+		UserType: userTypeFilter,
+		IsActive: activeFilter,
+		Search:   search,
+	}
+	total, err := h.queries.CountUsersFiltered(ctx, countParams)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se spočítat uživatele")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, pagedUsersResponse{
+		Items:  rows,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
+	})
 }
 
 // getUser vrátí jednoho uživatele podle ID.
@@ -448,6 +537,163 @@ func (h *AdminHandler) patchUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, user)
+}
+
+// approveUser schválí čekajícího uživatele — nastaví user_type = requested_role a zapíše kdo schválil.
+//
+// @Summary      Schválit čekajícího uživatele
+// @Description  Nastaví user_type na requested_role a zapíše ID schvalovatele. Přístupné pro staff a admin.
+// @Tags         admin
+// @Param        id   path      int  true  "ID uživatele"
+// @Success      200  {object}  userResponse  "Schválený uživatel"
+// @Failure      400  {object}  errorResponse "Neplatné ID"
+// @Failure      401  {object}  errorResponse "Nepřihlášen"
+// @Failure      403  {object}  errorResponse "Přístup odepřen"
+// @Failure      404  {object}  errorResponse "Uživatel nenalezen"
+// @Failure      500  {object}  errorResponse "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/admin/users/{id}/approve [post]
+func (h *AdminHandler) approveUser(w http.ResponseWriter, r *http.Request) {
+	id64, ok := pathIDWithAction(r.URL.Path, "/api/admin/users/", "/approve")
+	if !ok {
+		WriteError(w, http.StatusBadRequest, "neplatné ID")
+		return
+	}
+	id := int32(id64)
+
+	approver, ok := userFromContext(w, r)
+	if !ok {
+		return
+	}
+
+	ctx := r.Context()
+
+	if err := h.queries.ApprovePendingUser(ctx, db.ApprovePendingUserParams{
+		ID:         id,
+		ApprovedBy: sql.NullInt32{Int32: approver.ID, Valid: true},
+	}); err != nil {
+		if err == sql.ErrNoRows {
+			WriteError(w, http.StatusNotFound, "uživatel nenalezen nebo nebyl ve stavu pending")
+			return
+		}
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se schválit uživatele")
+		return
+	}
+
+	user, err := h.queries.GetUserByID(ctx, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			WriteError(w, http.StatusNotFound, "uživatel nenalezen")
+			return
+		}
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst uživatele")
+		return
+	}
+	writeJSON(w, http.StatusOK, user)
+}
+
+// rejectUser zamítne čekajícího uživatele — deaktivuje jeho účet a okamžitě zneplatní session.
+//
+// @Summary      Zamítnout čekajícího uživatele
+// @Description  Deaktivuje účet a zneplatní session. Přístupné pro staff a admin.
+// @Tags         admin
+// @Param        id   path      int  true  "ID uživatele"
+// @Success      204  "Zamítnuto"
+// @Failure      400  {object}  errorResponse "Neplatné ID"
+// @Failure      401  {object}  errorResponse "Nepřihlášen"
+// @Failure      403  {object}  errorResponse "Přístup odepřen"
+// @Failure      500  {object}  errorResponse "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/admin/users/{id}/reject [post]
+func (h *AdminHandler) rejectUser(w http.ResponseWriter, r *http.Request) {
+	id64, ok := pathIDWithAction(r.URL.Path, "/api/admin/users/", "/reject")
+	if !ok {
+		WriteError(w, http.StatusBadRequest, "neplatné ID")
+		return
+	}
+	id := int32(id64)
+
+	ctx := r.Context()
+
+	if err := h.queries.RejectPendingUser(ctx, id); err != nil {
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se zamítnout uživatele")
+		return
+	}
+	if err := h.queries.SoftDeleteSessionByUserID(ctx, int64(id)); err != nil {
+		h.httpLogger.Debugf("rejectUser: SoftDeleteSessionByUserID selhalo pro user_id=%d: %s", id, err)
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// ---- Invitations -----------------------------------------------------------
+
+// createInvitation vytvoří pozvánku pro konkrétní e-mail a roli.
+// Token je platný 7 dní. Admin ho zkopíruje a pošle uživateli ručně.
+//
+// @Summary      Vytvořit pozvánku
+// @Description  Vygeneruje unikátní 64-znakový token platný 7 dní. Admin ho sdílí s uživatelem.
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Param        body  body      createInvitationRequest    true  "E-mail a role pozvaného"
+// @Success      201   {object}  createInvitationResponse   "Vygenerovaný token"
+// @Failure      400   {object}  errorResponse              "Chybí e-mail nebo neplatná role"
+// @Failure      401   {object}  errorResponse              "Nepřihlášen"
+// @Failure      403   {object}  errorResponse              "Přístup odepřen"
+// @Failure      500   {object}  errorResponse              "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/admin/invitations [post]
+func (h *AdminHandler) createInvitation(w http.ResponseWriter, r *http.Request) {
+	var body createInvitationRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		WriteError(w, http.StatusBadRequest, "neplatné tělo požadavku")
+		return
+	}
+	if body.Email == "" {
+		WriteError(w, http.StatusBadRequest, "pole email je povinné")
+		return
+	}
+
+	validInviteTypes := map[string]db.UserType{
+		"student":    db.UserTypeStudent,
+		"staff":      db.UserTypeStaff,
+		"maintainer": db.UserTypeMaintainer,
+	}
+	userType, ok := validInviteTypes[body.UserType]
+	if !ok {
+		WriteError(w, http.StatusBadRequest, "neplatný user_type; povolené hodnoty: student, staff, maintainer")
+		return
+	}
+
+	approver, ok := userFromContext(w, r)
+	if !ok {
+		return
+	}
+
+	rawToken := make([]byte, 32)
+	if _, err := rand.Read(rawToken); err != nil {
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se vygenerovat token")
+		return
+	}
+	token := hex.EncodeToString(rawToken)
+
+	inv, err := h.queries.CreateInvitation(r.Context(), db.CreateInvitationParams{
+		Email:     body.Email,
+		InvitedBy: approver.ID,
+		Token:     token,
+		UserType:  userType,
+	})
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se vytvořit pozvánku")
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, createInvitationResponse{
+		Token:     inv.Token,
+		Email:     inv.Email,
+		UserType:  string(inv.UserType),
+		ExpiresAt: inv.ExpiresAt.Format(time.RFC3339),
+	})
 }
 
 // writeJSON je pomocná funkce pro zápis JSON odpovědi.

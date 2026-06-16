@@ -26,7 +26,8 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	sessionStore := security.NewSessionStore(queries)
 
 	auth := middleware.AuthMiddleware(sessionStore, queries)
-	admin := func(h http.Handler) http.Handler { return auth(middleware.MaintainerMiddleware()(h)) }
+	admin := func(h http.Handler) http.Handler { return auth(middleware.AdminMiddleware()(h)) }
+	staffAdmin := func(h http.Handler) http.Handler { return auth(middleware.StaffOrAdminMiddleware()(h)) }
 
 	userHandler, err := handlers.NewUserHandler(httpLogger, sqlDB, sessionStore, cfg)
 	if err != nil {
@@ -54,11 +55,14 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	mux.Handle("/docs", http.RedirectHandler("/docs/", http.StatusMovedPermanently))
 
 	// Public routes
+	mux.Handle("GET /api/setup-status", userHandler)
 	mux.Handle("POST /api/register", userHandler)
 	mux.Handle("POST /api/login", userHandler)
+	mux.Handle("POST /api/auth/invite/accept", userHandler)
 
 	// User routes (authenticated)
 	mux.Handle("GET /api/me", auth(userHandler))
+	mux.Handle("PATCH /api/me", auth(userHandler))
 	mux.Handle("POST /api/logout", auth(userHandler))
 
 	// Authenticated routes (any active user)
@@ -84,6 +88,9 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	mux.Handle("GET /api/admin/users", admin(adminHandler))
 	mux.Handle("GET /api/admin/users/{id}", admin(adminHandler))
 	mux.Handle("PATCH /api/admin/users/{id}", admin(adminHandler))
+	mux.Handle("POST /api/admin/users/{id}/approve", staffAdmin(adminHandler))
+	mux.Handle("POST /api/admin/users/{id}/reject", staffAdmin(adminHandler))
+	mux.Handle("POST /api/admin/invitations", admin(adminHandler))
 
 	return mux
 }

@@ -347,18 +347,18 @@ func userFromContext(w http.ResponseWriter, r *http.Request) (db.User, bool) {
 	return v.(db.User), true
 }
 
-// canModifyTicket vrátí true pro autora tiketu a pro staff/maintainer (správa školy).
+// canModifyTicket vrátí true pro autora tiketu a pro staff/admin.
 func canModifyTicket(session db.Session, ticket db.Ticket, userType db.UserType) bool {
 	return int32(session.UserID) == ticket.AuthorID ||
 		userType == db.UserTypeStaff ||
-		userType == db.UserTypeMaintainer
+		userType == db.UserTypeAdmin
 }
 
-// canDeleteTicket vrátí true pro autora tiketu a pro staff/maintainer (správa školy).
+// canDeleteTicket vrátí true pro autora tiketu a pro staff/admin.
 func canDeleteTicket(session db.Session, ticket db.Ticket, userType db.UserType) bool {
 	return int32(session.UserID) == ticket.AuthorID ||
 		userType == db.UserTypeStaff ||
-		userType == db.UserTypeMaintainer
+		userType == db.UserTypeAdmin
 }
 
 func ticketIDFromPath(w http.ResponseWriter, path string) (int64, bool) {

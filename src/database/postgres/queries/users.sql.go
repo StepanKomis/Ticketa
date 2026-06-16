@@ -13,6 +13,51 @@ import (
 	"github.com/google/uuid"
 )
 
+const approvePendingUser = `-- name: ApprovePendingUser :exec
+UPDATE users SET user_type = requested_role, approved_by = $2 WHERE id = $1
+`
+
+type ApprovePendingUserParams struct {
+	ID         int32
+	ApprovedBy sql.NullInt32
+}
+
+func (q *Queries) ApprovePendingUser(ctx context.Context, arg ApprovePendingUserParams) error {
+	_, err := q.db.ExecContext(ctx, approvePendingUser, arg.ID, arg.ApprovedBy)
+	return err
+}
+
+const countUsers = `-- name: CountUsers :one
+SELECT COUNT(*) FROM users
+`
+
+func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUsers)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countUsersFiltered = `-- name: CountUsersFiltered :one
+SELECT COUNT(*) FROM users
+WHERE ($1::user_type IS NULL OR user_type = $1)
+  AND ($2::boolean IS NULL OR is_active = $2)
+  AND ($3::text = '' OR email ILIKE '%' || $3 || '%')
+`
+
+type CountUsersFilteredParams struct {
+	UserType NullUserType
+	IsActive sql.NullBool
+	Search   string
+}
+
+func (q *Queries) CountUsersFiltered(ctx context.Context, arg CountUsersFilteredParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUsersFiltered, arg.UserType, arg.IsActive, arg.Search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createLDAPLogin = `-- name: CreateLDAPLogin :one
 INSERT INTO ldap_login (id, distinguished_name, uid, sam_account_name, upn, object_guid, object_sid, ldap_server, base_dn)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -166,7 +211,7 @@ func (q *Queries) CreateStudentProfile(ctx context.Context, arg CreateStudentPro
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (email, first_name, last_name, user_type, provider)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at
+RETURNING id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at, requested_role, approved_by
 `
 
 type CreateUserParams struct {
@@ -196,6 +241,8 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.LastLoginAt,
+		&i.RequestedRole,
+		&i.ApprovedBy,
 	)
 	return i, err
 }
@@ -259,6 +306,46 @@ func (q *Queries) GetMaintainerByID(ctx context.Context, id int32) (GetMaintaine
 		&i.ManagedScope,
 	)
 	return i, err
+}
+
+const getPendingUsers = `-- name: GetPendingUsers :many
+SELECT id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at, requested_role, approved_by
+FROM users WHERE user_type = 'pending' ORDER BY created_at DESC
+`
+
+func (q *Queries) GetPendingUsers(ctx context.Context) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, getPendingUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.FirstName,
+			&i.LastName,
+			&i.UserType,
+			&i.Provider,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.LastLoginAt,
+			&i.RequestedRole,
+			&i.ApprovedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getStaffByID = `-- name: GetStaffByID :one
@@ -352,7 +439,7 @@ func (q *Queries) GetStudentByID(ctx context.Context, id int32) (GetStudentByIDR
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at
+SELECT id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at, requested_role, approved_by
 FROM users
 WHERE email = $1
 `
@@ -370,12 +457,14 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.LastLoginAt,
+		&i.RequestedRole,
+		&i.ApprovedBy,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at
+SELECT id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at, requested_role, approved_by
 FROM users
 WHERE id = $1
 `
@@ -393,6 +482,8 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.LastLoginAt,
+		&i.RequestedRole,
+		&i.ApprovedBy,
 	)
 	return i, err
 }
@@ -514,15 +605,27 @@ WHERE is_active = TRUE
 ORDER BY created_at DESC
 `
 
-func (q *Queries) ListActiveUsers(ctx context.Context) ([]User, error) {
+type ListActiveUsersRow struct {
+	ID          int32
+	Email       string
+	FirstName   sql.NullString
+	LastName    sql.NullString
+	UserType    UserType
+	Provider    AuthProvider
+	IsActive    bool
+	CreatedAt   time.Time
+	LastLoginAt sql.NullTime
+}
+
+func (q *Queries) ListActiveUsers(ctx context.Context) ([]ListActiveUsersRow, error) {
 	rows, err := q.db.QueryContext(ctx, listActiveUsers)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []User
+	var items []ListActiveUsersRow
 	for rows.Next() {
-		var i User
+		var i ListActiveUsersRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Email,
@@ -548,7 +651,7 @@ func (q *Queries) ListActiveUsers(ctx context.Context) ([]User, error) {
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at
+SELECT id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at, requested_role, approved_by
 FROM users
 ORDER BY created_at DESC
 `
@@ -572,6 +675,8 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.LastLoginAt,
+			&i.RequestedRole,
+			&i.ApprovedBy,
 		); err != nil {
 			return nil, err
 		}
@@ -593,15 +698,27 @@ WHERE user_type = $1
 ORDER BY created_at DESC
 `
 
-func (q *Queries) ListUsersByType(ctx context.Context, userType UserType) ([]User, error) {
+type ListUsersByTypeRow struct {
+	ID          int32
+	Email       string
+	FirstName   sql.NullString
+	LastName    sql.NullString
+	UserType    UserType
+	Provider    AuthProvider
+	IsActive    bool
+	CreatedAt   time.Time
+	LastLoginAt sql.NullTime
+}
+
+func (q *Queries) ListUsersByType(ctx context.Context, userType UserType) ([]ListUsersByTypeRow, error) {
 	rows, err := q.db.QueryContext(ctx, listUsersByType, userType)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []User
+	var items []ListUsersByTypeRow
 	for rows.Next() {
-		var i User
+		var i ListUsersByTypeRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Email,
@@ -626,6 +743,89 @@ func (q *Queries) ListUsersByType(ctx context.Context, userType UserType) ([]Use
 	return items, nil
 }
 
+const listUsersFiltered = `-- name: ListUsersFiltered :many
+SELECT id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at, requested_role, approved_by
+FROM users
+WHERE ($1::user_type IS NULL OR user_type = $1)
+  AND ($2::boolean IS NULL OR is_active = $2)
+  AND ($3::text = '' OR email ILIKE '%' || $3 || '%')
+ORDER BY created_at DESC
+LIMIT $5
+OFFSET $4
+`
+
+type ListUsersFilteredParams struct {
+	UserType NullUserType
+	IsActive sql.NullBool
+	Search   string
+	Off      int32
+	Lim      int32
+}
+
+func (q *Queries) ListUsersFiltered(ctx context.Context, arg ListUsersFilteredParams) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, listUsersFiltered,
+		arg.UserType,
+		arg.IsActive,
+		arg.Search,
+		arg.Off,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.FirstName,
+			&i.LastName,
+			&i.UserType,
+			&i.Provider,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.LastLoginAt,
+			&i.RequestedRole,
+			&i.ApprovedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const rejectPendingUser = `-- name: RejectPendingUser :exec
+UPDATE users SET is_active = FALSE WHERE id = $1
+`
+
+func (q *Queries) RejectPendingUser(ctx context.Context, id int32) error {
+	_, err := q.db.ExecContext(ctx, rejectPendingUser, id)
+	return err
+}
+
+const setRequestedRole = `-- name: SetRequestedRole :exec
+UPDATE users SET requested_role = $2 WHERE id = $1
+`
+
+type SetRequestedRoleParams struct {
+	ID            int32
+	RequestedRole NullUserType
+}
+
+func (q *Queries) SetRequestedRole(ctx context.Context, arg SetRequestedRoleParams) error {
+	_, err := q.db.ExecContext(ctx, setRequestedRole, arg.ID, arg.RequestedRole)
+	return err
+}
+
 const setUserIsActive = `-- name: SetUserIsActive :exec
 UPDATE users
 SET is_active = $2
@@ -646,7 +846,7 @@ const setUserType = `-- name: SetUserType :one
 UPDATE users
 SET user_type = $2
 WHERE id = $1
-RETURNING id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at
+RETURNING id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at, requested_role, approved_by
 `
 
 type SetUserTypeParams struct {
@@ -667,6 +867,8 @@ func (q *Queries) SetUserType(ctx context.Context, arg SetUserTypeParams) (User,
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.LastLoginAt,
+		&i.RequestedRole,
+		&i.ApprovedBy,
 	)
 	return i, err
 }
@@ -750,6 +952,49 @@ func (q *Queries) UpdateMaintainerProfile(ctx context.Context, arg UpdateMaintai
 	return err
 }
 
+const updateMyProfile = `-- name: UpdateMyProfile :one
+UPDATE users
+SET first_name = COALESCE($2, first_name),
+    last_name  = COALESCE($3, last_name)
+WHERE id = $1
+RETURNING id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at
+`
+
+type UpdateMyProfileParams struct {
+	ID        int32
+	FirstName sql.NullString
+	LastName  sql.NullString
+}
+
+type UpdateMyProfileRow struct {
+	ID          int32
+	Email       string
+	FirstName   sql.NullString
+	LastName    sql.NullString
+	UserType    UserType
+	Provider    AuthProvider
+	IsActive    bool
+	CreatedAt   time.Time
+	LastLoginAt sql.NullTime
+}
+
+func (q *Queries) UpdateMyProfile(ctx context.Context, arg UpdateMyProfileParams) (UpdateMyProfileRow, error) {
+	row := q.db.QueryRowContext(ctx, updateMyProfile, arg.ID, arg.FirstName, arg.LastName)
+	var i UpdateMyProfileRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.FirstName,
+		&i.LastName,
+		&i.UserType,
+		&i.Provider,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.LastLoginAt,
+	)
+	return i, err
+}
+
 const updateStaffProfile = `-- name: UpdateStaffProfile :exec
 UPDATE staff_profile
 SET department = $2,
@@ -799,7 +1044,7 @@ SET email      = $2,
     first_name = $3,
     last_name  = $4
 WHERE id = $1
-RETURNING id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at
+RETURNING id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at, requested_role, approved_by
 `
 
 type UpdateUserParams struct {
@@ -827,6 +1072,8 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.LastLoginAt,
+		&i.RequestedRole,
+		&i.ApprovedBy,
 	)
 	return i, err
 }

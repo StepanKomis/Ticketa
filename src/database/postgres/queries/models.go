@@ -63,6 +63,8 @@ const (
 	UserTypeStudent    UserType = "student"
 	UserTypeStaff      UserType = "staff"
 	UserTypeMaintainer UserType = "maintainer"
+	UserTypePending    UserType = "pending"
+	UserTypeAdmin      UserType = "admin"
 )
 
 func (e *UserType) Scan(src interface{}) error {
@@ -98,6 +100,17 @@ func (ns NullUserType) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.UserType), nil
+}
+
+type Invitation struct {
+	ID        int64
+	Email     string
+	InvitedBy int32
+	Token     string
+	UserType  UserType
+	CreatedAt time.Time
+	ExpiresAt time.Time
+	UsedAt    sql.NullTime
 }
 
 type LdapLogin struct {
@@ -183,13 +196,15 @@ type TicketStatus struct {
 }
 
 type User struct {
-	ID          int32
-	Email       string
-	FirstName   sql.NullString
-	LastName    sql.NullString
-	UserType    UserType
-	Provider    AuthProvider
-	IsActive    bool
-	CreatedAt   time.Time
-	LastLoginAt sql.NullTime
+	ID            int32
+	Email         string
+	FirstName     sql.NullString
+	LastName      sql.NullString
+	UserType      UserType
+	Provider      AuthProvider
+	IsActive      bool
+	CreatedAt     time.Time
+	LastLoginAt   sql.NullTime
+	RequestedRole NullUserType
+	ApprovedBy    sql.NullInt32
 }

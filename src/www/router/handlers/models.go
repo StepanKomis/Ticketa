@@ -46,15 +46,17 @@ type ticketResponse struct {
 // userResponse je JSON tvar odpovědi pro jednoho uživatele.
 // FirstName, LastName a LastLoginAt jsou nullable.
 type userResponse struct {
-	ID          int32      `json:"ID" example:"3"`
-	Email       string     `json:"Email" example:"jan.novak@skola.cz"`
-	FirstName   nullString `json:"FirstName"`
-	LastName    nullString `json:"LastName"`
-	UserType    string     `json:"UserType" example:"student" enums:"student,staff,maintainer"`
-	Provider    string     `json:"Provider" example:"local"`
-	IsActive    bool       `json:"IsActive" example:"true"`
-	CreatedAt   time.Time  `json:"CreatedAt" example:"2026-06-07T12:00:00Z"`
-	LastLoginAt nullTime   `json:"LastLoginAt"`
+	ID            int32      `json:"ID" example:"3"`
+	Email         string     `json:"Email" example:"jan.novak@skola.cz"`
+	FirstName     nullString `json:"FirstName"`
+	LastName      nullString `json:"LastName"`
+	UserType      string     `json:"UserType" example:"student" enums:"student,staff,maintainer,admin,pending"`
+	RequestedRole nullString `json:"RequestedRole"`
+	ApprovedBy    nullInt32  `json:"ApprovedBy"`
+	Provider      string     `json:"Provider" example:"local"`
+	IsActive      bool       `json:"IsActive" example:"true"`
+	CreatedAt     time.Time  `json:"CreatedAt" example:"2026-06-07T12:00:00Z"`
+	LastLoginAt   nullTime   `json:"LastLoginAt"`
 }
 
 // ticketStatusResponse je JSON tvar odpovědi pro jeden stav tiketu.
@@ -119,6 +121,54 @@ type currentUserResponse struct {
 type loginRequest struct {
 	Email    string `json:"email" example:"jan.novak@skola.cz"`
 	Password string `json:"password" example:"Heslo123!"`
+}
+
+// setupStatusResponse informuje, zda je systém nakonfigurován (existuje alespoň jeden uživatel).
+type setupStatusResponse struct {
+	NeedsSetup bool `json:"needs_setup" example:"true"`
+}
+
+// patchMeRequest je tělo požadavku pro PATCH /api/me.
+// Obě pole jsou volitelná — null/vynechané pole zůstane beze změny.
+type patchMeRequest struct {
+	FirstName *string `json:"first_name" example:"Jan"`
+	LastName  *string `json:"last_name" example:"Novák"`
+}
+
+// pagedUsersResponse je stránkovaná odpověď pro GET /api/admin/users.
+type pagedUsersResponse struct {
+	Items  any   `json:"items"`
+	Total  int64 `json:"total"`
+	Limit  int   `json:"limit"`
+	Offset int   `json:"offset"`
+}
+
+// createInvitationRequest jsou parametry pro vytvoření pozvánky.
+type createInvitationRequest struct {
+	Email    string `json:"email" example:"jan.novak@skola.cz"`
+	UserType string `json:"user_type" example:"staff" enums:"student,staff,maintainer"`
+}
+
+// createInvitationResponse je odpověď po vytvoření pozvánky.
+type createInvitationResponse struct {
+	Token     string `json:"token" example:"a1b2c3..."`
+	Email     string `json:"email" example:"jan.novak@skola.cz"`
+	UserType  string `json:"user_type" example:"staff"`
+	ExpiresAt string `json:"expires_at" example:"2026-06-23T14:22:55Z"`
+}
+
+// acceptInviteRequest jsou parametry pro přijetí pozvánky a vytvoření účtu.
+type acceptInviteRequest struct {
+	Token     string `json:"token" example:"a1b2c3..."`
+	Password  string `json:"password" example:"Heslo123!"`
+	FirstName string `json:"first_name" example:"Jan"`
+	LastName  string `json:"last_name" example:"Novák"`
+}
+
+// acceptInviteResponse je odpověď po úspěšném přijetí pozvánky.
+type acceptInviteResponse struct {
+	ID    int32  `json:"id" example:"42"`
+	Email string `json:"email" example:"jan.novak@skola.cz"`
 }
 
 // patchConfigRequest je tělo požadavku pro PATCH /api/admin/config.
