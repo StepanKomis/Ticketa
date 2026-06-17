@@ -610,9 +610,10 @@ func userFromContext(w http.ResponseWriter, r *http.Request) (db.User, bool) {
 }
 
 func ticketIDFromPath(w http.ResponseWriter, path string) (int64, bool) {
-	// Strip potential suffix like "/vote" before parsing ID
+	// Strip potential suffix like "/vote" or "/history" before parsing ID
 	// For paths like /api/tickets/123, extract 123
-	id, ok := pathID(strings.TrimSuffix(path, "/vote"), "/api/tickets/")
+	trimmed := strings.TrimSuffix(strings.TrimSuffix(path, "/vote"), "/history")
+	id, ok := pathID(trimmed, "/api/tickets/")
 	if !ok {
 		WriteError(w, http.StatusBadRequest, "neplatné ID tiketu")
 	}
