@@ -8,19 +8,63 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
+const countTicketsFiltered = `-- name: CountTicketsFiltered :one
+SELECT COUNT(*)::BIGINT
+FROM tickets t
+WHERE
+    ($1::INTEGER IS NULL    OR t.status_id   = $1)
+    AND ($2::VARCHAR IS NULL  OR t.priority    = $2)
+    AND ($3::INTEGER IS NULL OR t.assigned_to = $3)
+    AND ($4::INTEGER IS NULL OR t.author_id   = $4)
+    AND ($5::VARCHAR IS NULL  OR t.category    = $5)
+    AND (
+        $6::TEXT = ''
+        OR t.title ILIKE '%' || $6 || '%'
+        OR t.body  ILIKE '%' || $6 || '%'
+    )
+`
+
+type CountTicketsFilteredParams struct {
+	StatusID   sql.NullInt32
+	Priority   sql.NullString
+	AssignedTo sql.NullInt32
+	AuthorID   sql.NullInt32
+	Category   sql.NullString
+	Q          string
+}
+
+func (q *Queries) CountTicketsFiltered(ctx context.Context, arg CountTicketsFilteredParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countTicketsFiltered,
+		arg.StatusID,
+		arg.Priority,
+		arg.AssignedTo,
+		arg.AuthorID,
+		arg.Category,
+		arg.Q,
+	)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createTicket = `-- name: CreateTicket :one
-INSERT INTO tickets (title, body, author_id, status_id)
-VALUES ($1, $2, $3, $4)
-RETURNING id, title, body, created_at, author_id, status_id
+INSERT INTO tickets (title, body, author_id, status_id, priority, location, category, assigned_to)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, title, body, created_at, author_id, status_id, priority, assigned_to, location, category, updated_at
 `
 
 type CreateTicketParams struct {
-	Title    string
-	Body     string
-	AuthorID int32
-	StatusID sql.NullInt32
+	Title      string
+	Body       string
+	AuthorID   int32
+	StatusID   sql.NullInt32
+	Priority   string
+	Location   string
+	Category   string
+	AssignedTo sql.NullInt32
 }
 
 func (q *Queries) CreateTicket(ctx context.Context, arg CreateTicketParams) (Ticket, error) {
@@ -29,6 +73,10 @@ func (q *Queries) CreateTicket(ctx context.Context, arg CreateTicketParams) (Tic
 		arg.Body,
 		arg.AuthorID,
 		arg.StatusID,
+		arg.Priority,
+		arg.Location,
+		arg.Category,
+		arg.AssignedTo,
 	)
 	var i Ticket
 	err := row.Scan(
@@ -38,6 +86,11 @@ func (q *Queries) CreateTicket(ctx context.Context, arg CreateTicketParams) (Tic
 		&i.CreatedAt,
 		&i.AuthorID,
 		&i.StatusID,
+		&i.Priority,
+		&i.AssignedTo,
+		&i.Location,
+		&i.Category,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -53,13 +106,47 @@ func (q *Queries) DeleteTicket(ctx context.Context, id int64) error {
 }
 
 const getTicket = `-- name: GetTicket :one
-SELECT id, title, body, created_at, author_id, status_id FROM tickets
-WHERE id = $1
+SELECT
+    t.id, t.title, t.body, t.created_at, t.author_id, t.status_id, t.priority, t.assigned_to, t.location, t.category, t.updated_at,
+    COALESCE(u.first_name || ' ' || u.last_name, u.email)     AS author_name,
+    COALESCE(a.first_name || ' ' || a.last_name, a.email, '') AS assignee_name,
+    (SELECT COUNT(*)::INT FROM ticket_votes tv WHERE tv.ticket_id = t.id) AS vote_count,
+    EXISTS(
+        SELECT 1 FROM ticket_votes tv
+        WHERE tv.ticket_id = t.id AND tv.user_id = $1::INTEGER
+    ) AS user_has_voted
+FROM tickets t
+JOIN  users u ON u.id = t.author_id
+LEFT JOIN users a ON a.id = t.assigned_to
+WHERE t.id = $2::BIGINT
 `
 
-func (q *Queries) GetTicket(ctx context.Context, id int64) (Ticket, error) {
-	row := q.db.QueryRowContext(ctx, getTicket, id)
-	var i Ticket
+type GetTicketParams struct {
+	CurrentUserID int32
+	ID            int64
+}
+
+type GetTicketRow struct {
+	ID           int64
+	Title        string
+	Body         string
+	CreatedAt    time.Time
+	AuthorID     int32
+	StatusID     sql.NullInt32
+	Priority     string
+	AssignedTo   sql.NullInt32
+	Location     string
+	Category     string
+	UpdatedAt    time.Time
+	AuthorName   string
+	AssigneeName string
+	VoteCount    int32
+	UserHasVoted bool
+}
+
+func (q *Queries) GetTicket(ctx context.Context, arg GetTicketParams) (GetTicketRow, error) {
+	row := q.db.QueryRowContext(ctx, getTicket, arg.CurrentUserID, arg.ID)
+	var i GetTicketRow
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
@@ -67,24 +154,97 @@ func (q *Queries) GetTicket(ctx context.Context, id int64) (Ticket, error) {
 		&i.CreatedAt,
 		&i.AuthorID,
 		&i.StatusID,
+		&i.Priority,
+		&i.AssignedTo,
+		&i.Location,
+		&i.Category,
+		&i.UpdatedAt,
+		&i.AuthorName,
+		&i.AssigneeName,
+		&i.VoteCount,
+		&i.UserHasVoted,
 	)
 	return i, err
 }
 
-const listTickets = `-- name: ListTickets :many
-SELECT id, title, body, created_at, author_id, status_id FROM tickets
-ORDER BY created_at DESC
+const listTicketsFiltered = `-- name: ListTicketsFiltered :many
+SELECT
+    t.id, t.title, t.body, t.created_at, t.author_id, t.status_id, t.priority, t.assigned_to, t.location, t.category, t.updated_at,
+    COALESCE(u.first_name || ' ' || u.last_name, u.email)     AS author_name,
+    COALESCE(a.first_name || ' ' || a.last_name, a.email, '') AS assignee_name,
+    (SELECT COUNT(*)::INT FROM ticket_votes tv WHERE tv.ticket_id = t.id) AS vote_count,
+    EXISTS(
+        SELECT 1 FROM ticket_votes tv
+        WHERE tv.ticket_id = t.id AND tv.user_id = $1::INTEGER
+    ) AS user_has_voted
+FROM tickets t
+JOIN  users u ON u.id = t.author_id
+LEFT JOIN users a ON a.id = t.assigned_to
+WHERE
+    ($2::INTEGER IS NULL    OR t.status_id   = $2)
+    AND ($3::VARCHAR IS NULL  OR t.priority    = $3)
+    AND ($4::INTEGER IS NULL OR t.assigned_to = $4)
+    AND ($5::INTEGER IS NULL OR t.author_id   = $5)
+    AND ($6::VARCHAR IS NULL  OR t.category    = $6)
+    AND (
+        $7::TEXT = ''
+        OR t.title ILIKE '%' || $7 || '%'
+        OR t.body  ILIKE '%' || $7 || '%'
+    )
+ORDER BY t.created_at DESC
+LIMIT  $9::INTEGER
+OFFSET $8::INTEGER
 `
 
-func (q *Queries) ListTickets(ctx context.Context) ([]Ticket, error) {
-	rows, err := q.db.QueryContext(ctx, listTickets)
+type ListTicketsFilteredParams struct {
+	CurrentUserID int32
+	StatusID      sql.NullInt32
+	Priority      sql.NullString
+	AssignedTo    sql.NullInt32
+	AuthorID      sql.NullInt32
+	Category      sql.NullString
+	Q             string
+	Off           int32
+	Lim           int32
+}
+
+type ListTicketsFilteredRow struct {
+	ID           int64
+	Title        string
+	Body         string
+	CreatedAt    time.Time
+	AuthorID     int32
+	StatusID     sql.NullInt32
+	Priority     string
+	AssignedTo   sql.NullInt32
+	Location     string
+	Category     string
+	UpdatedAt    time.Time
+	AuthorName   string
+	AssigneeName string
+	VoteCount    int32
+	UserHasVoted bool
+}
+
+func (q *Queries) ListTicketsFiltered(ctx context.Context, arg ListTicketsFilteredParams) ([]ListTicketsFilteredRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTicketsFiltered,
+		arg.CurrentUserID,
+		arg.StatusID,
+		arg.Priority,
+		arg.AssignedTo,
+		arg.AuthorID,
+		arg.Category,
+		arg.Q,
+		arg.Off,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Ticket
+	var items []ListTicketsFilteredRow
 	for rows.Next() {
-		var i Ticket
+		var i ListTicketsFilteredRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
@@ -92,6 +252,15 @@ func (q *Queries) ListTickets(ctx context.Context) ([]Ticket, error) {
 			&i.CreatedAt,
 			&i.AuthorID,
 			&i.StatusID,
+			&i.Priority,
+			&i.AssignedTo,
+			&i.Location,
+			&i.Category,
+			&i.UpdatedAt,
+			&i.AuthorName,
+			&i.AssigneeName,
+			&i.VoteCount,
+			&i.UserHasVoted,
 		); err != nil {
 			return nil, err
 		}
@@ -106,28 +275,51 @@ func (q *Queries) ListTickets(ctx context.Context) ([]Ticket, error) {
 	return items, nil
 }
 
+const unvoteTicket = `-- name: UnvoteTicket :exec
+DELETE FROM ticket_votes WHERE ticket_id = $1 AND user_id = $2
+`
+
+type UnvoteTicketParams struct {
+	TicketID int64
+	UserID   int32
+}
+
+func (q *Queries) UnvoteTicket(ctx context.Context, arg UnvoteTicketParams) error {
+	_, err := q.db.ExecContext(ctx, unvoteTicket, arg.TicketID, arg.UserID)
+	return err
+}
+
 const updateTicket = `-- name: UpdateTicket :one
 UPDATE tickets
-SET title     = $2,
-    body      = $3,
-    status_id = $4
-WHERE id = $1
-RETURNING id, title, body, created_at, author_id, status_id
+SET title     = COALESCE($1,    title),
+    body      = COALESCE($2,     body),
+    priority  = COALESCE($3, priority),
+    location  = COALESCE($4, location),
+    category  = COALESCE($5, category),
+    status_id = $6
+WHERE id = $7
+RETURNING id, title, body, created_at, author_id, status_id, priority, assigned_to, location, category, updated_at
 `
 
 type UpdateTicketParams struct {
-	ID       int64
-	Title    string
-	Body     string
+	Title    sql.NullString
+	Body     sql.NullString
+	Priority sql.NullString
+	Location sql.NullString
+	Category sql.NullString
 	StatusID sql.NullInt32
+	ID       int64
 }
 
 func (q *Queries) UpdateTicket(ctx context.Context, arg UpdateTicketParams) (Ticket, error) {
 	row := q.db.QueryRowContext(ctx, updateTicket,
-		arg.ID,
 		arg.Title,
 		arg.Body,
+		arg.Priority,
+		arg.Location,
+		arg.Category,
 		arg.StatusID,
+		arg.ID,
 	)
 	var i Ticket
 	err := row.Scan(
@@ -137,6 +329,72 @@ func (q *Queries) UpdateTicket(ctx context.Context, arg UpdateTicketParams) (Tic
 		&i.CreatedAt,
 		&i.AuthorID,
 		&i.StatusID,
+		&i.Priority,
+		&i.AssignedTo,
+		&i.Location,
+		&i.Category,
+		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const updateTicketMeta = `-- name: UpdateTicketMeta :one
+UPDATE tickets
+SET assigned_to = $1,
+    status_id   = $2,
+    priority    = COALESCE($3, priority),
+    location    = COALESCE($4, location),
+    category    = COALESCE($5, category)
+WHERE id = $6
+RETURNING id, title, body, created_at, author_id, status_id, priority, assigned_to, location, category, updated_at
+`
+
+type UpdateTicketMetaParams struct {
+	AssignedTo sql.NullInt32
+	StatusID   sql.NullInt32
+	Priority   sql.NullString
+	Location   sql.NullString
+	Category   sql.NullString
+	ID         int64
+}
+
+func (q *Queries) UpdateTicketMeta(ctx context.Context, arg UpdateTicketMetaParams) (Ticket, error) {
+	row := q.db.QueryRowContext(ctx, updateTicketMeta,
+		arg.AssignedTo,
+		arg.StatusID,
+		arg.Priority,
+		arg.Location,
+		arg.Category,
+		arg.ID,
+	)
+	var i Ticket
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Body,
+		&i.CreatedAt,
+		&i.AuthorID,
+		&i.StatusID,
+		&i.Priority,
+		&i.AssignedTo,
+		&i.Location,
+		&i.Category,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const voteTicket = `-- name: VoteTicket :exec
+INSERT INTO ticket_votes (ticket_id, user_id) VALUES ($1, $2)
+ON CONFLICT DO NOTHING
+`
+
+type VoteTicketParams struct {
+	TicketID int64
+	UserID   int32
+}
+
+func (q *Queries) VoteTicket(ctx context.Context, arg VoteTicketParams) error {
+	_, err := q.db.ExecContext(ctx, voteTicket, arg.TicketID, arg.UserID)
+	return err
 }
