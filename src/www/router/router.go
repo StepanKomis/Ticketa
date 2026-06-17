@@ -88,6 +88,11 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	mux.Handle("PUT /api/comments/{id}", authEnforced(commentHandler))
 	mux.Handle("DELETE /api/comments/{id}", authEnforced(commentHandler))
 
+	// Veřejný (auth-only) přístup ke stavům tiketů — potřebují i staff uživatelé
+	mux.Handle("GET /api/ticket-statuses", authEnforced(adminHandler))
+	// History tiketu
+	mux.Handle("GET /api/tickets/{id}/history", authEnforced(ticketHandler))
+
 	// Admin routes (maintainer only)
 	mux.Handle("GET /api/admin/config", admin(adminHandler))
 	mux.Handle("PATCH /api/admin/config", admin(adminHandler))

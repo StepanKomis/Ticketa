@@ -28,6 +28,8 @@ func (h *TicketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.create(w, r)
 	case r.Method == http.MethodGet && r.URL.Path == "/api/tickets":
 		h.list(w, r)
+	case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/history"):
+		h.listHistory(w, r)
 	case r.Method == http.MethodGet && matchesIDPath(r.URL.Path, "/api/tickets/") && !strings.HasSuffix(r.URL.Path, "/vote"):
 		h.get(w, r)
 	case r.Method == http.MethodPut && matchesIDPath(r.URL.Path, "/api/tickets/"):
@@ -130,6 +132,8 @@ func (h *TicketHandler) create(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se vytvořit tiket")
 		return
 	}
+	actorName := resolveAuthorName(r.Context(), h.queries, int32(session.UserID))
+	h.logHistory(r.Context(), ticket.ID, int32(session.UserID), actorName, "created", "", "")
 	writeJSON(w, http.StatusCreated, toTicketResponseFromTicket(ticket, "", int32(session.UserID)))
 }
 
@@ -310,6 +314,18 @@ func (h *TicketHandler) update(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se aktualizovat tiket")
 		return
 	}
+	actorName := resolveAuthorName(r.Context(), h.queries, int32(session.UserID))
+	if body.Title != nil || body.Body != nil {
+		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "content_updated", "", "")
+	}
+	if body.StatusID != nil {
+		oldStatus := h.resolveStatusTitle(r.Context(), existing.StatusID)
+		newStatus := h.resolveStatusTitle(r.Context(), ticket.StatusID)
+		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "status_changed", oldStatus, newStatus)
+	}
+	if body.Priority != nil && existing.Priority != ticket.Priority {
+		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "priority_changed", existing.Priority, ticket.Priority)
+	}
 	writeJSON(w, http.StatusOK, toTicketResponseFromTicket(ticket, existing.AssigneeName, int32(session.UserID)))
 }
 
@@ -333,7 +349,7 @@ func (h *TicketHandler) patch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := h.queries.GetTicket(r.Context(), db.GetTicketParams{ID: id, CurrentUserID: int32(session.UserID)})
+	existing, err := h.queries.GetTicket(r.Context(), db.GetTicketParams{ID: id, CurrentUserID: int32(session.UserID)})
 	if err != nil {
 		if err == sql.ErrNoRows {
 			WriteError(w, http.StatusNotFound, "tiket nenalezen")
@@ -375,6 +391,23 @@ func (h *TicketHandler) patch(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se aktualizovat tiket")
 		return
+	}
+	actorName := resolveAuthorName(r.Context(), h.queries, int32(session.UserID))
+	if body.StatusID != nil {
+		oldStatus := h.resolveStatusTitle(r.Context(), existing.StatusID)
+		newStatus := h.resolveStatusTitle(r.Context(), ticket.StatusID)
+		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "status_changed", oldStatus, newStatus)
+	}
+	if body.Priority != nil && existing.Priority != ticket.Priority {
+		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "priority_changed", existing.Priority, ticket.Priority)
+	}
+	if body.AssignedTo != nil {
+		if existing.AssignedTo.Valid && !ticket.AssignedTo.Valid {
+			h.logHistory(r.Context(), id, int32(session.UserID), actorName, "unassigned", existing.AssigneeName, "")
+		} else if ticket.AssignedTo.Valid {
+			newAssigneeName := resolveAuthorName(r.Context(), h.queries, ticket.AssignedTo.Int32)
+			h.logHistory(r.Context(), id, int32(session.UserID), actorName, "assigned", "", newAssigneeName)
+		}
 	}
 	// Po meta-update znovu načteme pro assignee jméno
 	updated, err := h.queries.GetTicket(r.Context(), db.GetTicketParams{ID: id, CurrentUserID: int32(session.UserID)})
@@ -594,6 +627,58 @@ func voteTicketIDFromPath(w http.ResponseWriter, path string) (int64, bool) {
 		WriteError(w, http.StatusBadRequest, "neplatné ID tiketu")
 	}
 	return id, ok
+}
+
+// logHistory zapíše záznam do ticket_history. Chyby jsou ignorovány — audit log nesmí blokovat hlavní operaci.
+func (h *TicketHandler) logHistory(ctx context.Context, ticketID int64, actorID int32, actorName, event, oldVal, newVal string) {
+	_ = h.queries.InsertTicketHistory(ctx, db.InsertTicketHistoryParams{
+		TicketID:  ticketID,
+		ActorID:   actorID,
+		ActorName: actorName,
+		Event:     event,
+		OldVal:    sql.NullString{String: oldVal, Valid: oldVal != ""},
+		NewVal:    sql.NullString{String: newVal, Valid: newVal != ""},
+	})
+}
+
+// resolveStatusTitle vrátí název stavu tiketu dle ID, nebo prázdný řetězec při chybě.
+func (h *TicketHandler) resolveStatusTitle(ctx context.Context, id sql.NullInt32) string {
+	if !id.Valid {
+		return ""
+	}
+	title, err := h.queries.GetStatusTitle(ctx, id.Int32)
+	if err != nil {
+		return ""
+	}
+	return title
+}
+
+func (h *TicketHandler) listHistory(w http.ResponseWriter, r *http.Request) {
+	_, ok := sessionFromContext(w, r)
+	if !ok {
+		return
+	}
+	id, ok := ticketIDFromPath(w, r.URL.Path)
+	if !ok {
+		return
+	}
+	rows, err := h.queries.ListTicketHistory(r.Context(), id)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst historii tiketu")
+		return
+	}
+	entries := make([]ticketHistoryEntry, 0, len(rows))
+	for _, row := range rows {
+		entries = append(entries, ticketHistoryEntry{
+			ID:        row.ID,
+			ActorName: row.ActorName,
+			Event:     row.Event,
+			OldVal:    row.OldVal.String,
+			NewVal:    row.NewVal.String,
+			CreatedAt: row.CreatedAt,
+		})
+	}
+	writeJSON(w, http.StatusOK, entries)
 }
 
 // resolveAuthorName vrátí zobrazitelné jméno uživatele.
