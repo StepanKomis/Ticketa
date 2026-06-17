@@ -495,6 +495,15 @@ func (h *AdminHandler) patchUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	session, ok := sessionFromContext(w, r)
+	if !ok {
+		return
+	}
+	if int32(session.UserID) == id && body.IsActive != nil && !*body.IsActive {
+		WriteError(w, http.StatusForbidden, "nelze deaktivovat vlastní účet")
+		return
+	}
+
 	ctx := r.Context()
 
 	if body.IsActive != nil {
