@@ -8,9 +8,15 @@ import (
 // WriteError zapíše JSON chybovou odpověď ve tvaru
 // {"code": <int32>, "status": "<text>", "msg": "<msg>"}.
 func WriteError(w http.ResponseWriter, code int, msg string) {
+	WriteErrorWithStatus(w, code, http.StatusText(code), msg)
+}
+
+// WriteErrorWithStatus je stejné jako WriteError, ale umožňuje přepsat pole "status"
+// vlastní strojově čitelnou hodnotou (např. "must_change_password").
+func WriteErrorWithStatus(w http.ResponseWriter, code int, status, msg string) {
 	body, err := json.Marshal(errorResponse{
 		Code:   int32(code),
-		Status: http.StatusText(code),
+		Status: status,
 		Msg:    msg,
 	})
 	if err != nil {

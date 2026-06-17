@@ -111,6 +111,11 @@ WHERE ldap.distinguished_name = $1 AND u.is_active = TRUE;
 INSERT INTO local_login (id, password_hash, must_change_pw)
 VALUES ($1, $2, $3);
 
+-- name: GetLocalLoginByUserID :one
+SELECT id, password_hash, must_change_pw, pw_changed_at
+FROM local_login
+WHERE id = $1;
+
 -- name: UpdateLocalLoginPassword :exec
 UPDATE local_login
 SET password_hash  = $2,

@@ -151,11 +151,12 @@ func (uh *UserHandler) login(w http.ResponseWriter, r *http.Request) {
 	})
 
 	res := currentUserResponse{
-		ID:        user.ID,
-		Email:     user.Email,
-		FirstName: user.FirstName.String,
-		LastName:  user.LastName.String,
-		UserType:  string(user.UserType),
+		ID:           user.ID,
+		Email:        user.Email,
+		FirstName:    user.FirstName.String,
+		LastName:     user.LastName.String,
+		UserType:     string(user.UserType),
+		MustChangePw: user.MustChangePw,
 	}
 
 	jsonRes, err := json.Marshal(res)
@@ -193,12 +194,20 @@ func (uh *UserHandler) me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var mustChangePw bool
+	if u.Provider == "local" {
+		if ll, err := uh.queries.GetLocalLoginByUserID(r.Context(), u.ID); err == nil {
+			mustChangePw = ll.MustChangePw
+		}
+	}
+
 	res := currentUserResponse{
-		ID:        u.ID,
-		Email:     u.Email,
-		FirstName: u.FirstName.String,
-		LastName:  u.LastName.String,
-		UserType:  string(u.UserType),
+		ID:           u.ID,
+		Email:        u.Email,
+		FirstName:    u.FirstName.String,
+		LastName:     u.LastName.String,
+		UserType:     string(u.UserType),
+		MustChangePw: mustChangePw,
 	}
 
 	jsonRes, err := json.Marshal(res)
@@ -291,12 +300,20 @@ func (uh *UserHandler) patchMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var mustChangePw bool
+	if u.Provider == "local" {
+		if ll, err := uh.queries.GetLocalLoginByUserID(r.Context(), u.ID); err == nil {
+			mustChangePw = ll.MustChangePw
+		}
+	}
+
 	res := currentUserResponse{
-		ID:        u.ID,
-		Email:     u.Email,
-		FirstName: u.FirstName.String,
-		LastName:  u.LastName.String,
-		UserType:  string(u.UserType),
+		ID:           u.ID,
+		Email:        u.Email,
+		FirstName:    u.FirstName.String,
+		LastName:     u.LastName.String,
+		UserType:     string(u.UserType),
+		MustChangePw: mustChangePw,
 	}
 
 	jsonRes, err := json.Marshal(res)
@@ -435,6 +452,66 @@ func (uh *UserHandler) setupStatus(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonRes) //nolint:errcheck
 }
 
+// patchMyPassword změní heslo přihlášeného lokálního uživatele.
+// Vyžaduje ověření aktuálního hesla. Po úspěchu nastaví must_change_pw = FALSE a pw_changed_at = NOW().
+//
+// @Summary      Změna hesla
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body  patchMyPasswordRequest  true  "Aktuální a nové heslo"
+// @Success      204   "Heslo bylo úspěšně změněno"
+// @Failure      400   {object}  errorResponse  "Neplatné tělo požadavku"
+// @Failure      401   {object}  errorResponse  "Aktuální heslo je nesprávné nebo chybí session"
+// @Failure      422   {object}  errorResponse  "Nové heslo nesplňuje požadavky"
+// @Failure      500   {object}  errorResponse  "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/me/password [patch]
+func (uh *UserHandler) patchMyPassword(w http.ResponseWriter, r *http.Request) {
+	session, ok := sessionFromContext(w, r)
+	if !ok {
+		return
+	}
+
+	var body patchMyPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		WriteError(w, http.StatusBadRequest, "neplatné tělo požadavku")
+		return
+	}
+
+	if err := userregistration.ValidatePassword(body.NewPassword); err != nil {
+		WriteError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+
+	ll, err := uh.queries.GetLocalLoginByUserID(r.Context(), int32(session.UserID))
+	if err != nil {
+		WriteError(w, http.StatusUnauthorized, "účet nepodporuje lokální přihlášení")
+		return
+	}
+
+	if err := security.CheckPassword(body.CurrentPassword, ll.PasswordHash); err != nil {
+		WriteError(w, http.StatusUnauthorized, "aktuální heslo je nesprávné")
+		return
+	}
+
+	newHash, err := security.HashPassword(body.NewPassword)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "interní chyba")
+		return
+	}
+
+	if err := uh.queries.UpdateLocalLoginPassword(r.Context(), db.UpdateLocalLoginPasswordParams{
+		ID:           int32(session.UserID),
+		PasswordHash: newHash,
+	}); err != nil {
+		WriteError(w, http.StatusInternalServerError, "interní chyba")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (uh *UserHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case "/api/register":
@@ -447,6 +524,8 @@ func (uh *UserHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		} else {
 			uh.me(w, r)
 		}
+	case "/api/me/password":
+		uh.patchMyPassword(w, r)
 	case "/api/logout":
 		uh.logout(w, r)
 	case "/api/setup-status":

@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"context"
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
@@ -12,8 +13,12 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
+	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
 	"github.com/StepanKomis/Ticketa/src/config"
+	"github.com/StepanKomis/Ticketa/src/internal/ctxkeys"
 	"github.com/StepanKomis/Ticketa/src/www/router/handlers"
 )
 
@@ -234,6 +239,89 @@ func TestUserHandler_Post_DBError(t *testing.T) {
 
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("expected 500 on DB error, got %d", w.Code)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// PATCH /api/me/password
+// ---------------------------------------------------------------------------
+
+func patchPasswordReq(t *testing.T, sqlDB *sql.DB, sessionUserID int64, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	h := newTestHandler(t, sqlDB)
+	req := httptest.NewRequest(http.MethodPatch, "/api/me/password", strings.NewReader(body))
+
+	if sessionUserID != 0 {
+		ctx := context.WithValue(req.Context(), ctxkeys.SessionContextKey, db.Session{UserID: sessionUserID})
+		req = req.WithContext(ctx)
+	}
+
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	return w
+}
+
+func TestPatchMyPassword_NoSession(t *testing.T) {
+	w := patchPasswordReq(t, nil, 0, `{"current_password":"Old1!","new_password":"New1@"}`)
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", w.Code)
+	}
+}
+
+func TestPatchMyPassword_InvalidJSON(t *testing.T) {
+	w := patchPasswordReq(t, nil, 1, "not json")
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestPatchMyPassword_WeakNewPassword(t *testing.T) {
+	w := patchPasswordReq(t, nil, 1, `{"current_password":"Old1!","new_password":"weak"}`)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", w.Code)
+	}
+}
+
+func TestPatchMyPassword_NoLocalLogin(t *testing.T) {
+	script := &hdlConnScript{
+		queries: []hdlQueryResult{{err: fmt.Errorf("not found")}},
+	}
+	db := newHandlerDB(t, script)
+	w := patchPasswordReq(t, db, 1, `{"current_password":"Old1!","new_password":"NewPass1@"}`)
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", w.Code)
+	}
+}
+
+func TestPatchMyPassword_WrongCurrentPassword(t *testing.T) {
+	// Bcrypt hash pro "CorrectPass1!" vygenerovaný s cost=4 pro rychlost testů
+	hash, _ := bcrypt.GenerateFromPassword([]byte("CorrectPass1!"), 4)
+	script := &hdlConnScript{
+		queries: []hdlQueryResult{{
+			cols: []string{"id", "password_hash", "must_change_pw", "pw_changed_at"},
+			rows: [][]driver.Value{{int64(1), string(hash), false, nil}},
+		}},
+	}
+	db := newHandlerDB(t, script)
+	w := patchPasswordReq(t, db, 1, `{"current_password":"WrongPass1!","new_password":"NewPass1@"}`)
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", w.Code)
+	}
+}
+
+func TestPatchMyPassword_Success(t *testing.T) {
+	hash, _ := bcrypt.GenerateFromPassword([]byte("OldPass1!"), 4)
+	script := &hdlConnScript{
+		queries: []hdlQueryResult{{
+			cols: []string{"id", "password_hash", "must_change_pw", "pw_changed_at"},
+			rows: [][]driver.Value{{int64(1), string(hash), false, nil}},
+		}},
+		execs: []error{nil}, // UpdateLocalLoginPassword
+	}
+	db := newHandlerDB(t, script)
+	w := patchPasswordReq(t, db, 1, `{"current_password":"OldPass1!","new_password":"NewPass1@"}`)
+	if w.Code != http.StatusNoContent {
+		t.Errorf("expected 204, got %d (body: %s)", w.Code, w.Body.String())
 	}
 }
 
