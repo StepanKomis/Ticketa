@@ -33,7 +33,7 @@ func (h *AdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.Method == http.MethodPatch && r.URL.Path == "/api/admin/config":
 		h.patchConfig(w, r)
 
-	case r.Method == http.MethodGet && r.URL.Path == "/api/admin/ticket-statuses":
+	case r.Method == http.MethodGet && (r.URL.Path == "/api/admin/ticket-statuses" || r.URL.Path == "/api/ticket-statuses"):
 		h.listStatuses(w, r)
 	case r.Method == http.MethodPost && r.URL.Path == "/api/admin/ticket-statuses":
 		h.createStatus(w, r)

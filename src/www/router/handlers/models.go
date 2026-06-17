@@ -213,3 +213,13 @@ type patchStatusRequest struct {
 	Title string `json:"Title" example:"Otevřeno"`
 	Color string `json:"Color" example:"#3498db"`
 }
+
+// ticketHistoryEntry je jeden záznam v historii tiketu.
+type ticketHistoryEntry struct {
+	ID        int64     `json:"id"`
+	ActorName string    `json:"actor_name"`
+	Event     string    `json:"event"`
+	OldVal    string    `json:"old_val"`
+	NewVal    string    `json:"new_val"`
+	CreatedAt time.Time `json:"created_at"`
+}

@@ -92,3 +92,16 @@ ON CONFLICT DO NOTHING;
 
 -- name: UnvoteTicket :exec
 DELETE FROM ticket_votes WHERE ticket_id = $1 AND user_id = $2;
+
+-- name: InsertTicketHistory :exec
+INSERT INTO ticket_history (ticket_id, actor_id, actor_name, event, old_val, new_val)
+VALUES ($1, $2, $3, $4, $5, $6);
+
+-- name: ListTicketHistory :many
+SELECT id, ticket_id, actor_id, actor_name, event, old_val, new_val, created_at
+FROM ticket_history
+WHERE ticket_id = $1
+ORDER BY created_at ASC;
+
+-- name: GetStatusTitle :one
+SELECT title FROM ticket_statuses WHERE id = $1;

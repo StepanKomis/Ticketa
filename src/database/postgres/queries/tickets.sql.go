@@ -105,6 +105,17 @@ func (q *Queries) DeleteTicket(ctx context.Context, id int64) error {
 	return err
 }
 
+const getStatusTitle = `-- name: GetStatusTitle :one
+SELECT title FROM ticket_statuses WHERE id = $1
+`
+
+func (q *Queries) GetStatusTitle(ctx context.Context, id int32) (string, error) {
+	row := q.db.QueryRowContext(ctx, getStatusTitle, id)
+	var title string
+	err := row.Scan(&title)
+	return title, err
+}
+
 const getTicket = `-- name: GetTicket :one
 SELECT
     t.id, t.title, t.body, t.created_at, t.author_id, t.status_id, t.priority, t.assigned_to, t.location, t.category, t.updated_at,
@@ -165,6 +176,71 @@ func (q *Queries) GetTicket(ctx context.Context, arg GetTicketParams) (GetTicket
 		&i.UserHasVoted,
 	)
 	return i, err
+}
+
+const insertTicketHistory = `-- name: InsertTicketHistory :exec
+INSERT INTO ticket_history (ticket_id, actor_id, actor_name, event, old_val, new_val)
+VALUES ($1, $2, $3, $4, $5, $6)
+`
+
+type InsertTicketHistoryParams struct {
+	TicketID  int64
+	ActorID   int32
+	ActorName string
+	Event     string
+	OldVal    sql.NullString
+	NewVal    sql.NullString
+}
+
+func (q *Queries) InsertTicketHistory(ctx context.Context, arg InsertTicketHistoryParams) error {
+	_, err := q.db.ExecContext(ctx, insertTicketHistory,
+		arg.TicketID,
+		arg.ActorID,
+		arg.ActorName,
+		arg.Event,
+		arg.OldVal,
+		arg.NewVal,
+	)
+	return err
+}
+
+const listTicketHistory = `-- name: ListTicketHistory :many
+SELECT id, ticket_id, actor_id, actor_name, event, old_val, new_val, created_at
+FROM ticket_history
+WHERE ticket_id = $1
+ORDER BY created_at ASC
+`
+
+func (q *Queries) ListTicketHistory(ctx context.Context, ticketID int64) ([]TicketHistory, error) {
+	rows, err := q.db.QueryContext(ctx, listTicketHistory, ticketID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TicketHistory
+	for rows.Next() {
+		var i TicketHistory
+		if err := rows.Scan(
+			&i.ID,
+			&i.TicketID,
+			&i.ActorID,
+			&i.ActorName,
+			&i.Event,
+			&i.OldVal,
+			&i.NewVal,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listTicketsFiltered = `-- name: ListTicketsFiltered :many

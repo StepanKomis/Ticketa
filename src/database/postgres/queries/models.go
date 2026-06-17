@@ -193,6 +193,17 @@ type TicketComment struct {
 	Deleted   bool
 }
 
+type TicketHistory struct {
+	ID        int64
+	TicketID  int64
+	ActorID   int32
+	ActorName string
+	Event     string
+	OldVal    sql.NullString
+	NewVal    sql.NullString
+	CreatedAt time.Time
+}
+
 type TicketStatus struct {
 	ID       int32
 	Title    string
