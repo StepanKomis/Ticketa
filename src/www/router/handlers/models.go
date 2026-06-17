@@ -31,16 +31,30 @@ type nullTime struct {
 }
 
 // ticketResponse je JSON tvar odpovědi pro jeden tiket.
-// StatusID je nullable — valid=false pokud tiket nemá přiřazený stav.
-// AuthorName je zobrazitelné jméno autora (Jméno Příjmení, nebo e-mail jako záloha).
 type ticketResponse struct {
-	ID         int64     `json:"ID" example:"1"`
-	Title      string    `json:"Title" example:"Nemohu se přihlásit"`
-	Body       string    `json:"Body" example:"Po zadání hesla se nic nestane."`
-	CreatedAt  time.Time `json:"CreatedAt" example:"2026-06-07T14:22:55Z"`
-	AuthorID   int32     `json:"AuthorID" example:"3"`
-	AuthorName string    `json:"AuthorName" example:"Jan Novák"`
-	StatusID   nullInt32 `json:"StatusID"`
+	ID             int64     `json:"ID" example:"1"`
+	Title          string    `json:"Title" example:"Nemohu se přihlásit"`
+	Body           string    `json:"Body" example:"Po zadání hesla se nic nestane."`
+	Priority       string    `json:"Priority" example:"high"`
+	Location       string    `json:"Location" example:"PC učebna 203"`
+	Category       string    `json:"Category" example:"Network"`
+	AssignedTo     *int32    `json:"AssignedTo"`
+	AssignedToName string    `json:"AssignedToName" example:"Jana Horáková"`
+	CreatedAt      time.Time `json:"CreatedAt" example:"2026-06-07T14:22:55Z"`
+	UpdatedAt      time.Time `json:"UpdatedAt" example:"2026-06-07T14:22:55Z"`
+	AuthorID       int32     `json:"AuthorID" example:"3"`
+	AuthorName     string    `json:"AuthorName" example:"Jan Novák"`
+	StatusID       nullInt32 `json:"StatusID"`
+	VoteCount      int32     `json:"VoteCount" example:"5"`
+	UserHasVoted   bool      `json:"UserHasVoted" example:"false"`
+}
+
+// ticketListResponse je stránkovaná odpověď pro seznam tiketů.
+type ticketListResponse struct {
+	Items  []ticketResponse `json:"items"`
+	Total  int64            `json:"total" example:"42"`
+	Limit  int              `json:"limit" example:"20"`
+	Offset int              `json:"offset" example:"0"`
 }
 
 // userResponse je JSON tvar odpovědi pro jednoho uživatele.

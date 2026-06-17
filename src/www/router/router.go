@@ -77,7 +77,10 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	mux.Handle("GET /api/tickets", authEnforced(ticketHandler))
 	mux.Handle("GET /api/tickets/{id}", authEnforced(ticketHandler))
 	mux.Handle("PUT /api/tickets/{id}", authEnforced(ticketHandler))
+	mux.Handle("PATCH /api/tickets/{id}", authEnforced(ticketHandler))
 	mux.Handle("DELETE /api/tickets/{id}", authEnforced(ticketHandler))
+	mux.Handle("POST /api/tickets/{id}/vote", authEnforced(ticketHandler))
+	mux.Handle("DELETE /api/tickets/{id}/vote", authEnforced(ticketHandler))
 
 	// Comment routes (any active user; delete also allowed for staff/maintainer)
 	mux.Handle("POST /api/tickets/{id}/comments", authEnforced(commentHandler))

@@ -169,12 +169,17 @@ type StudentProfile struct {
 }
 
 type Ticket struct {
-	ID        int64
-	Title     string
-	Body      string
-	CreatedAt time.Time
-	AuthorID  int32
-	StatusID  sql.NullInt32
+	ID         int64
+	Title      string
+	Body       string
+	CreatedAt  time.Time
+	AuthorID   int32
+	StatusID   sql.NullInt32
+	Priority   string
+	AssignedTo sql.NullInt32
+	Location   string
+	Category   string
+	UpdatedAt  time.Time
 }
 
 type TicketComment struct {
@@ -193,6 +198,12 @@ type TicketStatus struct {
 	Title    string
 	Color    string
 	Position int32
+}
+
+type TicketVote struct {
+	TicketID  int64
+	UserID    int32
+	CreatedAt time.Time
 }
 
 type User struct {
