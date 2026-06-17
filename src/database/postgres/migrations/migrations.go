@@ -31,6 +31,9 @@ var up00007 string
 //go:embed up/UP_00008.sql
 var up00008 string
 
+//go:embed up/UP_00009.sql
+var up00009 string
+
 var All = func() []migrate.Migration {
 	ms := []migrate.Migration{
 		{
@@ -122,6 +125,27 @@ var All = func() []migrate.Migration {
 			},
 			Down: func(db any) error {
 				_, err := db.(*sql.DB).Exec(`DROP TABLE IF EXISTS invitations CASCADE;`)
+				return err
+			},
+		},
+		{
+			Name: "ticket_improvements_priority_votes",
+			Up: func(db any) error {
+				_, err := db.(*sql.DB).Exec(up00009)
+				return err
+			},
+			Down: func(db any) error {
+				_, err := db.(*sql.DB).Exec(`
+					DROP TABLE IF EXISTS ticket_votes CASCADE;
+					DROP TRIGGER IF EXISTS trg_ticket_updated_at ON tickets;
+					DROP FUNCTION IF EXISTS set_ticket_updated_at;
+					ALTER TABLE tickets
+						DROP COLUMN IF EXISTS priority,
+						DROP COLUMN IF EXISTS assigned_to,
+						DROP COLUMN IF EXISTS location,
+						DROP COLUMN IF EXISTS category,
+						DROP COLUMN IF EXISTS updated_at;
+				`)
 				return err
 			},
 		},
