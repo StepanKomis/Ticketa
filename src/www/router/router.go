@@ -7,6 +7,7 @@ import (
 
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
 	"github.com/StepanKomis/Ticketa/src/config"
+	"github.com/StepanKomis/Ticketa/src/internal/activity"
 	"github.com/StepanKomis/Ticketa/src/internal/security"
 	"github.com/StepanKomis/Ticketa/src/www"
 	middleware "github.com/StepanKomis/Ticketa/src/www/midleware"
@@ -33,14 +34,17 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	admin := func(h http.Handler) http.Handler { return authEnforced(middleware.AdminMiddleware()(h)) }
 	staffAdmin := func(h http.Handler) http.Handler { return authEnforced(middleware.StaffOrAdminMiddleware()(h)) }
 
-	userHandler, err := handlers.NewUserHandler(httpLogger, sqlDB, sessionStore, cfg)
+	activityLogger := activity.NewActivityLogger(queries, cfg, httpLogger)
+
+	userHandler, err := handlers.NewUserHandler(httpLogger, sqlDB, sessionStore, cfg, activityLogger)
 	if err != nil {
 		httpLogger.Fatalf("nepodařilo se vytvořit user handler v routeru: %s", err)
 	}
 
-	ticketHandler := handlers.NewTicketHandler(queries, httpLogger)
-	commentHandler := handlers.NewCommentHandler(queries, httpLogger)
-	adminHandler := handlers.NewAdminHandler(queries, cfgStore, httpLogger)
+	ticketHandler := handlers.NewTicketHandler(queries, httpLogger, activityLogger)
+	commentHandler := handlers.NewCommentHandler(queries, httpLogger, activityLogger)
+	adminHandler := handlers.NewAdminHandler(queries, cfgStore, httpLogger, activityLogger)
+	activityHandler := handlers.NewActivityHandler(queries, httpLogger)
 
 	mux := http.NewServeMux()
 
@@ -92,6 +96,10 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	mux.Handle("GET /api/ticket-statuses", authEnforced(adminHandler))
 	// History tiketu
 	mux.Handle("GET /api/tickets/{id}/history", authEnforced(ticketHandler))
+
+	// Activity log
+	mux.Handle("GET /api/activity", admin(activityHandler))
+	mux.Handle("GET /api/users/{id}/activity", authEnforced(activityHandler))
 
 	// Admin routes (maintainer only)
 	mux.Handle("GET /api/admin/config", admin(adminHandler))

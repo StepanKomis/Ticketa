@@ -10,16 +10,18 @@ import (
 
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
 	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
+	"github.com/StepanKomis/Ticketa/src/internal/activity"
 	"github.com/StepanKomis/Ticketa/src/internal/ctxkeys"
 )
 
 type TicketHandler struct {
-	queries    *db.Queries
-	httpLogger *logs.Logger
+	queries        *db.Queries
+	httpLogger     *logs.Logger
+	activityLogger *activity.ActivityLogger
 }
 
-func NewTicketHandler(q *db.Queries, l *logs.Logger) *TicketHandler {
-	return &TicketHandler{queries: q, httpLogger: l}
+func NewTicketHandler(q *db.Queries, l *logs.Logger, al *activity.ActivityLogger) *TicketHandler {
+	return &TicketHandler{queries: q, httpLogger: l, activityLogger: al}
 }
 
 func (h *TicketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -134,6 +136,7 @@ func (h *TicketHandler) create(w http.ResponseWriter, r *http.Request) {
 	}
 	actorName := resolveAuthorName(r.Context(), h.queries, int32(session.UserID))
 	h.logHistory(r.Context(), ticket.ID, int32(session.UserID), actorName, "created", "", "")
+	h.activityLogger.LogTiketVytvoren(r.Context(), int32(session.UserID), ticket.ID, ticket.Title)
 	writeJSON(w, http.StatusCreated, toTicketResponseFromTicket(ticket, "", int32(session.UserID)))
 }
 
@@ -317,11 +320,20 @@ func (h *TicketHandler) update(w http.ResponseWriter, r *http.Request) {
 	actorName := resolveAuthorName(r.Context(), h.queries, int32(session.UserID))
 	if body.Title != nil || body.Body != nil {
 		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "content_updated", "", "")
+		changedFields := make([]string, 0, 2)
+		if body.Title != nil {
+			changedFields = append(changedFields, "title")
+		}
+		if body.Body != nil {
+			changedFields = append(changedFields, "body")
+		}
+		h.activityLogger.LogTiketAktualizovan(r.Context(), int32(session.UserID), id, changedFields)
 	}
 	if body.StatusID != nil {
 		oldStatus := h.resolveStatusTitle(r.Context(), existing.StatusID)
 		newStatus := h.resolveStatusTitle(r.Context(), ticket.StatusID)
 		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "status_changed", oldStatus, newStatus)
+		h.activityLogger.LogStavZmenen(r.Context(), int32(session.UserID), id, oldStatus, newStatus)
 	}
 	if body.Priority != nil && existing.Priority != ticket.Priority {
 		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "priority_changed", existing.Priority, ticket.Priority)
@@ -397,11 +409,22 @@ func (h *TicketHandler) patch(w http.ResponseWriter, r *http.Request) {
 		oldStatus := h.resolveStatusTitle(r.Context(), existing.StatusID)
 		newStatus := h.resolveStatusTitle(r.Context(), ticket.StatusID)
 		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "status_changed", oldStatus, newStatus)
+		h.activityLogger.LogStavZmenen(r.Context(), int32(session.UserID), id, oldStatus, newStatus)
 	}
 	if body.Priority != nil && existing.Priority != ticket.Priority {
 		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "priority_changed", existing.Priority, ticket.Priority)
 	}
 	if body.AssignedTo != nil {
+		var oldAssigneeID, newAssigneeID *int32
+		if existing.AssignedTo.Valid {
+			v := existing.AssignedTo.Int32
+			oldAssigneeID = &v
+		}
+		if ticket.AssignedTo.Valid {
+			v := ticket.AssignedTo.Int32
+			newAssigneeID = &v
+		}
+		h.activityLogger.LogTiketPrirazen(r.Context(), int32(session.UserID), id, oldAssigneeID, newAssigneeID)
 		if existing.AssignedTo.Valid && !ticket.AssignedTo.Valid {
 			h.logHistory(r.Context(), id, int32(session.UserID), actorName, "unassigned", existing.AssigneeName, "")
 		} else if ticket.AssignedTo.Valid {
@@ -455,6 +478,7 @@ func (h *TicketHandler) delete(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se smazat tiket")
 		return
 	}
+	h.activityLogger.LogTiketSmazan(r.Context(), int32(session.UserID), id, existing.Title)
 	w.WriteHeader(http.StatusNoContent)
 }
 

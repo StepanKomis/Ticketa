@@ -14,15 +14,17 @@ import (
 	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
 	"github.com/StepanKomis/Ticketa/src/internal/API/users/login"
 	userregistration "github.com/StepanKomis/Ticketa/src/internal/API/users/registration"
+	"github.com/StepanKomis/Ticketa/src/internal/activity"
 	"github.com/StepanKomis/Ticketa/src/internal/security"
 )
 
 type UserHandler struct {
-	httpLogger *logs.Logger
-	userLogger *logs.Logger
-	db         *sql.DB
-	queries    *db.Queries
-	store      *security.SessionStore
+	httpLogger     *logs.Logger
+	userLogger     *logs.Logger
+	db             *sql.DB
+	queries        *db.Queries
+	store          *security.SessionStore
+	activityLogger *activity.ActivityLogger
 	// secureCookie nastaví Secure flag na session cookie. Výchozí false, protože
 	// server zatím neumí TLS — nasazení za HTTPS proxy musí nastavit COOKIE_SECURE=true,
 	// jinak prohlížeč cookie odešle i přes nešifrované HTTP.
@@ -33,12 +35,13 @@ type registrationResponse struct {
 	ID int32 `json:"id"`
 }
 
-func NewUserHandler(httpLogger *logs.Logger, sqlDB *sql.DB, store *security.SessionStore, cfg *config.Config) (*UserHandler, error) {
+func NewUserHandler(httpLogger *logs.Logger, sqlDB *sql.DB, store *security.SessionStore, cfg *config.Config, al *activity.ActivityLogger) (*UserHandler, error) {
 	uh := &UserHandler{}
 	uh.httpLogger = httpLogger
 	uh.db = sqlDB
 	uh.queries = db.New(sqlDB)
 	uh.store = store
+	uh.activityLogger = al
 	uh.secureCookie = env.Get("COOKIE_SECURE", "false") == "true"
 
 	var err error
@@ -96,6 +99,7 @@ func (uh *UserHandler) register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	uh.httpLogger.Debugf("uživatel úspěšně zaregistrován: id=%d email=%s user_type=%s", userID, body.Email, body.UserType)
+	uh.activityLogger.LogUzivatelRegistrovan(r.Context(), userID, body.Email)
 
 	res := registrationResponse{ID: userID}
 
@@ -413,6 +417,7 @@ func (uh *UserHandler) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusInternalServerError, "interní chyba serveru")
 		return
 	}
+	uh.activityLogger.LogUzivatelRegistrovan(r.Context(), user.ID, user.Email)
 
 	res := acceptInviteResponse{ID: user.ID, Email: user.Email}
 	jsonRes, err := json.Marshal(res)

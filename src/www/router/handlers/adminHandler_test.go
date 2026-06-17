@@ -31,7 +31,7 @@ func newTestAdminHandler(t *testing.T) (*handlers.AdminHandler, *config.Store) {
 	}
 	t.Cleanup(func() { l.Close() })
 
-	return handlers.NewAdminHandler(nil, store, l), store
+	return handlers.NewAdminHandler(nil, store, l, nil), store
 }
 
 func TestAdminHandler_GetConfig(t *testing.T) {

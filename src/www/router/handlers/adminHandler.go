@@ -14,16 +14,18 @@ import (
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
 	"github.com/StepanKomis/Ticketa/src/config"
 	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
+	"github.com/StepanKomis/Ticketa/src/internal/activity"
 )
 
 type AdminHandler struct {
-	queries    *db.Queries
-	cfgStore   *config.Store
-	httpLogger *logs.Logger
+	queries        *db.Queries
+	cfgStore       *config.Store
+	httpLogger     *logs.Logger
+	activityLogger *activity.ActivityLogger
 }
 
-func NewAdminHandler(q *db.Queries, cfgStore *config.Store, l *logs.Logger) *AdminHandler {
-	return &AdminHandler{queries: q, cfgStore: cfgStore, httpLogger: l}
+func NewAdminHandler(q *db.Queries, cfgStore *config.Store, l *logs.Logger, al *activity.ActivityLogger) *AdminHandler {
+	return &AdminHandler{queries: q, cfgStore: cfgStore, httpLogger: l, activityLogger: al}
 }
 
 func (h *AdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -545,6 +547,9 @@ func (h *AdminHandler) patchUser(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst aktualizovaného uživatele")
 		return
 	}
+	if body.IsActive != nil && !*body.IsActive {
+		h.activityLogger.LogUzivatelDeaktivovan(ctx, int32(session.UserID), id, user.Email)
+	}
 	writeJSON(w, http.StatusOK, user)
 }
 
@@ -598,6 +603,7 @@ func (h *AdminHandler) approveUser(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst uživatele")
 		return
 	}
+	h.activityLogger.LogUzivatelSchvalen(ctx, approver.ID, id, user.Email)
 	writeJSON(w, http.StatusOK, user)
 }
 
@@ -622,7 +628,18 @@ func (h *AdminHandler) rejectUser(w http.ResponseWriter, r *http.Request) {
 	}
 	id := int32(id64)
 
+	rejecter, ok := userFromContext(w, r)
+	if !ok {
+		return
+	}
+
 	ctx := r.Context()
+
+	target, err := h.queries.GetUserByID(ctx, id)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst uživatele")
+		return
+	}
 
 	if err := h.queries.RejectPendingUser(ctx, id); err != nil {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se zamítnout uživatele")
@@ -631,6 +648,7 @@ func (h *AdminHandler) rejectUser(w http.ResponseWriter, r *http.Request) {
 	if err := h.queries.SoftDeleteSessionByUserID(ctx, int64(id)); err != nil {
 		h.httpLogger.Debugf("rejectUser: SoftDeleteSessionByUserID selhalo pro user_id=%d: %s", id, err)
 	}
+	h.activityLogger.LogUzivatelZamitnuv(ctx, rejecter.ID, id, target.Email)
 	w.WriteHeader(http.StatusNoContent)
 }
 

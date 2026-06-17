@@ -1,6 +1,9 @@
 package handlers
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // errorResponse je tvar chybové odpovědi vracené pro všechny HTTP chyby.
 type errorResponse struct {
@@ -222,4 +225,25 @@ type ticketHistoryEntry struct {
 	OldVal    string    `json:"old_val"`
 	NewVal    string    `json:"new_val"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+// activityEntry je jeden záznam activity logu vrácený přes GET /api/activity
+// a GET /api/users/{id}/activity.
+type activityEntry struct {
+	ID         int64           `json:"id"`
+	EventType  string          `json:"event_type"`
+	ActorID    *int32          `json:"actor_id,omitempty"`
+	ActorName  string          `json:"actor_name,omitempty"`
+	TargetType string          `json:"target_type,omitempty"`
+	TargetID   *int64          `json:"target_id,omitempty"`
+	Payload    json.RawMessage `json:"payload,omitempty"`
+	CreatedAt  time.Time       `json:"created_at"`
+}
+
+// activityListResponse je stránkovaná odpověď pro activity log endpointy.
+type activityListResponse struct {
+	Items  []activityEntry `json:"items"`
+	Total  int64           `json:"total"`
+	Limit  int             `json:"limit"`
+	Offset int             `json:"offset"`
 }
