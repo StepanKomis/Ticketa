@@ -26,8 +26,12 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	sessionStore := security.NewSessionStore(queries)
 
 	auth := middleware.AuthMiddleware(sessionStore, queries)
-	admin := func(h http.Handler) http.Handler { return auth(middleware.AdminMiddleware()(h)) }
-	staffAdmin := func(h http.Handler) http.Handler { return auth(middleware.StaffOrAdminMiddleware()(h)) }
+	mustChangePw := middleware.MustChangePwMiddleware(queries)
+	// authEnforced = auth + blokování uživatelů s must_change_pw = TRUE.
+	// Whitelistované routes (/api/me/password, /api/logout) používají jen auth.
+	authEnforced := func(h http.Handler) http.Handler { return auth(mustChangePw(h)) }
+	admin := func(h http.Handler) http.Handler { return authEnforced(middleware.AdminMiddleware()(h)) }
+	staffAdmin := func(h http.Handler) http.Handler { return authEnforced(middleware.StaffOrAdminMiddleware()(h)) }
 
 	userHandler, err := handlers.NewUserHandler(httpLogger, sqlDB, sessionStore, cfg)
 	if err != nil {
@@ -61,22 +65,25 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	mux.Handle("POST /api/auth/invite/accept", userHandler)
 
 	// User routes (authenticated)
-	mux.Handle("GET /api/me", auth(userHandler))
-	mux.Handle("PATCH /api/me", auth(userHandler))
+	// /api/me/password a /api/logout jsou whitelistovány — uživatel s must_change_pw = TRUE
+	// musí mít přístup ke změně hesla a k odhlášení bez blokování middlewarem.
+	mux.Handle("PATCH /api/me/password", auth(userHandler))
 	mux.Handle("POST /api/logout", auth(userHandler))
+	mux.Handle("GET /api/me", authEnforced(userHandler))
+	mux.Handle("PATCH /api/me", authEnforced(userHandler))
 
 	// Authenticated routes (any active user)
-	mux.Handle("POST /api/tickets", auth(ticketHandler))
-	mux.Handle("GET /api/tickets", auth(ticketHandler))
-	mux.Handle("GET /api/tickets/{id}", auth(ticketHandler))
-	mux.Handle("PUT /api/tickets/{id}", auth(ticketHandler))
-	mux.Handle("DELETE /api/tickets/{id}", auth(ticketHandler))
+	mux.Handle("POST /api/tickets", authEnforced(ticketHandler))
+	mux.Handle("GET /api/tickets", authEnforced(ticketHandler))
+	mux.Handle("GET /api/tickets/{id}", authEnforced(ticketHandler))
+	mux.Handle("PUT /api/tickets/{id}", authEnforced(ticketHandler))
+	mux.Handle("DELETE /api/tickets/{id}", authEnforced(ticketHandler))
 
 	// Comment routes (any active user; delete also allowed for staff/maintainer)
-	mux.Handle("POST /api/tickets/{id}/comments", auth(commentHandler))
-	mux.Handle("GET /api/tickets/{id}/comments", auth(commentHandler))
-	mux.Handle("PUT /api/comments/{id}", auth(commentHandler))
-	mux.Handle("DELETE /api/comments/{id}", auth(commentHandler))
+	mux.Handle("POST /api/tickets/{id}/comments", authEnforced(commentHandler))
+	mux.Handle("GET /api/tickets/{id}/comments", authEnforced(commentHandler))
+	mux.Handle("PUT /api/comments/{id}", authEnforced(commentHandler))
+	mux.Handle("DELETE /api/comments/{id}", authEnforced(commentHandler))
 
 	// Admin routes (maintainer only)
 	mux.Handle("GET /api/admin/config", admin(adminHandler))

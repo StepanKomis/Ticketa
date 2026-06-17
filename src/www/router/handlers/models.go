@@ -109,12 +109,14 @@ type commentResponse struct {
 
 // currentUserResponse je JSON tvar odpovědi pro GET /api/me a POST /api/login.
 // Obsahuje pouze pole nezbytná pro autentizaci a zobrazení v UI.
+// MustChangePw je true pro lokální účty, u nichž admin vyžaduje změnu hesla.
 type currentUserResponse struct {
-	ID        int32  `json:"id" example:"3"`
-	Email     string `json:"email" example:"jan.novak@skola.cz"`
-	FirstName string `json:"first_name" example:"Jan"`
-	LastName  string `json:"last_name" example:"Novák"`
-	UserType  string `json:"user_type" example:"student" enums:"student,staff,maintainer"`
+	ID           int32  `json:"id" example:"3"`
+	Email        string `json:"email" example:"jan.novak@skola.cz"`
+	FirstName    string `json:"first_name" example:"Jan"`
+	LastName     string `json:"last_name" example:"Novák"`
+	UserType     string `json:"user_type" example:"student" enums:"student,staff,maintainer"`
+	MustChangePw bool   `json:"must_change_pw" example:"false"`
 }
 
 // loginRequest jsou přihlašovací údaje.
@@ -133,6 +135,12 @@ type setupStatusResponse struct {
 type patchMeRequest struct {
 	FirstName *string `json:"first_name" example:"Jan"`
 	LastName  *string `json:"last_name" example:"Novák"`
+}
+
+// patchMyPasswordRequest je tělo požadavku pro PATCH /api/me/password.
+type patchMyPasswordRequest struct {
+	CurrentPassword string `json:"current_password" example:"StaréHeslo1!"`
+	NewPassword     string `json:"new_password" example:"NovéHeslo2@"`
 }
 
 // pagedUsersResponse je stránkovaná odpověď pro GET /api/admin/users.

@@ -268,6 +268,24 @@ func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
 	return err
 }
 
+const getLocalLoginByUserID = `-- name: GetLocalLoginByUserID :one
+SELECT id, password_hash, must_change_pw, pw_changed_at
+FROM local_login
+WHERE id = $1
+`
+
+func (q *Queries) GetLocalLoginByUserID(ctx context.Context, id int32) (LocalLogin, error) {
+	row := q.db.QueryRowContext(ctx, getLocalLoginByUserID, id)
+	var i LocalLogin
+	err := row.Scan(
+		&i.ID,
+		&i.PasswordHash,
+		&i.MustChangePw,
+		&i.PwChangedAt,
+	)
+	return i, err
+}
+
 const getMaintainerByID = `-- name: GetMaintainerByID :one
 SELECT
     u.id, u.email, u.first_name, u.last_name, u.provider, u.is_active, u.created_at, u.last_login_at,
