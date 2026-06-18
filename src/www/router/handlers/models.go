@@ -3,6 +3,8 @@ package handlers
 import (
 	"encoding/json"
 	"time"
+
+	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
 )
 
 // errorResponse je tvar chybové odpovědi vracené pro všechny HTTP chyby.
@@ -172,6 +174,13 @@ type pagedUsersResponse struct {
 	Total  int64 `json:"total"`
 	Limit  int   `json:"limit"`
 	Offset int   `json:"offset"`
+}
+
+// userWithApprover doplňuje db.User o jméno schvalovatele — frontend dřív
+// uměl zobrazit jen jeho ID.
+type userWithApprover struct {
+	db.User
+	ApprovedByName string `json:"ApprovedByName,omitempty"`
 }
 
 // createInvitationRequest jsou parametry pro vytvoření pozvánky.
