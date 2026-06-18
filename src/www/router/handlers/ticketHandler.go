@@ -319,7 +319,15 @@ func (h *TicketHandler) update(w http.ResponseWriter, r *http.Request) {
 	}
 	actorName := resolveAuthorName(r.Context(), h.queries, int32(session.UserID))
 	if body.Title != nil || body.Body != nil {
-		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "content_updated", "", "")
+		changedCs := make([]string, 0, 2)
+		if body.Title != nil {
+			changedCs = append(changedCs, "titulek")
+		}
+		if body.Body != nil {
+			changedCs = append(changedCs, "tělo")
+		}
+		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "content_updated", "", strings.Join(changedCs, ", "))
+
 		changedFields := make([]string, 0, 2)
 		if body.Title != nil {
 			changedFields = append(changedFields, "title")
