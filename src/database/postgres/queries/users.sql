@@ -41,6 +41,10 @@ SET email      = $2,
 WHERE id = $1
 RETURNING id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at, requested_role, approved_by;
 
+-- name: UpdateUserEmail :one
+UPDATE users SET email = $2 WHERE id = $1
+RETURNING id, email, first_name, last_name, user_type, provider, is_active, created_at, last_login_at, requested_role, approved_by;
+
 -- name: UpdateLastLogin :exec
 UPDATE users
 SET last_login_at = NOW()

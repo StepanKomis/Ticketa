@@ -160,6 +160,12 @@ type patchMyPasswordRequest struct {
 	NewPassword     string `json:"new_password" example:"NovéHeslo2@"`
 }
 
+// patchMyEmailRequest je tělo požadavku pro PATCH /api/me/email.
+type patchMyEmailRequest struct {
+	CurrentPassword string `json:"current_password" example:"Heslo123!"`
+	NewEmail        string `json:"new_email" example:"novy.email@skola.cz"`
+}
+
 // pagedUsersResponse je stránkovaná odpověď pro GET /api/admin/users.
 type pagedUsersResponse struct {
 	Items  any   `json:"items"`

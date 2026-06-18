@@ -6,7 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
+
+	"github.com/lib/pq"
 
 	"github.com/StepanKomis/Ticketa/src/cmd/server/env"
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
@@ -517,6 +520,81 @@ func (uh *UserHandler) patchMyPassword(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// patchMyEmail změní e-mail přihlášeného lokálního uživatele.
+// Vyžaduje ověření aktuálního hesla, stejně jako patchMyPassword.
+//
+// @Summary      Změna e-mailu
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      patchMyEmailRequest   true  "Aktuální heslo a nový e-mail"
+// @Success      200   {object}  currentUserResponse   "Aktualizovaný profil"
+// @Failure      400   {object}  errorResponse         "Neplatné tělo požadavku"
+// @Failure      401   {object}  errorResponse         "Aktuální heslo je nesprávné nebo účet nepodporuje lokální přihlášení"
+// @Failure      409   {object}  errorResponse         "E-mail je již používán"
+// @Failure      500   {object}  errorResponse         "Interní chyba"
+// @Security     cookieAuth
+// @Router       /api/me/email [patch]
+func (uh *UserHandler) patchMyEmail(w http.ResponseWriter, r *http.Request) {
+	session, ok := sessionFromContext(w, r)
+	if !ok {
+		return
+	}
+
+	var body patchMyEmailRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		WriteError(w, http.StatusBadRequest, "neplatné tělo požadavku")
+		return
+	}
+	newEmail := strings.ToLower(strings.TrimSpace(body.NewEmail))
+	if newEmail == "" {
+		WriteError(w, http.StatusBadRequest, "pole new_email je povinné")
+		return
+	}
+
+	ll, err := uh.queries.GetLocalLoginByUserID(r.Context(), int32(session.UserID))
+	if err != nil {
+		WriteError(w, http.StatusUnauthorized, "účet nepodporuje lokální přihlášení")
+		return
+	}
+
+	if err := security.CheckPassword(body.CurrentPassword, ll.PasswordHash); err != nil {
+		WriteError(w, http.StatusUnauthorized, "aktuální heslo je nesprávné")
+		return
+	}
+
+	u, err := uh.queries.UpdateUserEmail(r.Context(), db.UpdateUserEmailParams{
+		ID:    int32(session.UserID),
+		Email: newEmail,
+	})
+	if err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+			WriteError(w, http.StatusConflict, "e-mail je již používán")
+			return
+		}
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se změnit e-mail")
+		return
+	}
+
+	res := currentUserResponse{
+		ID:           u.ID,
+		Email:        u.Email,
+		FirstName:    u.FirstName.String,
+		LastName:     u.LastName.String,
+		UserType:     string(u.UserType),
+		MustChangePw: ll.MustChangePw,
+	}
+	jsonRes, err := json.Marshal(res)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "interní chyba serveru")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(jsonRes) //nolint:errcheck
+}
+
 func (uh *UserHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case "/api/register":
@@ -531,6 +609,8 @@ func (uh *UserHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	case "/api/me/password":
 		uh.patchMyPassword(w, r)
+	case "/api/me/email":
+		uh.patchMyEmail(w, r)
 	case "/api/logout":
 		uh.logout(w, r)
 	case "/api/setup-status":
