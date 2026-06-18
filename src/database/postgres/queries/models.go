@@ -102,6 +102,16 @@ func (ns NullUserType) Value() (driver.Value, error) {
 	return string(ns.UserType), nil
 }
 
+type ActivityLog struct {
+	ID         int64
+	EventType  string
+	ActorID    sql.NullInt32
+	TargetType sql.NullString
+	TargetID   sql.NullInt64
+	Payload    pqtype.NullRawMessage
+	CreatedAt  time.Time
+}
+
 type Invitation struct {
 	ID        int64
 	Email     string

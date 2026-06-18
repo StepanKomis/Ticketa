@@ -9,15 +9,17 @@ import (
 
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
 	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
+	"github.com/StepanKomis/Ticketa/src/internal/activity"
 )
 
 type CommentHandler struct {
-	queries    *db.Queries
-	httpLogger *logs.Logger
+	queries        *db.Queries
+	httpLogger     *logs.Logger
+	activityLogger *activity.ActivityLogger
 }
 
-func NewCommentHandler(q *db.Queries, l *logs.Logger) *CommentHandler {
-	return &CommentHandler{queries: q, httpLogger: l}
+func NewCommentHandler(q *db.Queries, l *logs.Logger, al *activity.ActivityLogger) *CommentHandler {
+	return &CommentHandler{queries: q, httpLogger: l, activityLogger: al}
 }
 
 func (h *CommentHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -94,6 +96,7 @@ func (h *CommentHandler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	authorName := resolveAuthorName(r.Context(), h.queries, comment.AuthorID)
+	h.activityLogger.LogKomentarVytvoren(r.Context(), int32(session.UserID), comment.ID, comment.TicketID)
 	writeJSON(w, http.StatusCreated, toCommentResponse(comment, authorName))
 }
 
@@ -204,6 +207,7 @@ func (h *CommentHandler) update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	authorName := resolveAuthorName(r.Context(), h.queries, comment.AuthorID)
+	h.activityLogger.LogKomentarAktualizovan(r.Context(), int32(session.UserID), comment.ID, comment.TicketID)
 	writeJSON(w, http.StatusOK, toCommentResponse(comment, authorName))
 }
 
@@ -260,6 +264,7 @@ func (h *CommentHandler) softDelete(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se smazat komentář")
 		return
 	}
+	h.activityLogger.LogKomentarSmazan(r.Context(), int32(session.UserID), id, existing.TicketID)
 	w.WriteHeader(http.StatusNoContent)
 }
 

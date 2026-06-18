@@ -24,7 +24,7 @@ func newTicketHandler(t *testing.T) *handlers.TicketHandler {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { l.Close() })
-	return handlers.NewTicketHandler(nil, l)
+	return handlers.NewTicketHandler(nil, l, nil)
 }
 
 func withSession(r *http.Request, userID int64) *http.Request {

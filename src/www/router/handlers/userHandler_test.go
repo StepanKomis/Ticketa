@@ -162,7 +162,7 @@ func newTestHandler(t *testing.T, db *sql.DB) http.Handler {
 	}
 	t.Cleanup(func() { httpLogger.Close() })
 
-	h, err := handlers.NewUserHandler(httpLogger, db, nil, cfg)
+	h, err := handlers.NewUserHandler(httpLogger, db, nil, cfg, nil)
 	if err != nil {
 		t.Fatalf("NewUserHandler: %v", err)
 	}
