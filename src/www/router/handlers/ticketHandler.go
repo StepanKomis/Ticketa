@@ -318,16 +318,13 @@ func (h *TicketHandler) update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actorName := resolveAuthorName(r.Context(), h.queries, int32(session.UserID))
+	if body.Title != nil && existing.Title != ticket.Title {
+		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "title_changed", existing.Title, ticket.Title)
+	}
+	if body.Body != nil && existing.Body != ticket.Body {
+		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "content_updated", "", "tělo")
+	}
 	if body.Title != nil || body.Body != nil {
-		changedCs := make([]string, 0, 2)
-		if body.Title != nil {
-			changedCs = append(changedCs, "titulek")
-		}
-		if body.Body != nil {
-			changedCs = append(changedCs, "tělo")
-		}
-		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "content_updated", "", strings.Join(changedCs, ", "))
-
 		changedFields := make([]string, 0, 2)
 		if body.Title != nil {
 			changedFields = append(changedFields, "title")
@@ -345,6 +342,12 @@ func (h *TicketHandler) update(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.Priority != nil && existing.Priority != ticket.Priority {
 		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "priority_changed", existing.Priority, ticket.Priority)
+	}
+	if body.Location != nil && existing.Location != ticket.Location {
+		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "location_changed", existing.Location, ticket.Location)
+	}
+	if body.Category != nil && existing.Category != ticket.Category {
+		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "category_changed", existing.Category, ticket.Category)
 	}
 	writeJSON(w, http.StatusOK, toTicketResponseFromTicket(ticket, existing.AssigneeName, int32(session.UserID)))
 }
@@ -421,6 +424,12 @@ func (h *TicketHandler) patch(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.Priority != nil && existing.Priority != ticket.Priority {
 		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "priority_changed", existing.Priority, ticket.Priority)
+	}
+	if body.Location != nil && existing.Location != ticket.Location {
+		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "location_changed", existing.Location, ticket.Location)
+	}
+	if body.Category != nil && existing.Category != ticket.Category {
+		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "category_changed", existing.Category, ticket.Category)
 	}
 	if body.AssignedTo != nil {
 		var oldAssigneeID, newAssigneeID *int32
