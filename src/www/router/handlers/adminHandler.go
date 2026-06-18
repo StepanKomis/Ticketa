@@ -28,6 +28,20 @@ func NewAdminHandler(q *db.Queries, cfgStore *config.Store, l *logs.Logger, al *
 	return &AdminHandler{queries: q, cfgStore: cfgStore, httpLogger: l, activityLogger: al}
 }
 
+// toUserWithApprover doplní uživatele o jméno schvalovatele (pokud má approved_by).
+// nameCache umožňuje volajícímu znovu použít už vyhledaná jména při mapování více řádků.
+func toUserWithApprover(ctx context.Context, q *db.Queries, nameCache map[int32]string, u db.User) userWithApprover {
+	out := userWithApprover{User: u}
+	if u.ApprovedBy.Valid {
+		id := u.ApprovedBy.Int32
+		if _, ok := nameCache[id]; !ok {
+			nameCache[id] = resolveAuthorName(ctx, q, id)
+		}
+		out.ApprovedByName = nameCache[id]
+	}
+	return out
+}
+
 func (h *AdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case r.Method == http.MethodGet && r.URL.Path == "/api/admin/config":
@@ -403,9 +417,6 @@ func (h *AdminHandler) listUsers(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst uživatele")
 		return
 	}
-	if rows == nil {
-		rows = []db.User{}
-	}
 
 	countParams := db.CountUsersFilteredParams{
 		UserType: userTypeFilter,
@@ -418,8 +429,14 @@ func (h *AdminHandler) listUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	nameCache := make(map[int32]string, len(rows))
+	items := make([]userWithApprover, len(rows))
+	for i, row := range rows {
+		items[i] = toUserWithApprover(ctx, h.queries, nameCache, row)
+	}
+
 	writeJSON(w, http.StatusOK, pagedUsersResponse{
-		Items:  rows,
+		Items:  items,
 		Total:  total,
 		Limit:  limit,
 		Offset: offset,
@@ -457,7 +474,7 @@ func (h *AdminHandler) getUser(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst uživatele")
 		return
 	}
-	writeJSON(w, http.StatusOK, user)
+	writeJSON(w, http.StatusOK, toUserWithApprover(r.Context(), h.queries, map[int32]string{}, user))
 }
 
 type patchUserRequest struct {
@@ -550,7 +567,7 @@ func (h *AdminHandler) patchUser(w http.ResponseWriter, r *http.Request) {
 	if body.IsActive != nil && !*body.IsActive {
 		h.activityLogger.LogUzivatelDeaktivovan(ctx, int32(session.UserID), id, user.Email)
 	}
-	writeJSON(w, http.StatusOK, user)
+	writeJSON(w, http.StatusOK, toUserWithApprover(ctx, h.queries, map[int32]string{}, user))
 }
 
 // approveUser schválí čekajícího uživatele — nastaví user_type = requested_role a zapíše kdo schválil.
@@ -604,7 +621,7 @@ func (h *AdminHandler) approveUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.activityLogger.LogUzivatelSchvalen(ctx, approver.ID, id, user.Email)
-	writeJSON(w, http.StatusOK, user)
+	writeJSON(w, http.StatusOK, toUserWithApprover(ctx, h.queries, map[int32]string{}, user))
 }
 
 // rejectUser zamítne čekajícího uživatele — deaktivuje jeho účet a okamžitě zneplatní session.
