@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 
 	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
@@ -322,6 +324,130 @@ func TestPatchMyPassword_Success(t *testing.T) {
 	w := patchPasswordReq(t, db, 1, `{"current_password":"OldPass1!","new_password":"NewPass1@"}`)
 	if w.Code != http.StatusNoContent {
 		t.Errorf("expected 204, got %d (body: %s)", w.Code, w.Body.String())
+	}
+}
+
+// ---------------------------------------------------------------------------
+// PATCH /api/me/email
+// ---------------------------------------------------------------------------
+
+func fullUserRow(id int32, email string) hdlQueryResult {
+	return hdlQueryResult{
+		cols: []string{
+			"id", "email", "first_name", "last_name",
+			"user_type", "provider", "is_active", "created_at", "last_login_at",
+			"requested_role", "approved_by",
+		},
+		rows: [][]driver.Value{
+			{id, email, "Jane", "Doe", "student", "local", true, time.Now(), nil, nil, nil},
+		},
+	}
+}
+
+func patchEmailReq(t *testing.T, sqlDB *sql.DB, sessionUserID int64, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	h := newTestHandler(t, sqlDB)
+	req := httptest.NewRequest(http.MethodPatch, "/api/me/email", strings.NewReader(body))
+
+	if sessionUserID != 0 {
+		ctx := context.WithValue(req.Context(), ctxkeys.SessionContextKey, db.Session{UserID: sessionUserID})
+		req = req.WithContext(ctx)
+	}
+
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	return w
+}
+
+func TestPatchMyEmail_NoSession(t *testing.T) {
+	w := patchEmailReq(t, nil, 0, `{"current_password":"Old1!","new_email":"new@example.com"}`)
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", w.Code)
+	}
+}
+
+func TestPatchMyEmail_InvalidJSON(t *testing.T) {
+	w := patchEmailReq(t, nil, 1, "not json")
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestPatchMyEmail_EmptyNewEmail(t *testing.T) {
+	w := patchEmailReq(t, nil, 1, `{"current_password":"Old1!","new_email":"   "}`)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestPatchMyEmail_NoLocalLogin(t *testing.T) {
+	script := &hdlConnScript{
+		queries: []hdlQueryResult{{err: fmt.Errorf("not found")}},
+	}
+	db := newHandlerDB(t, script)
+	w := patchEmailReq(t, db, 1, `{"current_password":"Old1!","new_email":"new@example.com"}`)
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", w.Code)
+	}
+}
+
+func TestPatchMyEmail_WrongCurrentPassword(t *testing.T) {
+	hash, _ := bcrypt.GenerateFromPassword([]byte("CorrectPass1!"), 4)
+	script := &hdlConnScript{
+		queries: []hdlQueryResult{{
+			cols: []string{"id", "password_hash", "must_change_pw", "pw_changed_at"},
+			rows: [][]driver.Value{{int64(1), string(hash), false, nil}},
+		}},
+	}
+	db := newHandlerDB(t, script)
+	w := patchEmailReq(t, db, 1, `{"current_password":"WrongPass1!","new_email":"new@example.com"}`)
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", w.Code)
+	}
+}
+
+func TestPatchMyEmail_Success(t *testing.T) {
+	hash, _ := bcrypt.GenerateFromPassword([]byte("CorrectPass1!"), 4)
+	script := &hdlConnScript{
+		queries: []hdlQueryResult{
+			{
+				cols: []string{"id", "password_hash", "must_change_pw", "pw_changed_at"},
+				rows: [][]driver.Value{{int64(1), string(hash), false, nil}},
+			},
+			fullUserRow(1, "new@example.com"),
+		},
+	}
+	db := newHandlerDB(t, script)
+	w := patchEmailReq(t, db, 1, `{"current_password":"CorrectPass1!","new_email":"NEW@Example.com"}`)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d (body: %s)", w.Code, w.Body.String())
+	}
+	var got struct {
+		Email string `json:"email"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got.Email != "new@example.com" {
+		t.Errorf("expected email new@example.com, got %q", got.Email)
+	}
+}
+
+func TestPatchMyEmail_DuplicateEmail(t *testing.T) {
+	hash, _ := bcrypt.GenerateFromPassword([]byte("CorrectPass1!"), 4)
+	script := &hdlConnScript{
+		queries: []hdlQueryResult{
+			{
+				cols: []string{"id", "password_hash", "must_change_pw", "pw_changed_at"},
+				rows: [][]driver.Value{{int64(1), string(hash), false, nil}},
+			},
+			{err: &pq.Error{Code: "23505"}},
+		},
+	}
+	db := newHandlerDB(t, script)
+	w := patchEmailReq(t, db, 1, `{"current_password":"CorrectPass1!","new_email":"taken@example.com"}`)
+	if w.Code != http.StatusConflict {
+		t.Errorf("expected 409, got %d (body: %s)", w.Code, w.Body.String())
 	}
 }
 

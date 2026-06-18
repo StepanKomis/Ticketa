@@ -65,9 +65,11 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	mux.Handle("POST /api/auth/invite/accept", userHandler)
 
 	// User routes (authenticated)
-	// /api/me/password a /api/logout jsou whitelistovány — uživatel s must_change_pw = TRUE
-	// musí mít přístup ke změně hesla a k odhlášení bez blokování middlewarem.
+	// /api/me/password, /api/me/email a /api/logout jsou whitelistovány — uživatel
+	// s must_change_pw = TRUE musí mít přístup ke změně hesla/e-mailu a k odhlášení
+	// bez blokování middlewarem.
 	mux.Handle("PATCH /api/me/password", auth(userHandler))
+	mux.Handle("PATCH /api/me/email", auth(userHandler))
 	mux.Handle("POST /api/logout", auth(userHandler))
 	mux.Handle("GET /api/me", authEnforced(userHandler))
 	mux.Handle("PATCH /api/me", authEnforced(userHandler))
