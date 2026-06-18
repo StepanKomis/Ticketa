@@ -26,11 +26,20 @@ WHERE
     AND (sqlc.narg('to_ts')::TIMESTAMPTZ IS NULL   OR created_at <= sqlc.narg('to_ts'));
 
 -- name: ListActivityLogForUser :many
+-- Zahrnuje vlastní akce uživatele a dále akce ostatních na tiketech, jejichž
+-- je uživatel autorem (např. když štáb změní stav mého tiketu).
 SELECT * FROM activity_log
 WHERE actor_id = sqlc.arg('actor_id')::INTEGER
+   OR (target_type = 'ticket' AND target_id IN (
+         SELECT id FROM tickets WHERE author_id = sqlc.arg('actor_id')::INTEGER
+       ))
 ORDER BY created_at DESC
 LIMIT  sqlc.arg('lim')::INTEGER
 OFFSET sqlc.arg('off')::INTEGER;
 
 -- name: CountActivityLogForUser :one
-SELECT COUNT(*) FROM activity_log WHERE actor_id = sqlc.arg('actor_id')::INTEGER;
+SELECT COUNT(*) FROM activity_log
+WHERE actor_id = sqlc.arg('actor_id')::INTEGER
+   OR (target_type = 'ticket' AND target_id IN (
+         SELECT id FROM tickets WHERE author_id = sqlc.arg('actor_id')::INTEGER
+       ));

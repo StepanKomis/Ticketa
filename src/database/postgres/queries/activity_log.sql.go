@@ -47,7 +47,11 @@ func (q *Queries) CountActivityLog(ctx context.Context, arg CountActivityLogPara
 }
 
 const countActivityLogForUser = `-- name: CountActivityLogForUser :one
-SELECT COUNT(*) FROM activity_log WHERE actor_id = $1::INTEGER
+SELECT COUNT(*) FROM activity_log
+WHERE actor_id = $1::INTEGER
+   OR (target_type = 'ticket' AND target_id IN (
+         SELECT id FROM tickets WHERE author_id = $1::INTEGER
+       ))
 `
 
 func (q *Queries) CountActivityLogForUser(ctx context.Context, actorID int32) (int64, error) {
@@ -149,6 +153,9 @@ func (q *Queries) ListActivityLog(ctx context.Context, arg ListActivityLogParams
 const listActivityLogForUser = `-- name: ListActivityLogForUser :many
 SELECT id, event_type, actor_id, target_type, target_id, payload, created_at FROM activity_log
 WHERE actor_id = $1::INTEGER
+   OR (target_type = 'ticket' AND target_id IN (
+         SELECT id FROM tickets WHERE author_id = $1::INTEGER
+       ))
 ORDER BY created_at DESC
 LIMIT  $3::INTEGER
 OFFSET $2::INTEGER
@@ -160,6 +167,8 @@ type ListActivityLogForUserParams struct {
 	Lim     int32
 }
 
+// Zahrnuje vlastní akce uživatele a dále akce ostatních na tiketech, jejichž
+// je uživatel autorem (např. když štáb změní stav mého tiketu).
 func (q *Queries) ListActivityLogForUser(ctx context.Context, arg ListActivityLogForUserParams) ([]ActivityLog, error) {
 	rows, err := q.db.QueryContext(ctx, listActivityLogForUser, arg.ActorID, arg.Off, arg.Lim)
 	if err != nil {
