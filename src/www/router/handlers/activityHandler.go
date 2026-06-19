@@ -135,9 +135,14 @@ func (h *ActivityHandler) listGlobal(w http.ResponseWriter, r *http.Request) {
 // @Description  Stránkovaný seznam aktivit daného uživatele. Neadmin uživatel může vidět jen svůj vlastní feed.
 // @Tags         activity
 // @Produce      json
-// @Param        id      path      int  true   "ID uživatele"
-// @Param        limit   query     int  false  "Počet výsledků (výchozí 50, max 200)"
-// @Param        offset  query     int  false  "Posun od začátku"
+// @Param        id           path      int     true   "ID uživatele"
+// @Param        event_type   query     string  false  "Typ aktivity"
+// @Param        target_type  query     string  false  "Typ cíle (ticket, comment, user)"
+// @Param        target_id    query     int     false  "ID cíle"
+// @Param        from         query     string  false  "Od data (RFC3339)"
+// @Param        to           query     string  false  "Do data (RFC3339)"
+// @Param        limit        query     int     false  "Počet výsledků (výchozí 50, max 200)"
+// @Param        offset       query     int     false  "Posun od začátku"
 // @Success      200  {object}  activityListResponse
 // @Failure      400  {object}  errorResponse
 // @Failure      401  {object}  errorResponse
@@ -163,19 +168,58 @@ func (h *ActivityHandler) listForUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := r.URL.Query()
+
+	var eventType, targetType sql.NullString
+	var targetID sql.NullInt64
+	var fromTs, toTs sql.NullTime
+
+	if v := q.Get("event_type"); v != "" {
+		eventType = sql.NullString{String: v, Valid: true}
+	}
+	if v := q.Get("target_type"); v != "" {
+		targetType = sql.NullString{String: v, Valid: true}
+	}
+	if v := q.Get("target_id"); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+			targetID = sql.NullInt64{Int64: n, Valid: true}
+		}
+	}
+	if v := q.Get("from"); v != "" {
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			fromTs = sql.NullTime{Time: t, Valid: true}
+		}
+	}
+	if v := q.Get("to"); v != "" {
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			toTs = sql.NullTime{Time: t, Valid: true}
+		}
+	}
+
 	limit, offset := parseLimitOffset(q, defaultActivityLimit, maxActivityLimit)
 
 	ctx := r.Context()
 	rows, err := h.queries.ListActivityLogForUser(ctx, db.ListActivityLogForUserParams{
-		ActorID: id,
-		Lim:     int32(limit),
-		Off:     int32(offset),
+		ActorID:    id,
+		EventType:  eventType,
+		TargetType: targetType,
+		TargetID:   targetID,
+		FromTs:     fromTs,
+		ToTs:       toTs,
+		Lim:        int32(limit),
+		Off:        int32(offset),
 	})
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst aktivity")
 		return
 	}
-	total, err := h.queries.CountActivityLogForUser(ctx, id)
+	total, err := h.queries.CountActivityLogForUser(ctx, db.CountActivityLogForUserParams{
+		ActorID:    id,
+		EventType:  eventType,
+		TargetType: targetType,
+		TargetID:   targetID,
+		FromTs:     fromTs,
+		ToTs:       toTs,
+	})
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se spočítat aktivity")
 		return

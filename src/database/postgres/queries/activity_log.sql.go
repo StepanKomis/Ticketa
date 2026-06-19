@@ -48,14 +48,37 @@ func (q *Queries) CountActivityLog(ctx context.Context, arg CountActivityLogPara
 
 const countActivityLogForUser = `-- name: CountActivityLogForUser :one
 SELECT COUNT(*) FROM activity_log
-WHERE actor_id = $1::INTEGER
-   OR (target_type = 'ticket' AND target_id IN (
-         SELECT id FROM tickets WHERE author_id = $1::INTEGER
-       ))
+WHERE (
+        actor_id = $1::INTEGER
+        OR (target_type = 'ticket' AND target_id IN (
+              SELECT id FROM tickets WHERE author_id = $1::INTEGER
+            ))
+      )
+    AND ($2::VARCHAR IS NULL  OR event_type  = $2)
+    AND ($3::VARCHAR IS NULL OR target_type = $3)
+    AND ($4::BIGINT IS NULL OR target_id   = $4)
+    AND ($5::TIMESTAMPTZ IS NULL OR created_at >= $5)
+    AND ($6::TIMESTAMPTZ IS NULL   OR created_at <= $6)
 `
 
-func (q *Queries) CountActivityLogForUser(ctx context.Context, actorID int32) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countActivityLogForUser, actorID)
+type CountActivityLogForUserParams struct {
+	ActorID    int32
+	EventType  sql.NullString
+	TargetType sql.NullString
+	TargetID   sql.NullInt64
+	FromTs     sql.NullTime
+	ToTs       sql.NullTime
+}
+
+func (q *Queries) CountActivityLogForUser(ctx context.Context, arg CountActivityLogForUserParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countActivityLogForUser,
+		arg.ActorID,
+		arg.EventType,
+		arg.TargetType,
+		arg.TargetID,
+		arg.FromTs,
+		arg.ToTs,
+	)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -152,25 +175,47 @@ func (q *Queries) ListActivityLog(ctx context.Context, arg ListActivityLogParams
 
 const listActivityLogForUser = `-- name: ListActivityLogForUser :many
 SELECT id, event_type, actor_id, target_type, target_id, payload, created_at FROM activity_log
-WHERE actor_id = $1::INTEGER
-   OR (target_type = 'ticket' AND target_id IN (
-         SELECT id FROM tickets WHERE author_id = $1::INTEGER
-       ))
+WHERE (
+        actor_id = $1::INTEGER
+        OR (target_type = 'ticket' AND target_id IN (
+              SELECT id FROM tickets WHERE author_id = $1::INTEGER
+            ))
+      )
+    AND ($2::VARCHAR IS NULL  OR event_type  = $2)
+    AND ($3::VARCHAR IS NULL OR target_type = $3)
+    AND ($4::BIGINT IS NULL OR target_id   = $4)
+    AND ($5::TIMESTAMPTZ IS NULL OR created_at >= $5)
+    AND ($6::TIMESTAMPTZ IS NULL   OR created_at <= $6)
 ORDER BY created_at DESC
-LIMIT  $3::INTEGER
-OFFSET $2::INTEGER
+LIMIT  $8::INTEGER
+OFFSET $7::INTEGER
 `
 
 type ListActivityLogForUserParams struct {
-	ActorID int32
-	Off     int32
-	Lim     int32
+	ActorID    int32
+	EventType  sql.NullString
+	TargetType sql.NullString
+	TargetID   sql.NullInt64
+	FromTs     sql.NullTime
+	ToTs       sql.NullTime
+	Off        int32
+	Lim        int32
 }
 
 // Zahrnuje vlastní akce uživatele a dále akce ostatních na tiketech, jejichž
-// je uživatel autorem (např. když štáb změní stav mého tiketu).
+// je uživatel autorem (např. když štáb změní stav mého tiketu). Stejné
+// volitelné filtry jako ListActivityLog, navíc k povinnému actor_id.
 func (q *Queries) ListActivityLogForUser(ctx context.Context, arg ListActivityLogForUserParams) ([]ActivityLog, error) {
-	rows, err := q.db.QueryContext(ctx, listActivityLogForUser, arg.ActorID, arg.Off, arg.Lim)
+	rows, err := q.db.QueryContext(ctx, listActivityLogForUser,
+		arg.ActorID,
+		arg.EventType,
+		arg.TargetType,
+		arg.TargetID,
+		arg.FromTs,
+		arg.ToTs,
+		arg.Off,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}
