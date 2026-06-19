@@ -109,3 +109,43 @@ func TestTicketHandler_Delete_NoSession_Returns401(t *testing.T) {
 		t.Errorf("expected 401, got %d", rr.Code)
 	}
 }
+
+func TestTicketHandler_ApprovePriority_InvalidID_Returns400(t *testing.T) {
+	h := newTicketHandler(t)
+	req := httptest.NewRequest(http.MethodPost, "/api/tickets/abc/approve-priority", nil)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", rr.Code)
+	}
+}
+
+func TestTicketHandler_ApprovePriority_NoSession_Returns401(t *testing.T) {
+	h := newTicketHandler(t)
+	req := httptest.NewRequest(http.MethodPost, "/api/tickets/1/approve-priority", nil)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", rr.Code)
+	}
+}
+
+func TestTicketHandler_RejectPriority_InvalidID_Returns400(t *testing.T) {
+	h := newTicketHandler(t)
+	req := httptest.NewRequest(http.MethodPost, "/api/tickets/abc/reject-priority", nil)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", rr.Code)
+	}
+}
+
+func TestTicketHandler_RejectPriority_NoSession_Returns401(t *testing.T) {
+	h := newTicketHandler(t)
+	req := httptest.NewRequest(http.MethodPost, "/api/tickets/1/reject-priority", nil)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", rr.Code)
+	}
+}

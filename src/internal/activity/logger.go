@@ -138,3 +138,18 @@ func (a *ActivityLogger) LogUzivatelZamitnuv(ctx context.Context, actorID, targe
 func (a *ActivityLogger) LogUzivatelDeaktivovan(ctx context.Context, actorID, targetUserID int32, email string) {
 	a.log(ctx, EventUzivatelDeaktivovan, actorID, TargetUser, int64(targetUserID), map[string]any{"email": email})
 }
+
+// LogTiketPrioritaKeSchvaleni zaznamená žádost o nejvyšší prioritu (urgent), která čeká na schválení staff/admin.
+func (a *ActivityLogger) LogTiketPrioritaKeSchvaleni(ctx context.Context, actorID int32, ticketID int64, requestedPriority string) {
+	a.log(ctx, EventTiketPrioritaKeSchvaleni, actorID, TargetTicket, ticketID, map[string]any{"requested_priority": requestedPriority})
+}
+
+// LogTiketPrioritaSchvalena zaznamená schválení žádosti o nejvyšší prioritu.
+func (a *ActivityLogger) LogTiketPrioritaSchvalena(ctx context.Context, actorID int32, ticketID int64, newPriority string) {
+	a.log(ctx, EventTiketPrioritaSchvalena, actorID, TargetTicket, ticketID, map[string]any{"new_priority": newPriority})
+}
+
+// LogTiketPrioritaZamitnuta zaznamená zamítnutí žádosti o nejvyšší prioritu.
+func (a *ActivityLogger) LogTiketPrioritaZamitnuta(ctx context.Context, actorID int32, ticketID int64, requestedPriority string) {
+	a.log(ctx, EventTiketPrioritaZamitnuta, actorID, TargetTicket, ticketID, map[string]any{"requested_priority": requestedPriority})
+}

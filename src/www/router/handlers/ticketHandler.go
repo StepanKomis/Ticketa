@@ -44,6 +44,10 @@ func (h *TicketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.vote(w, r)
 	case r.Method == http.MethodDelete && strings.HasSuffix(r.URL.Path, "/vote"):
 		h.unvote(w, r)
+	case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/approve-priority"):
+		h.approvePriority(w, r)
+	case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/reject-priority"):
+		h.rejectPriority(w, r)
 	default:
 		defaultResponse(w)
 	}
@@ -107,6 +111,11 @@ func (h *TicketHandler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user, ok := userFromContext(w, r)
+	if !ok {
+		return
+	}
+
 	params := db.CreateTicketParams{
 		Title:    body.Title,
 		Body:     body.Body,
@@ -115,18 +124,19 @@ func (h *TicketHandler) create(w http.ResponseWriter, r *http.Request) {
 		Location: body.Location,
 		Category: body.Category,
 	}
+	if requiresPriorityApproval(user.UserType, body.Priority) {
+		// Dokud staff/admin žádost neschválí, zůstává efektivní priorita "high"
+		// (druhá nejvyšší) — tiket se neztratí v běžném provozu, ale ani se
+		// nezobrazuje jako urgentní bez kontroly.
+		params.Priority = "high"
+		params.RequestedPriority = sql.NullString{String: body.Priority, Valid: true}
+	}
 	if body.StatusID != nil {
 		params.StatusID = sql.NullInt32{Int32: *body.StatusID, Valid: true}
 	}
 	// assigned_to lze nastavit pouze staff nebo admin
-	if body.AssignedTo != nil {
-		user, ok := userFromContext(w, r)
-		if !ok {
-			return
-		}
-		if user.UserType == db.UserTypeStaff || user.UserType == db.UserTypeAdmin {
-			params.AssignedTo = sql.NullInt32{Int32: *body.AssignedTo, Valid: true}
-		}
+	if body.AssignedTo != nil && (user.UserType == db.UserTypeStaff || user.UserType == db.UserTypeAdmin) {
+		params.AssignedTo = sql.NullInt32{Int32: *body.AssignedTo, Valid: true}
 	}
 
 	ticket, err := h.queries.CreateTicket(r.Context(), params)
@@ -137,6 +147,10 @@ func (h *TicketHandler) create(w http.ResponseWriter, r *http.Request) {
 	actorName := resolveAuthorName(r.Context(), h.queries, int32(session.UserID))
 	h.logHistory(r.Context(), ticket.ID, int32(session.UserID), actorName, "created", "", "")
 	h.activityLogger.LogTiketVytvoren(r.Context(), int32(session.UserID), ticket.ID, ticket.Title)
+	if ticket.RequestedPriority.Valid {
+		h.logHistory(r.Context(), ticket.ID, int32(session.UserID), actorName, "priority_approval_requested", "", ticket.RequestedPriority.String)
+		h.activityLogger.LogTiketPrioritaKeSchvaleni(r.Context(), int32(session.UserID), ticket.ID, ticket.RequestedPriority.String)
+	}
 	writeJSON(w, http.StatusCreated, toTicketResponseFromTicket(ticket, "", int32(session.UserID)))
 }
 
@@ -190,6 +204,11 @@ func (h *TicketHandler) list(w http.ResponseWriter, r *http.Request) {
 	if v := q.Get("category"); v != "" {
 		params.Category = sql.NullString{String: v, Valid: true}
 	}
+	if v := q.Get("pending_priority_approval"); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			params.PendingPriorityApproval = sql.NullBool{Bool: b, Valid: true}
+		}
+	}
 
 	rows, err := h.queries.ListTicketsFiltered(r.Context(), params)
 	if err != nil {
@@ -198,12 +217,13 @@ func (h *TicketHandler) list(w http.ResponseWriter, r *http.Request) {
 	}
 
 	countParams := db.CountTicketsFilteredParams{
-		StatusID:   params.StatusID,
-		Priority:   params.Priority,
-		AssignedTo: params.AssignedTo,
-		AuthorID:   params.AuthorID,
-		Category:   params.Category,
-		Q:          params.Q,
+		StatusID:                params.StatusID,
+		Priority:                params.Priority,
+		AssignedTo:              params.AssignedTo,
+		AuthorID:                params.AuthorID,
+		Category:                params.Category,
+		PendingPriorityApproval: params.PendingPriorityApproval,
+		Q:                       params.Q,
 	}
 	total, err := h.queries.CountTicketsFiltered(r.Context(), countParams)
 	if err != nil {
@@ -300,7 +320,13 @@ func (h *TicketHandler) update(w http.ResponseWriter, r *http.Request) {
 		params.Body = sql.NullString{String: *body.Body, Valid: true}
 	}
 	if body.Priority != nil {
-		params.Priority = sql.NullString{String: *body.Priority, Valid: true}
+		if requiresPriorityApproval(user.UserType, *body.Priority) {
+			// Žádost o urgentní prioritu — efektivní priorita zůstává nezměněná,
+			// dokud ji staff/admin neschválí.
+			params.RequestedPriority = sql.NullString{String: *body.Priority, Valid: true}
+		} else {
+			params.Priority = sql.NullString{String: *body.Priority, Valid: true}
+		}
 	}
 	if body.Location != nil {
 		params.Location = sql.NullString{String: *body.Location, Valid: true}
@@ -342,6 +368,10 @@ func (h *TicketHandler) update(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.Priority != nil && existing.Priority != ticket.Priority {
 		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "priority_changed", existing.Priority, ticket.Priority)
+	}
+	if ticket.RequestedPriority.Valid && existing.RequestedPriority.String != ticket.RequestedPriority.String {
+		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "priority_approval_requested", "", ticket.RequestedPriority.String)
+		h.activityLogger.LogTiketPrioritaKeSchvaleni(r.Context(), int32(session.UserID), id, ticket.RequestedPriority.String)
 	}
 	if body.Location != nil && existing.Location != ticket.Location {
 		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "location_changed", existing.Location, ticket.Location)
@@ -541,6 +571,116 @@ func (h *TicketHandler) unvote(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// approvePriority schválí čekající žádost o nejvyšší prioritu (urgent) tiketu.
+// Pouze staff/admin (gated v router.go přes staffAdmin middleware).
+//
+// @Summary      Schválit žádost o urgentní prioritu
+// @Description  Nastaví prioritu tiketu na urgent a zapíše schvalovatele. Přístupné pro staff a admin.
+// @Tags         tickets
+// @Param        id   path      int  true  "ID tiketu"
+// @Success      200  {object}  ticketResponse
+// @Failure      400  {object}  errorResponse
+// @Failure      401  {object}  errorResponse
+// @Failure      403  {object}  errorResponse
+// @Failure      404  {object}  errorResponse "Tiket nenalezen nebo nemá žádost o schválení priority"
+// @Failure      500  {object}  errorResponse
+// @Security     cookieAuth
+// @Router       /api/tickets/{id}/approve-priority [post]
+func (h *TicketHandler) approvePriority(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathIDWithAction(r.URL.Path, "/api/tickets/", "/approve-priority")
+	if !ok {
+		WriteError(w, http.StatusBadRequest, "neplatné ID tiketu")
+		return
+	}
+
+	session, ok := sessionFromContext(w, r)
+	if !ok {
+		return
+	}
+
+	existing, err := h.queries.GetTicket(r.Context(), db.GetTicketParams{ID: id, CurrentUserID: int32(session.UserID)})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			WriteError(w, http.StatusNotFound, "tiket nenalezen")
+			return
+		}
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst tiket")
+		return
+	}
+
+	ticket, err := h.queries.ApproveTicketPriority(r.Context(), db.ApproveTicketPriorityParams{
+		ID:         id,
+		ApprovedBy: int32(session.UserID),
+	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			WriteError(w, http.StatusNotFound, "tiket nenalezen nebo nemá žádost o schválení priority")
+			return
+		}
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se schválit prioritu")
+		return
+	}
+
+	actorName := resolveAuthorName(r.Context(), h.queries, int32(session.UserID))
+	h.logHistory(r.Context(), id, int32(session.UserID), actorName, "priority_changed", existing.Priority, ticket.Priority)
+	h.activityLogger.LogTiketPrioritaSchvalena(r.Context(), int32(session.UserID), id, ticket.Priority)
+	writeJSON(w, http.StatusOK, toTicketResponseFromTicket(ticket, existing.AssigneeName, int32(session.UserID)))
+}
+
+// rejectPriority zamítne čekající žádost o nejvyšší prioritu (urgent) tiketu —
+// priorita zůstává na dosavadní (fallback) hodnotě. Pouze staff/admin.
+//
+// @Summary      Zamítnout žádost o urgentní prioritu
+// @Description  Zamítne žádost o urgentní prioritu, priorita tiketu se nemění. Přístupné pro staff a admin.
+// @Tags         tickets
+// @Param        id   path      int  true  "ID tiketu"
+// @Success      200  {object}  ticketResponse
+// @Failure      400  {object}  errorResponse
+// @Failure      401  {object}  errorResponse
+// @Failure      403  {object}  errorResponse
+// @Failure      404  {object}  errorResponse "Tiket nenalezen nebo nemá žádost o schválení priority"
+// @Failure      500  {object}  errorResponse
+// @Security     cookieAuth
+// @Router       /api/tickets/{id}/reject-priority [post]
+func (h *TicketHandler) rejectPriority(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathIDWithAction(r.URL.Path, "/api/tickets/", "/reject-priority")
+	if !ok {
+		WriteError(w, http.StatusBadRequest, "neplatné ID tiketu")
+		return
+	}
+
+	session, ok := sessionFromContext(w, r)
+	if !ok {
+		return
+	}
+
+	existing, err := h.queries.GetTicket(r.Context(), db.GetTicketParams{ID: id, CurrentUserID: int32(session.UserID)})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			WriteError(w, http.StatusNotFound, "tiket nenalezen")
+			return
+		}
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst tiket")
+		return
+	}
+	requestedPriority := existing.RequestedPriority.String
+
+	ticket, err := h.queries.RejectTicketPriority(r.Context(), id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			WriteError(w, http.StatusNotFound, "tiket nenalezen nebo nemá žádost o schválení priority")
+			return
+		}
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se zamítnout žádost o prioritu")
+		return
+	}
+
+	actorName := resolveAuthorName(r.Context(), h.queries, int32(session.UserID))
+	h.logHistory(r.Context(), id, int32(session.UserID), actorName, "priority_approval_rejected", requestedPriority, "")
+	h.activityLogger.LogTiketPrioritaZamitnuta(r.Context(), int32(session.UserID), id, requestedPriority)
+	writeJSON(w, http.StatusOK, toTicketResponseFromTicket(ticket, existing.AssigneeName, int32(session.UserID)))
+}
+
 // canEditContent: autor tiketu může měnit obsah jen pokud tiket ještě nebyl přiřazen.
 // Admin může vždy.
 func canEditContent(session db.Session, ticket db.GetTicketRow, userType db.UserType) bool {
@@ -555,6 +695,12 @@ func canMetaUpdate(user db.User) bool {
 	return user.UserType == db.UserTypeStaff || user.UserType == db.UserTypeAdmin
 }
 
+// requiresPriorityApproval: urgent je nejvyšší existující priorita a potřebuje
+// schválení staff/admin, pokud ho nezadává přímo někdo z nich.
+func requiresPriorityApproval(userType db.UserType, priority string) bool {
+	return priority == "urgent" && userType != db.UserTypeStaff && userType != db.UserTypeAdmin
+}
+
 // canDelete: autor (pokud tiket nebyl přiřazen) nebo admin.
 func canDelete(session db.Session, ticket db.GetTicketRow, userType db.UserType) bool {
 	if userType == db.UserTypeAdmin {
@@ -565,48 +711,64 @@ func canDelete(session db.Session, ticket db.GetTicketRow, userType db.UserType)
 
 func toTicketResponseFromRow(r db.ListTicketsFilteredRow) ticketResponse {
 	tr := ticketResponse{
-		ID:           r.ID,
-		Title:        r.Title,
-		Body:         r.Body,
-		Priority:     r.Priority,
-		Location:     r.Location,
-		Category:     r.Category,
+		ID:             r.ID,
+		Title:          r.Title,
+		Body:           r.Body,
+		Priority:       r.Priority,
+		Location:       r.Location,
+		Category:       r.Category,
 		AssignedToName: r.AssigneeName,
-		CreatedAt:    r.CreatedAt,
-		UpdatedAt:    r.UpdatedAt,
-		AuthorID:     r.AuthorID,
-		AuthorName:   r.AuthorName,
-		StatusID:     nullInt32{Int32: r.StatusID.Int32, Valid: r.StatusID.Valid},
-		VoteCount:    r.VoteCount,
-		UserHasVoted: r.UserHasVoted,
+		CreatedAt:      r.CreatedAt,
+		UpdatedAt:      r.UpdatedAt,
+		AuthorID:       r.AuthorID,
+		AuthorName:     r.AuthorName,
+		StatusID:       nullInt32{Int32: r.StatusID.Int32, Valid: r.StatusID.Valid},
+		VoteCount:      r.VoteCount,
+		UserHasVoted:   r.UserHasVoted,
 	}
 	if r.AssignedTo.Valid {
 		v := r.AssignedTo.Int32
 		tr.AssignedTo = &v
+	}
+	if r.RequestedPriority.Valid {
+		v := r.RequestedPriority.String
+		tr.RequestedPriority = &v
+	}
+	if r.PriorityApprovedBy.Valid {
+		v := r.PriorityApprovedBy.Int32
+		tr.PriorityApprovedBy = &v
 	}
 	return tr
 }
 
 func toTicketResponseFromGetRow(r db.GetTicketRow, currentUserID int32) ticketResponse {
 	tr := ticketResponse{
-		ID:           r.ID,
-		Title:        r.Title,
-		Body:         r.Body,
-		Priority:     r.Priority,
-		Location:     r.Location,
-		Category:     r.Category,
+		ID:             r.ID,
+		Title:          r.Title,
+		Body:           r.Body,
+		Priority:       r.Priority,
+		Location:       r.Location,
+		Category:       r.Category,
 		AssignedToName: r.AssigneeName,
-		CreatedAt:    r.CreatedAt,
-		UpdatedAt:    r.UpdatedAt,
-		AuthorID:     r.AuthorID,
-		AuthorName:   r.AuthorName,
-		StatusID:     nullInt32{Int32: r.StatusID.Int32, Valid: r.StatusID.Valid},
-		VoteCount:    r.VoteCount,
-		UserHasVoted: r.UserHasVoted,
+		CreatedAt:      r.CreatedAt,
+		UpdatedAt:      r.UpdatedAt,
+		AuthorID:       r.AuthorID,
+		AuthorName:     r.AuthorName,
+		StatusID:       nullInt32{Int32: r.StatusID.Int32, Valid: r.StatusID.Valid},
+		VoteCount:      r.VoteCount,
+		UserHasVoted:   r.UserHasVoted,
 	}
 	if r.AssignedTo.Valid {
 		v := r.AssignedTo.Int32
 		tr.AssignedTo = &v
+	}
+	if r.RequestedPriority.Valid {
+		v := r.RequestedPriority.String
+		tr.RequestedPriority = &v
+	}
+	if r.PriorityApprovedBy.Valid {
+		v := r.PriorityApprovedBy.Int32
+		tr.PriorityApprovedBy = &v
 	}
 	return tr
 }
@@ -628,6 +790,14 @@ func toTicketResponseFromTicket(t db.Ticket, assigneeName string, _ int32) ticke
 	if t.AssignedTo.Valid {
 		v := t.AssignedTo.Int32
 		tr.AssignedTo = &v
+	}
+	if t.RequestedPriority.Valid {
+		v := t.RequestedPriority.String
+		tr.RequestedPriority = &v
+	}
+	if t.PriorityApprovedBy.Valid {
+		v := t.PriorityApprovedBy.Int32
+		tr.PriorityApprovedBy = &v
 	}
 	return tr
 }

@@ -179,17 +179,19 @@ type StudentProfile struct {
 }
 
 type Ticket struct {
-	ID         int64
-	Title      string
-	Body       string
-	CreatedAt  time.Time
-	AuthorID   int32
-	StatusID   sql.NullInt32
-	Priority   string
-	AssignedTo sql.NullInt32
-	Location   string
-	Category   string
-	UpdatedAt  time.Time
+	ID                 int64
+	Title              string
+	Body               string
+	CreatedAt          time.Time
+	AuthorID           int32
+	StatusID           sql.NullInt32
+	Priority           string
+	AssignedTo         sql.NullInt32
+	Location           string
+	Category           string
+	UpdatedAt          time.Time
+	RequestedPriority  sql.NullString
+	PriorityApprovedBy sql.NullInt32
 }
 
 type TicketComment struct {
