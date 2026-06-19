@@ -1,6 +1,6 @@
 -- name: CreateTicket :one
-INSERT INTO tickets (title, body, author_id, status_id, priority, location, category, assigned_to)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO tickets (title, body, author_id, status_id, priority, location, category, assigned_to, requested_priority)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING *;
 
 -- name: GetTicket :one
@@ -37,6 +37,7 @@ WHERE
     AND (sqlc.narg('assigned_to')::INTEGER IS NULL OR t.assigned_to = sqlc.narg('assigned_to'))
     AND (sqlc.narg('author_id')::INTEGER IS NULL OR t.author_id   = sqlc.narg('author_id'))
     AND (sqlc.narg('category')::VARCHAR IS NULL  OR t.category    = sqlc.narg('category'))
+    AND (sqlc.narg('pending_priority_approval')::BOOLEAN IS NULL OR (t.requested_priority IS NOT NULL) = sqlc.narg('pending_priority_approval'))
     AND (
         sqlc.arg('q')::TEXT = ''
         OR t.title ILIKE '%' || sqlc.arg('q') || '%'
@@ -55,6 +56,7 @@ WHERE
     AND (sqlc.narg('assigned_to')::INTEGER IS NULL OR t.assigned_to = sqlc.narg('assigned_to'))
     AND (sqlc.narg('author_id')::INTEGER IS NULL OR t.author_id   = sqlc.narg('author_id'))
     AND (sqlc.narg('category')::VARCHAR IS NULL  OR t.category    = sqlc.narg('category'))
+    AND (sqlc.narg('pending_priority_approval')::BOOLEAN IS NULL OR (t.requested_priority IS NOT NULL) = sqlc.narg('pending_priority_approval'))
     AND (
         sqlc.arg('q')::TEXT = ''
         OR t.title ILIKE '%' || sqlc.arg('q') || '%'
@@ -63,12 +65,13 @@ WHERE
 
 -- name: UpdateTicket :one
 UPDATE tickets
-SET title     = COALESCE(sqlc.narg('title'),    title),
-    body      = COALESCE(sqlc.narg('body'),     body),
-    priority  = COALESCE(sqlc.narg('priority'), priority),
-    location  = COALESCE(sqlc.narg('location'), location),
-    category  = COALESCE(sqlc.narg('category'), category),
-    status_id = sqlc.narg('status_id')
+SET title               = COALESCE(sqlc.narg('title'),    title),
+    body                = COALESCE(sqlc.narg('body'),     body),
+    priority            = COALESCE(sqlc.narg('priority'), priority),
+    location            = COALESCE(sqlc.narg('location'), location),
+    category            = COALESCE(sqlc.narg('category'), category),
+    status_id           = sqlc.narg('status_id'),
+    requested_priority  = COALESCE(sqlc.narg('requested_priority'), requested_priority)
 WHERE id = sqlc.arg('id')
 RETURNING *;
 
@@ -80,6 +83,20 @@ SET assigned_to = sqlc.narg('assigned_to'),
     location    = COALESCE(sqlc.narg('location'), location),
     category    = COALESCE(sqlc.narg('category'), category)
 WHERE id = sqlc.arg('id')
+RETURNING *;
+
+-- name: ApproveTicketPriority :one
+UPDATE tickets
+SET priority             = requested_priority,
+    priority_approved_by = sqlc.arg('approved_by')::INTEGER,
+    requested_priority   = NULL
+WHERE id = sqlc.arg('id') AND requested_priority IS NOT NULL
+RETURNING *;
+
+-- name: RejectTicketPriority :one
+UPDATE tickets
+SET requested_priority = NULL
+WHERE id = sqlc.arg('id') AND requested_priority IS NOT NULL
 RETURNING *;
 
 -- name: DeleteTicket :exec

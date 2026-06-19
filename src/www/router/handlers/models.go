@@ -37,21 +37,23 @@ type nullTime struct {
 
 // ticketResponse je JSON tvar odpovědi pro jeden tiket.
 type ticketResponse struct {
-	ID             int64     `json:"ID" example:"1"`
-	Title          string    `json:"Title" example:"Nemohu se přihlásit"`
-	Body           string    `json:"Body" example:"Po zadání hesla se nic nestane."`
-	Priority       string    `json:"Priority" example:"high"`
-	Location       string    `json:"Location" example:"PC učebna 203"`
-	Category       string    `json:"Category" example:"Network"`
-	AssignedTo     *int32    `json:"AssignedTo"`
-	AssignedToName string    `json:"AssignedToName" example:"Jana Horáková"`
-	CreatedAt      time.Time `json:"CreatedAt" example:"2026-06-07T14:22:55Z"`
-	UpdatedAt      time.Time `json:"UpdatedAt" example:"2026-06-07T14:22:55Z"`
-	AuthorID       int32     `json:"AuthorID" example:"3"`
-	AuthorName     string    `json:"AuthorName" example:"Jan Novák"`
-	StatusID       nullInt32 `json:"StatusID"`
-	VoteCount      int32     `json:"VoteCount" example:"5"`
-	UserHasVoted   bool      `json:"UserHasVoted" example:"false"`
+	ID                 int64     `json:"ID" example:"1"`
+	Title              string    `json:"Title" example:"Nemohu se přihlásit"`
+	Body               string    `json:"Body" example:"Po zadání hesla se nic nestane."`
+	Priority           string    `json:"Priority" example:"high"`
+	Location           string    `json:"Location" example:"PC učebna 203"`
+	Category           string    `json:"Category" example:"Network"`
+	AssignedTo         *int32    `json:"AssignedTo"`
+	AssignedToName     string    `json:"AssignedToName" example:"Jana Horáková"`
+	CreatedAt          time.Time `json:"CreatedAt" example:"2026-06-07T14:22:55Z"`
+	UpdatedAt          time.Time `json:"UpdatedAt" example:"2026-06-07T14:22:55Z"`
+	AuthorID           int32     `json:"AuthorID" example:"3"`
+	AuthorName         string    `json:"AuthorName" example:"Jan Novák"`
+	StatusID           nullInt32 `json:"StatusID"`
+	VoteCount          int32     `json:"VoteCount" example:"5"`
+	UserHasVoted       bool      `json:"UserHasVoted" example:"false"`
+	RequestedPriority  *string   `json:"RequestedPriority" example:"urgent"`
+	PriorityApprovedBy *int32    `json:"PriorityApprovedBy"`
 }
 
 // ticketListResponse je stránkovaná odpověď pro seznam tiketů.

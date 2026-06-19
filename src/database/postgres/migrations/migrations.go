@@ -40,6 +40,9 @@ var up00010 string
 //go:embed up/UP_00011.sql
 var up00011 string
 
+//go:embed up/UP_00012.sql
+var up00012 string
+
 var All = func() []migrate.Migration {
 	ms := []migrate.Migration{
 		{
@@ -174,6 +177,21 @@ var All = func() []migrate.Migration {
 			},
 			Down: func(db any) error {
 				_, err := db.(*sql.DB).Exec(`DROP TABLE IF EXISTS activity_log CASCADE;`)
+				return err
+			},
+		},
+		{
+			Name: "ticket_priority_approval",
+			Up: func(db any) error {
+				_, err := db.(*sql.DB).Exec(up00012)
+				return err
+			},
+			Down: func(db any) error {
+				_, err := db.(*sql.DB).Exec(`
+					ALTER TABLE tickets
+						DROP COLUMN IF EXISTS requested_priority,
+						DROP COLUMN IF EXISTS priority_approved_by;
+				`)
 				return err
 			},
 		},

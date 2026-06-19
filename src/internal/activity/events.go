@@ -16,6 +16,10 @@ const (
 	EventUzivatelSchvalen     EventType = "uzivatel_schvalen"
 	EventUzivatelZamitnuv     EventType = "uzivatel_zamitnuv"
 	EventUzivatelDeaktivovan  EventType = "uzivatel_deaktivovan"
+
+	EventTiketPrioritaKeSchvaleni EventType = "tiket_priorita_ke_schvaleni"
+	EventTiketPrioritaSchvalena   EventType = "tiket_priorita_schvalena"
+	EventTiketPrioritaZamitnuta   EventType = "tiket_priorita_zamitnuta"
 )
 
 // Hodnoty pole target_type — entita, ke které se aktivita vztahuje.
