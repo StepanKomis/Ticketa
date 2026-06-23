@@ -137,16 +137,25 @@ func (r *hdlRows) Next(dest []driver.Value) error {
 	return nil
 }
 
+// userQueryResult odpovídá scan pořadí sqlc's CreateUser (RETURNING id,
+// email, first_name, last_name, user_type, provider, is_active, created_at,
+// last_login_at, requested_role, approved_by).
 func userQueryResult(id int64, email string) hdlQueryResult {
 	return hdlQueryResult{
 		cols: []string{
-			"id", "email", "first_name", "last_name",
-			"user_type", "provider", "is_active", "created_at", "last_login_at",
+			"id", "email", "first_name", "last_name", "user_type", "provider",
+			"is_active", "created_at", "last_login_at", "requested_role", "approved_by",
 		},
 		rows: [][]driver.Value{
-			{id, email, "Jane", "Doe", "student", "local", true, time.Now(), nil},
+			{id, email, "Jane", "Doe", "student", "local", true, time.Now(), nil, nil, nil},
 		},
 	}
+}
+
+// countUsersResult odpovídá CountUsers — RegisterNewLocalUser ho volá jako
+// úplně první dotaz v rámci registrace.
+func countUsersResult(n int64) hdlQueryResult {
+	return hdlQueryResult{cols: []string{"count"}, rows: [][]driver.Value{{n}}}
 }
 
 // ---------------------------------------------------------------------------
@@ -453,8 +462,8 @@ func TestPatchMyEmail_DuplicateEmail(t *testing.T) {
 
 func TestUserHandler_Post_Success(t *testing.T) {
 	script := &hdlConnScript{
-		queries: []hdlQueryResult{userQueryResult(7, "jane@example.com")},
-		execs:   []error{nil},
+		queries: []hdlQueryResult{countUsersResult(5), userQueryResult(7, "jane@example.com")},
+		execs:   []error{nil}, // jen CreateLocalLogin — student nepotřebuje SetRequestedRole
 	}
 	db := newHandlerDB(t, script)
 	h := newTestHandler(t, db)
