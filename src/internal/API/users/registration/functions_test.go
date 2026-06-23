@@ -174,17 +174,24 @@ func (r *mockRows) Next(dest []driver.Value) error {
 // userRow returns a driver row matching the column order used by sqlc's
 // CreateUser query:
 // id, email, first_name, last_name, user_type, provider, is_active,
-// created_at, last_login_at
+// created_at, last_login_at, requested_role, approved_by
 func userRow(id int64, email string) queryResult {
 	return queryResult{
 		cols: []string{
-			"id", "email", "first_name", "last_name",
-			"user_type", "provider", "is_active", "created_at", "last_login_at",
+			"id", "email", "first_name", "last_name", "user_type", "provider",
+			"is_active", "created_at", "last_login_at", "requested_role", "approved_by",
 		},
 		rows: [][]driver.Value{
-			{id, email, "John", "Doe", "student", "local", true, time.Now(), nil},
+			{id, email, "John", "Doe", "student", "local", true, time.Now(), nil, nil, nil},
 		},
 	}
+}
+
+// countUsersRow odpovídá CountUsers — RegisterNewLocalUser ho volá jako
+// úplně první dotaz (zjištění, jestli je registrující se uživatel první v
+// systému).
+func countUsersRow(n int64) queryResult {
+	return queryResult{cols: []string{"count"}, rows: [][]driver.Value{{n}}}
 }
 
 // ---------------------------------------------------------------------------
@@ -193,8 +200,8 @@ func userRow(id int64, email string) queryResult {
 
 func TestRegisterNewLocalUser_Success(t *testing.T) {
 	script := &connScript{
-		queries: []queryResult{userRow(42, "jane@example.com")},
-		execs:   []error{nil}, // CreateLocalLogin succeeds
+		queries: []queryResult{countUsersRow(5), userRow(42, "jane@example.com")},
+		execs:   []error{nil}, // CreateLocalLogin succeeds; student nepotřebuje SetRequestedRole
 	}
 	db := newMockDB(t, script)
 
@@ -217,7 +224,7 @@ func TestRegisterNewLocalUser_Success(t *testing.T) {
 
 func TestRegisterNewLocalUser_CreateUserError(t *testing.T) {
 	script := &connScript{
-		queries: []queryResult{{err: fmt.Errorf("duplicate email")}},
+		queries: []queryResult{countUsersRow(5), {err: fmt.Errorf("duplicate email")}},
 	}
 	db := newMockDB(t, script)
 
@@ -234,7 +241,7 @@ func TestRegisterNewLocalUser_CreateUserError(t *testing.T) {
 
 func TestRegisterNewLocalUser_CreateLocalLoginError(t *testing.T) {
 	script := &connScript{
-		queries: []queryResult{userRow(1, "jane@example.com")},
+		queries: []queryResult{countUsersRow(5), userRow(1, "jane@example.com")},
 		execs:   []error{fmt.Errorf("local login insert failed")},
 	}
 	db := newMockDB(t, script)
@@ -252,7 +259,7 @@ func TestRegisterNewLocalUser_CreateLocalLoginError(t *testing.T) {
 
 func TestRegisterNewLocalUser_CommitError(t *testing.T) {
 	script := &connScript{
-		queries:   []queryResult{userRow(1, "jane@example.com")},
+		queries:   []queryResult{countUsersRow(5), userRow(1, "jane@example.com")},
 		execs:     []error{nil},
 		commitErr: fmt.Errorf("commit failed"),
 	}
@@ -266,5 +273,61 @@ func TestRegisterNewLocalUser_CommitError(t *testing.T) {
 	_, err := userregistration.RegisterNewLocalUser(req, db)
 	if err == nil {
 		t.Fatal("expected error from Commit, got nil")
+	}
+}
+
+// Student se aktivuje okamžitě — funkce nesmí volat SetRequestedRole (jediný
+// dostupný exec slot je pro CreateLocalLogin; kdyby se navíc volal
+// SetRequestedRole, vrátila by se chyba "unexpected Exec call").
+func TestRegisterNewLocalUser_Student_SkipsApproval(t *testing.T) {
+	script := &connScript{
+		queries: []queryResult{countUsersRow(5), userRow(2, "student@example.com")},
+		execs:   []error{nil},
+	}
+	db := newMockDB(t, script)
+
+	req := userregistration.RegistrationRequest{
+		Email:    "student@example.com",
+		Password: "Secret1!",
+		UserType: "student",
+	}
+
+	if _, err := userregistration.RegisterNewLocalUser(req, db); err != nil {
+		t.Fatalf("student registration should not require SetRequestedRole, got error: %v", err)
+	}
+}
+
+// Staff/maintainer čekají na schválení — funkce MUSÍ volat SetRequestedRole
+// jako druhý exec. S jen jedním dostupným exec slotem (CreateLocalLogin)
+// musí vrátit chybu, protože druhé volání narazí na "unexpected Exec call".
+func TestRegisterNewLocalUser_StaffAndMaintainer_RequireApproval(t *testing.T) {
+	for _, userType := range []string{"staff", "maintainer"} {
+		t.Run(userType, func(t *testing.T) {
+			script := &connScript{
+				queries: []queryResult{countUsersRow(5), userRow(3, "pending@example.com")},
+				execs:   []error{nil}, // jen CreateLocalLogin — SetRequestedRole nemá slot
+			}
+			db := newMockDB(t, script)
+
+			req := userregistration.RegistrationRequest{
+				Email:    "pending@example.com",
+				Password: "Secret1!",
+				UserType: userType,
+			}
+
+			if _, err := userregistration.RegisterNewLocalUser(req, db); err == nil {
+				t.Fatalf("%s registration should call SetRequestedRole and fail with only one exec slot scripted", userType)
+			}
+
+			// Se dvěma exec sloty (CreateLocalLogin + SetRequestedRole) musí uspět.
+			script2 := &connScript{
+				queries: []queryResult{countUsersRow(5), userRow(3, "pending@example.com")},
+				execs:   []error{nil, nil},
+			}
+			db2 := newMockDB(t, script2)
+			if _, err := userregistration.RegisterNewLocalUser(req, db2); err != nil {
+				t.Fatalf("%s registration with SetRequestedRole scripted should succeed, got: %v", userType, err)
+			}
+		})
 	}
 }
