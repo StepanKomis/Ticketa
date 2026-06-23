@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -48,6 +49,8 @@ func (h *TicketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.approvePriority(w, r)
 	case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/reject-priority"):
 		h.rejectPriority(w, r)
+	case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/claim"):
+		h.claim(w, r)
 	default:
 		defaultResponse(w)
 	}
@@ -134,8 +137,11 @@ func (h *TicketHandler) create(w http.ResponseWriter, r *http.Request) {
 	if body.StatusID != nil {
 		params.StatusID = sql.NullInt32{Int32: *body.StatusID, Valid: true}
 	}
-	// assigned_to lze nastavit pouze staff nebo admin
-	if body.AssignedTo != nil && (user.UserType == db.UserTypeStaff || user.UserType == db.UserTypeAdmin) {
+	// assigned_to lze nastavit pouze staff nebo admin, a jen na řešitele
+	// (staff/maintainer/admin) — neplatnou kombinaci tiše ignorujeme, stejně
+	// jako dnešní kontrolu role zadavatele.
+	if body.AssignedTo != nil && (user.UserType == db.UserTypeStaff || user.UserType == db.UserTypeAdmin) &&
+		h.isAssignableTarget(r.Context(), *body.AssignedTo) {
 		params.AssignedTo = sql.NullInt32{Int32: *body.AssignedTo, Valid: true}
 	}
 
@@ -209,6 +215,11 @@ func (h *TicketHandler) list(w http.ResponseWriter, r *http.Request) {
 			params.PendingPriorityApproval = sql.NullBool{Bool: b, Valid: true}
 		}
 	}
+	if v := q.Get("unassigned"); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			params.UnassignedOnly = sql.NullBool{Bool: b, Valid: true}
+		}
+	}
 
 	rows, err := h.queries.ListTicketsFiltered(r.Context(), params)
 	if err != nil {
@@ -223,6 +234,7 @@ func (h *TicketHandler) list(w http.ResponseWriter, r *http.Request) {
 		AuthorID:                params.AuthorID,
 		Category:                params.Category,
 		PendingPriorityApproval: params.PendingPriorityApproval,
+		UnassignedOnly:          params.UnassignedOnly,
 		Q:                       params.Q,
 	}
 	total, err := h.queries.CountTicketsFiltered(r.Context(), countParams)
@@ -303,7 +315,8 @@ func (h *TicketHandler) update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body updateTicketRequest
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	presence, err := decodeWithPresence(r, &body)
+	if err != nil {
 		WriteError(w, http.StatusBadRequest, "neplatné tělo požadavku")
 		return
 	}
@@ -334,8 +347,13 @@ func (h *TicketHandler) update(w http.ResponseWriter, r *http.Request) {
 	if body.Category != nil {
 		params.Category = sql.NullString{String: *body.Category, Valid: true}
 	}
-	if body.StatusID != nil {
-		params.StatusID = sql.NullInt32{Int32: *body.StatusID, Valid: true}
+	// touch_status_id: status_id se mění jen pokud byl v requestu skutečně
+	// uveden — jinak by každá úprava title/body bez status_id vynulovala stav.
+	if _, touched := presence["status_id"]; touched {
+		params.TouchStatusID = true
+		if body.StatusID != nil {
+			params.StatusID = sql.NullInt32{Int32: *body.StatusID, Valid: true}
+		}
 	}
 
 	ticket, err := h.queries.UpdateTicket(r.Context(), params)
@@ -392,11 +410,6 @@ func (h *TicketHandler) patch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !canMetaUpdate(user) {
-		WriteError(w, http.StatusForbidden, "přístup odepřen — vyžaduje roli staff nebo admin")
-		return
-	}
-
 	id, ok := ticketIDFromPath(w, r.URL.Path)
 	if !ok {
 		return
@@ -412,23 +425,57 @@ func (h *TicketHandler) patch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// fullAccess (staff/admin) může měnit libovolné meta-pole. Údržbář s
+	// vlastním přiřazeným tiketem (statusOnly) může měnit jen stav — školník
+	// nemá správcovská práva na přiřazení/priority/lokaci/kategorii.
+	fullAccess := canMetaUpdate(user)
+	statusOnly := !fullAccess && canUpdateOwnStatus(user, existing)
+	if !fullAccess && !statusOnly {
+		WriteError(w, http.StatusForbidden, "přístup odepřen — vyžaduje roli staff nebo admin")
+		return
+	}
+
 	var body patchTicketRequest
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	presence, err := decodeWithPresence(r, &body)
+	if err != nil {
 		WriteError(w, http.StatusBadRequest, "neplatné tělo požadavku")
 		return
+	}
+	if statusOnly {
+		_, assignedToTouched := presence["assigned_to"]
+		_, priorityTouched := presence["priority"]
+		_, locationTouched := presence["location"]
+		_, categoryTouched := presence["category"]
+		if assignedToTouched || priorityTouched || locationTouched || categoryTouched {
+			WriteError(w, http.StatusForbidden, "údržbář může u přiřazeného tiketu měnit jen stav")
+			return
+		}
 	}
 	if body.Priority != nil && !validPriorities[*body.Priority] {
 		WriteError(w, http.StatusUnprocessableEntity, "neplatná priorita (povolené hodnoty: low, medium, high, urgent)")
 		return
 	}
+	if body.AssignedTo != nil && !h.isAssignableTarget(r.Context(), *body.AssignedTo) {
+		WriteError(w, http.StatusUnprocessableEntity, "lze přiřadit jen zaměstnanci, údržbáři nebo správci")
+		return
+	}
 
 	params := db.UpdateTicketMetaParams{ID: id}
-	// assigned_to: null = odebrat přiřazení, číslo = přiřadit
-	if body.AssignedTo != nil {
-		params.AssignedTo = sql.NullInt32{Int32: *body.AssignedTo, Valid: true}
+	// touch_*: pole se mění jen pokud bylo v requestu skutečně uvedeno (i jako
+	// null) — jinak by PATCH s jedním polem vynuloval to druhé.
+	_, assignedToTouched := presence["assigned_to"]
+	if assignedToTouched {
+		params.TouchAssignedTo = true
+		if body.AssignedTo != nil {
+			params.AssignedTo = sql.NullInt32{Int32: *body.AssignedTo, Valid: true}
+		}
 	}
-	if body.StatusID != nil {
-		params.StatusID = sql.NullInt32{Int32: *body.StatusID, Valid: true}
+	_, statusIDTouched := presence["status_id"]
+	if statusIDTouched {
+		params.TouchStatusID = true
+		if body.StatusID != nil {
+			params.StatusID = sql.NullInt32{Int32: *body.StatusID, Valid: true}
+		}
 	}
 	if body.Priority != nil {
 		params.Priority = sql.NullString{String: *body.Priority, Valid: true}
@@ -446,7 +493,7 @@ func (h *TicketHandler) patch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actorName := resolveAuthorName(r.Context(), h.queries, int32(session.UserID))
-	if body.StatusID != nil {
+	if statusIDTouched {
 		oldStatus := h.resolveStatusTitle(r.Context(), existing.StatusID)
 		newStatus := h.resolveStatusTitle(r.Context(), ticket.StatusID)
 		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "status_changed", oldStatus, newStatus)
@@ -461,7 +508,7 @@ func (h *TicketHandler) patch(w http.ResponseWriter, r *http.Request) {
 	if body.Category != nil && existing.Category != ticket.Category {
 		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "category_changed", existing.Category, ticket.Category)
 	}
-	if body.AssignedTo != nil {
+	if assignedToTouched {
 		var oldAssigneeID, newAssigneeID *int32
 		if existing.AssignedTo.Valid {
 			v := existing.AssignedTo.Int32
@@ -483,6 +530,64 @@ func (h *TicketHandler) patch(w http.ResponseWriter, r *http.Request) {
 	updated, err := h.queries.GetTicket(r.Context(), db.GetTicketParams{ID: id, CurrentUserID: int32(session.UserID)})
 	if err != nil {
 		writeJSON(w, http.StatusOK, toTicketResponseFromTicket(ticket, "", int32(session.UserID)))
+		return
+	}
+	writeJSON(w, http.StatusOK, toTicketResponseFromGetRow(updated, int32(session.UserID)))
+}
+
+// claim umožní údržbáři převzít nepřiřazený tiket bez zásahu staff/admina.
+func (h *TicketHandler) claim(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathIDWithAction(r.URL.Path, "/api/tickets/", "/claim")
+	if !ok {
+		WriteError(w, http.StatusBadRequest, "neplatné ID tiketu")
+		return
+	}
+
+	session, ok := sessionFromContext(w, r)
+	if !ok {
+		return
+	}
+	user, ok := userFromContext(w, r)
+	if !ok {
+		return
+	}
+
+	if !canClaim(user) {
+		WriteError(w, http.StatusForbidden, "přístup odepřen — vyžaduje roli údržbáře")
+		return
+	}
+
+	existing, err := h.queries.GetTicket(r.Context(), db.GetTicketParams{ID: id, CurrentUserID: int32(session.UserID)})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			WriteError(w, http.StatusNotFound, "tiket nenalezen")
+			return
+		}
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst tiket")
+		return
+	}
+	if existing.AssignedTo.Valid {
+		WriteError(w, http.StatusConflict, "tiket je již přiřazen")
+		return
+	}
+
+	ticket, err := h.queries.UpdateTicketMeta(r.Context(), db.UpdateTicketMetaParams{
+		ID:              id,
+		TouchAssignedTo: true,
+		AssignedTo:      sql.NullInt32{Int32: int32(session.UserID), Valid: true},
+	})
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "nepodařilo se převzít tiket")
+		return
+	}
+
+	actorName := resolveAuthorName(r.Context(), h.queries, int32(session.UserID))
+	h.activityLogger.LogTiketPrirazen(r.Context(), int32(session.UserID), id, nil, &user.ID)
+	h.logHistory(r.Context(), id, int32(session.UserID), actorName, "assigned", "", actorName)
+
+	updated, err := h.queries.GetTicket(r.Context(), db.GetTicketParams{ID: id, CurrentUserID: int32(session.UserID)})
+	if err != nil {
+		writeJSON(w, http.StatusOK, toTicketResponseFromTicket(ticket, actorName, int32(session.UserID)))
 		return
 	}
 	writeJSON(w, http.StatusOK, toTicketResponseFromGetRow(updated, int32(session.UserID)))
@@ -693,6 +798,51 @@ func canEditContent(session db.Session, ticket db.GetTicketRow, userType db.User
 // canMetaUpdate: staff nebo admin může měnit meta-pole.
 func canMetaUpdate(user db.User) bool {
 	return user.UserType == db.UserTypeStaff || user.UserType == db.UserTypeAdmin
+}
+
+// canUpdateOwnStatus: údržbář může měnit stav tiketu, který je přiřazen jemu
+// — nemá ale správcovská práva na přiřazení/prioritu/lokaci/kategorii.
+func canUpdateOwnStatus(user db.User, ticket db.GetTicketRow) bool {
+	return user.UserType == db.UserTypeMaintainer &&
+		ticket.AssignedTo.Valid && ticket.AssignedTo.Int32 == user.ID
+}
+
+// canClaim: nepřiřazený tiket si může sám převzít jen údržbář.
+func canClaim(user db.User) bool {
+	return user.UserType == db.UserTypeMaintainer
+}
+
+// isAssignableUserType: jen tyto role mohou být řešitelem tiketu.
+func isAssignableUserType(t db.UserType) bool {
+	return t == db.UserTypeStaff || t == db.UserTypeMaintainer || t == db.UserTypeAdmin
+}
+
+// isAssignableTarget ověří, že cílový uživatel existuje a má roli, která
+// může být řešitelem tiketu (staff/maintainer/admin).
+func (h *TicketHandler) isAssignableTarget(ctx context.Context, userID int32) bool {
+	u, err := h.queries.GetUserByID(ctx, userID)
+	if err != nil {
+		return false
+	}
+	return isAssignableUserType(u.UserType)
+}
+
+// decodeWithPresence dekóduje tělo požadavku do v a navíc vrátí mapu
+// přítomných JSON klíčů — díky tomu lze rozlišit "pole v requestu vůbec
+// nebylo" (nemá se měnit) od "pole bylo posláno jako null" (má se vynulovat).
+func decodeWithPresence(r *http.Request, v any) (map[string]json.RawMessage, error) {
+	raw, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(raw, v); err != nil {
+		return nil, err
+	}
+	var presence map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &presence); err != nil {
+		return nil, err
+	}
+	return presence, nil
 }
 
 // requiresPriorityApproval: urgent je nejvyšší existující priorita a potřebuje

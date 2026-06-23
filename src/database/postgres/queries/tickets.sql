@@ -38,6 +38,7 @@ WHERE
     AND (sqlc.narg('author_id')::INTEGER IS NULL OR t.author_id   = sqlc.narg('author_id'))
     AND (sqlc.narg('category')::VARCHAR IS NULL  OR t.category    = sqlc.narg('category'))
     AND (sqlc.narg('pending_priority_approval')::BOOLEAN IS NULL OR (t.requested_priority IS NOT NULL) = sqlc.narg('pending_priority_approval'))
+    AND (sqlc.narg('unassigned_only')::BOOLEAN IS NULL OR (t.assigned_to IS NULL) = sqlc.narg('unassigned_only'))
     AND (
         sqlc.arg('q')::TEXT = ''
         OR t.title ILIKE '%' || sqlc.arg('q') || '%'
@@ -57,6 +58,7 @@ WHERE
     AND (sqlc.narg('author_id')::INTEGER IS NULL OR t.author_id   = sqlc.narg('author_id'))
     AND (sqlc.narg('category')::VARCHAR IS NULL  OR t.category    = sqlc.narg('category'))
     AND (sqlc.narg('pending_priority_approval')::BOOLEAN IS NULL OR (t.requested_priority IS NOT NULL) = sqlc.narg('pending_priority_approval'))
+    AND (sqlc.narg('unassigned_only')::BOOLEAN IS NULL OR (t.assigned_to IS NULL) = sqlc.narg('unassigned_only'))
     AND (
         sqlc.arg('q')::TEXT = ''
         OR t.title ILIKE '%' || sqlc.arg('q') || '%'
@@ -64,21 +66,26 @@ WHERE
     );
 
 -- name: UpdateTicket :one
+-- touch_status_id rozlišuje "status_id v requestu nebyl uveden" (status_id se
+-- nemění) od "status_id byl explicitně poslán" (i jako null) — bez toho by
+-- každá úprava title/body bez status_id vynulovala stav tiketu.
 UPDATE tickets
 SET title               = COALESCE(sqlc.narg('title'),    title),
     body                = COALESCE(sqlc.narg('body'),     body),
     priority            = COALESCE(sqlc.narg('priority'), priority),
     location            = COALESCE(sqlc.narg('location'), location),
     category            = COALESCE(sqlc.narg('category'), category),
-    status_id           = sqlc.narg('status_id'),
+    status_id           = CASE WHEN sqlc.arg('touch_status_id')::boolean THEN sqlc.narg('status_id') ELSE status_id END,
     requested_priority  = COALESCE(sqlc.narg('requested_priority'), requested_priority)
 WHERE id = sqlc.arg('id')
 RETURNING *;
 
 -- name: UpdateTicketMeta :one
+-- touch_assigned_to/touch_status_id: stejný důvod jako u UpdateTicket výše —
+-- PATCH s jen jedním polem nesmí vynulovat to druhé.
 UPDATE tickets
-SET assigned_to = sqlc.narg('assigned_to'),
-    status_id   = sqlc.narg('status_id'),
+SET assigned_to = CASE WHEN sqlc.arg('touch_assigned_to')::boolean THEN sqlc.narg('assigned_to') ELSE assigned_to END,
+    status_id   = CASE WHEN sqlc.arg('touch_status_id')::boolean   THEN sqlc.narg('status_id')   ELSE status_id   END,
     priority    = COALESCE(sqlc.narg('priority'), priority),
     location    = COALESCE(sqlc.narg('location'), location),
     category    = COALESCE(sqlc.narg('category'), category)
