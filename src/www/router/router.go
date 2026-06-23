@@ -89,6 +89,9 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	mux.Handle("DELETE /api/tickets/{id}/vote", authEnforced(ticketHandler))
 	mux.Handle("POST /api/tickets/{id}/approve-priority", staffAdmin(ticketHandler))
 	mux.Handle("POST /api/tickets/{id}/reject-priority", staffAdmin(ticketHandler))
+	// claim: jen authEnforced — role (maintainer) se ověřuje uvnitř handleru,
+	// staffAdmin() by tu maintainera naopak zablokoval.
+	mux.Handle("POST /api/tickets/{id}/claim", authEnforced(ticketHandler))
 
 	// Comment routes (any active user; delete also allowed for staff/maintainer)
 	mux.Handle("POST /api/tickets/{id}/comments", authEnforced(commentHandler))

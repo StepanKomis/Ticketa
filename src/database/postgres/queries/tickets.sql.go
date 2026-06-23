@@ -56,10 +56,11 @@ WHERE
     AND ($4::INTEGER IS NULL OR t.author_id   = $4)
     AND ($5::VARCHAR IS NULL  OR t.category    = $5)
     AND ($6::BOOLEAN IS NULL OR (t.requested_priority IS NOT NULL) = $6)
+    AND ($7::BOOLEAN IS NULL OR (t.assigned_to IS NULL) = $7)
     AND (
-        $7::TEXT = ''
-        OR t.title ILIKE '%' || $7 || '%'
-        OR t.body  ILIKE '%' || $7 || '%'
+        $8::TEXT = ''
+        OR t.title ILIKE '%' || $8 || '%'
+        OR t.body  ILIKE '%' || $8 || '%'
     )
 `
 
@@ -70,6 +71,7 @@ type CountTicketsFilteredParams struct {
 	AuthorID                sql.NullInt32
 	Category                sql.NullString
 	PendingPriorityApproval sql.NullBool
+	UnassignedOnly          sql.NullBool
 	Q                       string
 }
 
@@ -81,6 +83,7 @@ func (q *Queries) CountTicketsFiltered(ctx context.Context, arg CountTicketsFilt
 		arg.AuthorID,
 		arg.Category,
 		arg.PendingPriorityApproval,
+		arg.UnassignedOnly,
 		arg.Q,
 	)
 	var column_1 int64
@@ -309,14 +312,15 @@ WHERE
     AND ($5::INTEGER IS NULL OR t.author_id   = $5)
     AND ($6::VARCHAR IS NULL  OR t.category    = $6)
     AND ($7::BOOLEAN IS NULL OR (t.requested_priority IS NOT NULL) = $7)
+    AND ($8::BOOLEAN IS NULL OR (t.assigned_to IS NULL) = $8)
     AND (
-        $8::TEXT = ''
-        OR t.title ILIKE '%' || $8 || '%'
-        OR t.body  ILIKE '%' || $8 || '%'
+        $9::TEXT = ''
+        OR t.title ILIKE '%' || $9 || '%'
+        OR t.body  ILIKE '%' || $9 || '%'
     )
 ORDER BY t.created_at DESC
-LIMIT  $10::INTEGER
-OFFSET $9::INTEGER
+LIMIT  $11::INTEGER
+OFFSET $10::INTEGER
 `
 
 type ListTicketsFilteredParams struct {
@@ -327,6 +331,7 @@ type ListTicketsFilteredParams struct {
 	AuthorID                sql.NullInt32
 	Category                sql.NullString
 	PendingPriorityApproval sql.NullBool
+	UnassignedOnly          sql.NullBool
 	Q                       string
 	Off                     int32
 	Lim                     int32
@@ -361,6 +366,7 @@ func (q *Queries) ListTicketsFiltered(ctx context.Context, arg ListTicketsFilter
 		arg.AuthorID,
 		arg.Category,
 		arg.PendingPriorityApproval,
+		arg.UnassignedOnly,
 		arg.Q,
 		arg.Off,
 		arg.Lim,
@@ -453,9 +459,9 @@ SET title               = COALESCE($1,    title),
     priority            = COALESCE($3, priority),
     location            = COALESCE($4, location),
     category            = COALESCE($5, category),
-    status_id           = $6,
-    requested_priority  = COALESCE($7, requested_priority)
-WHERE id = $8
+    status_id           = CASE WHEN $6::boolean THEN $7 ELSE status_id END,
+    requested_priority  = COALESCE($8, requested_priority)
+WHERE id = $9
 RETURNING id, title, body, created_at, author_id, status_id, priority, assigned_to, location, category, updated_at, requested_priority, priority_approved_by
 `
 
@@ -465,11 +471,15 @@ type UpdateTicketParams struct {
 	Priority          sql.NullString
 	Location          sql.NullString
 	Category          sql.NullString
+	TouchStatusID     bool
 	StatusID          sql.NullInt32
 	RequestedPriority sql.NullString
 	ID                int64
 }
 
+// touch_status_id rozlišuje "status_id v requestu nebyl uveden" (status_id se
+// nemění) od "status_id byl explicitně poslán" (i jako null) — bez toho by
+// každá úprava title/body bez status_id vynulovala stav tiketu.
 func (q *Queries) UpdateTicket(ctx context.Context, arg UpdateTicketParams) (Ticket, error) {
 	row := q.db.QueryRowContext(ctx, updateTicket,
 		arg.Title,
@@ -477,6 +487,7 @@ func (q *Queries) UpdateTicket(ctx context.Context, arg UpdateTicketParams) (Tic
 		arg.Priority,
 		arg.Location,
 		arg.Category,
+		arg.TouchStatusID,
 		arg.StatusID,
 		arg.RequestedPriority,
 		arg.ID,
@@ -502,27 +513,33 @@ func (q *Queries) UpdateTicket(ctx context.Context, arg UpdateTicketParams) (Tic
 
 const updateTicketMeta = `-- name: UpdateTicketMeta :one
 UPDATE tickets
-SET assigned_to = $1,
-    status_id   = $2,
-    priority    = COALESCE($3, priority),
-    location    = COALESCE($4, location),
-    category    = COALESCE($5, category)
-WHERE id = $6
+SET assigned_to = CASE WHEN $1::boolean THEN $2 ELSE assigned_to END,
+    status_id   = CASE WHEN $3::boolean   THEN $4   ELSE status_id   END,
+    priority    = COALESCE($5, priority),
+    location    = COALESCE($6, location),
+    category    = COALESCE($7, category)
+WHERE id = $8
 RETURNING id, title, body, created_at, author_id, status_id, priority, assigned_to, location, category, updated_at, requested_priority, priority_approved_by
 `
 
 type UpdateTicketMetaParams struct {
-	AssignedTo sql.NullInt32
-	StatusID   sql.NullInt32
-	Priority   sql.NullString
-	Location   sql.NullString
-	Category   sql.NullString
-	ID         int64
+	TouchAssignedTo bool
+	AssignedTo      sql.NullInt32
+	TouchStatusID   bool
+	StatusID        sql.NullInt32
+	Priority        sql.NullString
+	Location        sql.NullString
+	Category        sql.NullString
+	ID              int64
 }
 
+// touch_assigned_to/touch_status_id: stejný důvod jako u UpdateTicket výše —
+// PATCH s jen jedním polem nesmí vynulovat to druhé.
 func (q *Queries) UpdateTicketMeta(ctx context.Context, arg UpdateTicketMetaParams) (Ticket, error) {
 	row := q.db.QueryRowContext(ctx, updateTicketMeta,
+		arg.TouchAssignedTo,
 		arg.AssignedTo,
+		arg.TouchStatusID,
 		arg.StatusID,
 		arg.Priority,
 		arg.Location,
