@@ -67,20 +67,22 @@ type createTicketRequest struct {
 }
 
 type updateTicketRequest struct {
-	Title    *string `json:"title"`
-	Body     *string `json:"body"`
-	Priority *string `json:"priority"`
-	Location *string `json:"location"`
-	Category *string `json:"category"`
-	StatusID *int32  `json:"status_id"`
+	Title          *string `json:"title"`
+	Body           *string `json:"body"`
+	Priority       *string `json:"priority"`
+	Location       *string `json:"location"`
+	Category       *string `json:"category"`
+	ResolutionNote *string `json:"resolution_note"`
+	StatusID       *int32  `json:"status_id"`
 }
 
 type patchTicketRequest struct {
-	AssignedTo *int32  `json:"assigned_to"`
-	StatusID   *int32  `json:"status_id"`
-	Priority   *string `json:"priority"`
-	Location   *string `json:"location"`
-	Category   *string `json:"category"`
+	AssignedTo     *int32  `json:"assigned_to"`
+	StatusID       *int32  `json:"status_id"`
+	Priority       *string `json:"priority"`
+	Location       *string `json:"location"`
+	Category       *string `json:"category"`
+	ResolutionNote *string `json:"resolution_note"`
 }
 
 var validPriorities = map[string]bool{
@@ -220,6 +222,11 @@ func (h *TicketHandler) list(w http.ResponseWriter, r *http.Request) {
 			params.UnassignedOnly = sql.NullBool{Bool: b, Valid: true}
 		}
 	}
+	if v := q.Get("closed"); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			params.Closed = sql.NullBool{Bool: b, Valid: true}
+		}
+	}
 
 	rows, err := h.queries.ListTicketsFiltered(r.Context(), params)
 	if err != nil {
@@ -235,6 +242,7 @@ func (h *TicketHandler) list(w http.ResponseWriter, r *http.Request) {
 		Category:                params.Category,
 		PendingPriorityApproval: params.PendingPriorityApproval,
 		UnassignedOnly:          params.UnassignedOnly,
+		Closed:                  params.Closed,
 		Q:                       params.Q,
 	}
 	total, err := h.queries.CountTicketsFiltered(r.Context(), countParams)
@@ -347,6 +355,9 @@ func (h *TicketHandler) update(w http.ResponseWriter, r *http.Request) {
 	if body.Category != nil {
 		params.Category = sql.NullString{String: *body.Category, Valid: true}
 	}
+	if body.ResolutionNote != nil {
+		params.ResolutionNote = sql.NullString{String: *body.ResolutionNote, Valid: true}
+	}
 	// touch_status_id: status_id se mění jen pokud byl v requestu skutečně
 	// uveden — jinak by každá úprava title/body bez status_id vynulovala stav.
 	if _, touched := presence["status_id"]; touched {
@@ -396,6 +407,9 @@ func (h *TicketHandler) update(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.Category != nil && existing.Category != ticket.Category {
 		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "category_changed", existing.Category, ticket.Category)
+	}
+	if body.ResolutionNote != nil && existing.ResolutionNote.String != ticket.ResolutionNote.String {
+		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "resolution_note_added", "", ticket.ResolutionNote.String)
 	}
 	writeJSON(w, http.StatusOK, toTicketResponseFromTicket(ticket, existing.AssigneeName, int32(session.UserID)))
 }
@@ -486,6 +500,9 @@ func (h *TicketHandler) patch(w http.ResponseWriter, r *http.Request) {
 	if body.Category != nil {
 		params.Category = sql.NullString{String: *body.Category, Valid: true}
 	}
+	if body.ResolutionNote != nil {
+		params.ResolutionNote = sql.NullString{String: *body.ResolutionNote, Valid: true}
+	}
 
 	ticket, err := h.queries.UpdateTicketMeta(r.Context(), params)
 	if err != nil {
@@ -507,6 +524,9 @@ func (h *TicketHandler) patch(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.Category != nil && existing.Category != ticket.Category {
 		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "category_changed", existing.Category, ticket.Category)
+	}
+	if body.ResolutionNote != nil && existing.ResolutionNote.String != ticket.ResolutionNote.String {
+		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "resolution_note_added", "", ticket.ResolutionNote.String)
 	}
 	if assignedToTouched {
 		var oldAssigneeID, newAssigneeID *int32
@@ -875,6 +895,7 @@ func toTicketResponseFromRow(r db.ListTicketsFilteredRow) ticketResponse {
 		StatusID:       nullInt32{Int32: r.StatusID.Int32, Valid: r.StatusID.Valid},
 		VoteCount:      r.VoteCount,
 		UserHasVoted:   r.UserHasVoted,
+		IsClosed:       r.IsClosed,
 	}
 	if r.AssignedTo.Valid {
 		v := r.AssignedTo.Int32
@@ -887,6 +908,10 @@ func toTicketResponseFromRow(r db.ListTicketsFilteredRow) ticketResponse {
 	if r.PriorityApprovedBy.Valid {
 		v := r.PriorityApprovedBy.Int32
 		tr.PriorityApprovedBy = &v
+	}
+	if r.ResolutionNote.Valid {
+		v := r.ResolutionNote.String
+		tr.ResolutionNote = &v
 	}
 	return tr
 }
@@ -907,6 +932,7 @@ func toTicketResponseFromGetRow(r db.GetTicketRow, currentUserID int32) ticketRe
 		StatusID:       nullInt32{Int32: r.StatusID.Int32, Valid: r.StatusID.Valid},
 		VoteCount:      r.VoteCount,
 		UserHasVoted:   r.UserHasVoted,
+		IsClosed:       r.IsClosed,
 	}
 	if r.AssignedTo.Valid {
 		v := r.AssignedTo.Int32
@@ -919,6 +945,10 @@ func toTicketResponseFromGetRow(r db.GetTicketRow, currentUserID int32) ticketRe
 	if r.PriorityApprovedBy.Valid {
 		v := r.PriorityApprovedBy.Int32
 		tr.PriorityApprovedBy = &v
+	}
+	if r.ResolutionNote.Valid {
+		v := r.ResolutionNote.String
+		tr.ResolutionNote = &v
 	}
 	return tr
 }
@@ -936,6 +966,7 @@ func toTicketResponseFromTicket(t db.Ticket, assigneeName string, _ int32) ticke
 		UpdatedAt:      t.UpdatedAt,
 		AuthorID:       t.AuthorID,
 		StatusID:       nullInt32{Int32: t.StatusID.Int32, Valid: t.StatusID.Valid},
+		IsClosed:       t.IsClosed,
 	}
 	if t.AssignedTo.Valid {
 		v := t.AssignedTo.Int32
@@ -948,6 +979,10 @@ func toTicketResponseFromTicket(t db.Ticket, assigneeName string, _ int32) ticke
 	if t.PriorityApprovedBy.Valid {
 		v := t.PriorityApprovedBy.Int32
 		tr.PriorityApprovedBy = &v
+	}
+	if t.ResolutionNote.Valid {
+		v := t.ResolutionNote.String
+		tr.ResolutionNote = &v
 	}
 	return tr
 }

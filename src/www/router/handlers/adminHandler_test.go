@@ -78,6 +78,36 @@ func TestAdminHandler_PatchConfig_LogLevel(t *testing.T) {
 	}
 }
 
+func TestAdminHandler_PatchConfig_TicketStatuses_NoneClosed_Returns400(t *testing.T) {
+	h, _ := newTestAdminHandler(t)
+
+	body := `{"TicketStatuses":[{"Title":"Otevřeno","Color":"#3498db"},{"Title":"Probíhá","Color":"#f39c12"},{"Title":"Vyřešeno","Color":"#2ecc71"}]}`
+	req := httptest.NewRequest(http.MethodPatch, "/api/admin/config", bytes.NewBufferString(body))
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestAdminHandler_PatchConfig_TicketStatuses_WithClosed_Succeeds(t *testing.T) {
+	h, store := newTestAdminHandler(t)
+
+	body := `{"TicketStatuses":[{"Title":"Otevřeno","Color":"#3498db"},{"Title":"Probíhá","Color":"#f39c12"},{"Title":"Vyřešeno","Color":"#2ecc71","IsClosed":true}]}`
+	req := httptest.NewRequest(http.MethodPatch, "/api/admin/config", bytes.NewBufferString(body))
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	statuses := store.Get().TicketStatuses
+	if len(statuses) != 3 || !statuses[2].IsClosed {
+		t.Errorf("expected last status IsClosed=true, got %+v", statuses)
+	}
+}
+
 func TestAdminHandler_PatchConfig_InvalidJSON(t *testing.T) {
 	h, _ := newTestAdminHandler(t)
 

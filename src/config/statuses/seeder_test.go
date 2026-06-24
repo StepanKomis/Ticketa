@@ -27,6 +27,7 @@ func (f *fakeUpserter) UpsertTicketStatusByPosition(_ context.Context, arg db.Up
 		Title:    arg.Title,
 		Color:    arg.Color,
 		Position: arg.Position,
+		IsClosed: arg.IsClosed,
 	}, nil
 }
 
@@ -34,7 +35,7 @@ func threeStatuses() []config.StatusConfig {
 	return []config.StatusConfig{
 		{Title: "Otevřeno", Color: "#3498db"},
 		{Title: "Probíhá", Color: "#f39c12"},
-		{Title: "Vyřešeno", Color: "#2ecc71"},
+		{Title: "Vyřešeno", Color: "#2ecc71", IsClosed: true},
 	}
 }
 
@@ -61,7 +62,7 @@ func TestSeed_EmptyColor_GeneratesValidHex(t *testing.T) {
 	cfg := []config.StatusConfig{
 		{Title: "Otevřeno", Color: ""},
 		{Title: "Probíhá", Color: ""},
-		{Title: "Vyřešeno", Color: ""},
+		{Title: "Vyřešeno", Color: "", IsClosed: true},
 	}
 	fake := &fakeUpserter{}
 	if err := statuses.Seed(context.Background(), fake, cfg); err != nil {
@@ -84,6 +85,21 @@ func TestSeed_TooFewStatuses_ReturnsError(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected error for < 3 statuses, got nil")
+	}
+	if len(fake.calls) != 0 {
+		t.Errorf("expected no DB calls on validation error, got %d", len(fake.calls))
+	}
+}
+
+func TestSeed_NoClosedStatus_ReturnsError(t *testing.T) {
+	fake := &fakeUpserter{}
+	err := statuses.Seed(context.Background(), fake, []config.StatusConfig{
+		{Title: "Otevřeno", Color: "#3498db"},
+		{Title: "Probíhá", Color: "#f39c12"},
+		{Title: "Vyřešeno", Color: "#2ecc71"}, // chybí IsClosed
+	})
+	if err == nil {
+		t.Fatal("expected error when no status has is_closed=true, got nil")
 	}
 	if len(fake.calls) != 0 {
 		t.Errorf("expected no DB calls on validation error, got %d", len(fake.calls))

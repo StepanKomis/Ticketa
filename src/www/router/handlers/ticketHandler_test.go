@@ -183,17 +183,17 @@ func getTicketRow(id int64, authorID int32, assignedTo *int32, statusID *int32, 
 		cols: []string{
 			"id", "title", "body", "created_at", "author_id", "status_id", "priority",
 			"assigned_to", "location", "category", "updated_at", "requested_priority",
-			"priority_approved_by", "author_name", "assignee_name", "vote_count", "user_has_voted",
+			"priority_approved_by", "is_closed", "resolution_note", "author_name", "assignee_name", "vote_count", "user_has_voted",
 		},
 		rows: [][]driver.Value{
 			{id, "Titulek", "Tělo", time.Now(), int64(authorID), statusVal, priority,
 				assignedVal, "Místo", "Kategorie", time.Now(), nil,
-				nil, "Autor", "Řešitel", int64(0), false},
+				nil, false, nil, "Autor", "Řešitel", int64(0), false},
 		},
 	}
 }
 
-// metaTicketRow odpovídá scan pořadí Ticket (UpdateTicketMeta RETURNING *) — 13 sloupců.
+// metaTicketRow odpovídá scan pořadí Ticket (UpdateTicketMeta RETURNING *) — 15 sloupců.
 func metaTicketRow(id int64, authorID int32, assignedTo *int32, statusID *int32, priority string) hdlQueryResult {
 	var assignedVal, statusVal driver.Value
 	if assignedTo != nil {
@@ -206,10 +206,37 @@ func metaTicketRow(id int64, authorID int32, assignedTo *int32, statusID *int32,
 		cols: []string{
 			"id", "title", "body", "created_at", "author_id", "status_id", "priority",
 			"assigned_to", "location", "category", "updated_at", "requested_priority", "priority_approved_by",
+			"is_closed", "resolution_note",
 		},
 		rows: [][]driver.Value{
 			{id, "Titulek", "Tělo", time.Now(), int64(authorID), statusVal, priority,
-				assignedVal, "Místo", "Kategorie", time.Now(), nil, nil},
+				assignedVal, "Místo", "Kategorie", time.Now(), nil, nil, false, nil},
+		},
+	}
+}
+
+// metaTicketRowWithNote je metaTicketRow rozšířený o is_closed/resolution_note,
+// pro testy okolo popisu řešení a is_closed propagace do odpovědi.
+func metaTicketRowWithNote(id int64, authorID int32, assignedTo *int32, statusID *int32, priority, note string, isClosed bool) hdlQueryResult {
+	var assignedVal, statusVal, noteVal driver.Value
+	if assignedTo != nil {
+		assignedVal = int64(*assignedTo)
+	}
+	if statusID != nil {
+		statusVal = int64(*statusID)
+	}
+	if note != "" {
+		noteVal = note
+	}
+	return hdlQueryResult{
+		cols: []string{
+			"id", "title", "body", "created_at", "author_id", "status_id", "priority",
+			"assigned_to", "location", "category", "updated_at", "requested_priority", "priority_approved_by",
+			"is_closed", "resolution_note",
+		},
+		rows: [][]driver.Value{
+			{id, "Titulek", "Tělo", time.Now(), int64(authorID), statusVal, priority,
+				assignedVal, "Místo", "Kategorie", time.Now(), nil, nil, isClosed, noteVal},
 		},
 	}
 }
@@ -375,5 +402,55 @@ func TestTicketHandler_Patch_InvalidAssigneeRole_Returns422(t *testing.T) {
 	h.ServeHTTP(rr, req)
 	if rr.Code != http.StatusUnprocessableEntity {
 		t.Errorf("expected 422, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestTicketHandler_Patch_ResolutionNoteOnly_PreservesOtherFields(t *testing.T) {
+	sqlDB := newHandlerDB(t, &hdlConnScript{
+		queries: []hdlQueryResult{
+			getTicketRow(1, 99, i32(7), i32(2), "high"),
+			metaTicketRowWithNote(1, 99, i32(7), i32(2), "high", "Vyměnil jsem kabel.", false),
+		},
+	})
+	h := newTicketHandlerWithDB(t, sqlDB)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/tickets/1", strings.NewReader(`{"resolution_note":"Vyměnil jsem kabel."}`))
+	req = withSession(req, 3)
+	req = withUser(req, db.User{ID: 3, UserType: db.UserTypeStaff})
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	body := rr.Body.String()
+	if !strings.Contains(body, `"AssignedTo":7`) || !strings.Contains(body, `"Priority":"high"`) {
+		t.Errorf("expected other fields preserved, got %s", body)
+	}
+	if !strings.Contains(body, `"ResolutionNote":"Vyměnil jsem kabel."`) {
+		t.Errorf("expected ResolutionNote in response, got %s", body)
+	}
+}
+
+func TestTicketHandler_Patch_MaintainerOwnStatus_WithResolutionNote_Returns200(t *testing.T) {
+	sqlDB := newHandlerDB(t, &hdlConnScript{
+		queries: []hdlQueryResult{
+			getTicketRow(1, 99, i32(7), i32(1), "medium"), // přiřazeno mně (7), stav 1
+			metaTicketRowWithNote(1, 99, i32(7), i32(3), "medium", "Restartoval jsem zařízení.", true),
+		},
+	})
+	h := newTicketHandlerWithDB(t, sqlDB)
+
+	// resolution_note nesmí spadnout do statusOnly forbidden-fields kontroly —
+	// údržbář na vlastním tiketu ho musí moct poslat spolu se status_id.
+	req := httptest.NewRequest(http.MethodPatch, "/api/tickets/1", strings.NewReader(`{"status_id":3,"resolution_note":"Restartoval jsem zařízení."}`))
+	req = withSession(req, 7)
+	req = withUser(req, db.User{ID: 7, UserType: db.UserTypeMaintainer})
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), `"IsClosed":true`) {
+		t.Errorf("expected IsClosed:true, got %s", rr.Body.String())
 	}
 }

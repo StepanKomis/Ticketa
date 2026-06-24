@@ -19,9 +19,12 @@ type ActivityConfig struct {
 
 // StatusConfig představuje jeden stav tiketu v konfiguračním souboru.
 // Pozice v poli je sémanticky významná: první=otevřeno, poslední=vyřešeno.
+// IsClosed je autoritativní příznak, který stav znamená "uzavřeno/vyřešeno" —
+// nahrazuje dřívější spoléhání na poslední position.
 type StatusConfig struct {
-	Title string `yaml:"title"`
-	Color string `yaml:"color"`
+	Title    string `yaml:"title"`
+	Color    string `yaml:"color"`
+	IsClosed bool   `yaml:"is_closed"`
 }
 
 // Defaults vrátí Config s rozumnými výchozími hodnotami a třemi českými stavy.
@@ -34,7 +37,7 @@ func Defaults() *Config {
 		TicketStatuses: []StatusConfig{
 			{Title: "Otevřeno", Color: "#3498db"},
 			{Title: "Probíhá", Color: "#f39c12"},
-			{Title: "Vyřešeno", Color: "#2ecc71"},
+			{Title: "Vyřešeno", Color: "#2ecc71", IsClosed: true},
 		},
 		Activity: ActivityConfig{
 			LogFile:    "logs/activity.log",

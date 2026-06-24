@@ -10,25 +10,32 @@ import (
 )
 
 const createTicketStatus = `-- name: CreateTicketStatus :one
-INSERT INTO ticket_statuses (title, color, position)
-VALUES ($1, $2, $3)
-RETURNING id, title, color, position
+INSERT INTO ticket_statuses (title, color, position, is_closed)
+VALUES ($1, $2, $3, $4)
+RETURNING id, title, color, position, is_closed
 `
 
 type CreateTicketStatusParams struct {
 	Title    string
 	Color    string
 	Position int32
+	IsClosed bool
 }
 
 func (q *Queries) CreateTicketStatus(ctx context.Context, arg CreateTicketStatusParams) (TicketStatus, error) {
-	row := q.db.QueryRowContext(ctx, createTicketStatus, arg.Title, arg.Color, arg.Position)
+	row := q.db.QueryRowContext(ctx, createTicketStatus,
+		arg.Title,
+		arg.Color,
+		arg.Position,
+		arg.IsClosed,
+	)
 	var i TicketStatus
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
 		&i.Color,
 		&i.Position,
+		&i.IsClosed,
 	)
 	return i, err
 }
@@ -44,7 +51,7 @@ func (q *Queries) DeleteTicketStatus(ctx context.Context, id int32) error {
 }
 
 const getTicketStatus = `-- name: GetTicketStatus :one
-SELECT id, title, color, position FROM ticket_statuses
+SELECT id, title, color, position, is_closed FROM ticket_statuses
 WHERE id = $1
 `
 
@@ -56,12 +63,13 @@ func (q *Queries) GetTicketStatus(ctx context.Context, id int32) (TicketStatus, 
 		&i.Title,
 		&i.Color,
 		&i.Position,
+		&i.IsClosed,
 	)
 	return i, err
 }
 
 const listTicketStatuses = `-- name: ListTicketStatuses :many
-SELECT id, title, color, position FROM ticket_statuses
+SELECT id, title, color, position, is_closed FROM ticket_statuses
 ORDER BY position ASC
 `
 
@@ -79,6 +87,7 @@ func (q *Queries) ListTicketStatuses(ctx context.Context) ([]TicketStatus, error
 			&i.Title,
 			&i.Color,
 			&i.Position,
+			&i.IsClosed,
 		); err != nil {
 			return nil, err
 		}
@@ -96,52 +105,68 @@ func (q *Queries) ListTicketStatuses(ctx context.Context) ([]TicketStatus, error
 const updateTicketStatus = `-- name: UpdateTicketStatus :one
 UPDATE ticket_statuses
 SET title = $2,
-    color = $3
+    color = $3,
+    is_closed = $4
 WHERE id = $1
-RETURNING id, title, color, position
+RETURNING id, title, color, position, is_closed
 `
 
 type UpdateTicketStatusParams struct {
-	ID    int32
-	Title string
-	Color string
+	ID       int32
+	Title    string
+	Color    string
+	IsClosed bool
 }
 
 func (q *Queries) UpdateTicketStatus(ctx context.Context, arg UpdateTicketStatusParams) (TicketStatus, error) {
-	row := q.db.QueryRowContext(ctx, updateTicketStatus, arg.ID, arg.Title, arg.Color)
+	row := q.db.QueryRowContext(ctx, updateTicketStatus,
+		arg.ID,
+		arg.Title,
+		arg.Color,
+		arg.IsClosed,
+	)
 	var i TicketStatus
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
 		&i.Color,
 		&i.Position,
+		&i.IsClosed,
 	)
 	return i, err
 }
 
 const upsertTicketStatusByPosition = `-- name: UpsertTicketStatusByPosition :one
-INSERT INTO ticket_statuses (title, color, position)
-VALUES ($1, $2, $3)
+INSERT INTO ticket_statuses (title, color, position, is_closed)
+VALUES ($1, $2, $3, $4)
 ON CONFLICT (position) DO UPDATE
     SET title = EXCLUDED.title,
-        color = EXCLUDED.color
-RETURNING id, title, color, position
+        color = EXCLUDED.color,
+        is_closed = EXCLUDED.is_closed
+RETURNING id, title, color, position, is_closed
 `
 
 type UpsertTicketStatusByPositionParams struct {
 	Title    string
 	Color    string
 	Position int32
+	IsClosed bool
 }
 
 func (q *Queries) UpsertTicketStatusByPosition(ctx context.Context, arg UpsertTicketStatusByPositionParams) (TicketStatus, error) {
-	row := q.db.QueryRowContext(ctx, upsertTicketStatusByPosition, arg.Title, arg.Color, arg.Position)
+	row := q.db.QueryRowContext(ctx, upsertTicketStatusByPosition,
+		arg.Title,
+		arg.Color,
+		arg.Position,
+		arg.IsClosed,
+	)
 	var i TicketStatus
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
 		&i.Color,
 		&i.Position,
+		&i.IsClosed,
 	)
 	return i, err
 }

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -152,6 +153,16 @@ func (h *AdminHandler) patchConfig(w http.ResponseWriter, r *http.Request) {
 			c.Logging.Dir = patch.Logging.Dir
 		}
 		if len(patch.TicketStatuses) > 0 {
+			hasClosed := false
+			for _, s := range patch.TicketStatuses {
+				if s.IsClosed {
+					hasClosed = true
+					break
+				}
+			}
+			if !hasClosed {
+				return errors.New("alespoň jeden stav musí mít IsClosed = true")
+			}
 			c.TicketStatuses = patch.TicketStatuses
 		}
 		return nil
@@ -194,6 +205,7 @@ type createStatusRequest struct {
 	Title    string `json:"title"`
 	Color    string `json:"color"`
 	Position int32  `json:"position"`
+	IsClosed bool   `json:"is_closed"`
 }
 
 // createStatus vytvoří nový stav tiketu a přidá ho do YAML konfigurace.
@@ -231,6 +243,7 @@ func (h *AdminHandler) createStatus(w http.ResponseWriter, r *http.Request) {
 		Title:    body.Title,
 		Color:    body.Color,
 		Position: body.Position,
+		IsClosed: body.IsClosed,
 	})
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se vytvořit stav")
@@ -240,8 +253,9 @@ func (h *AdminHandler) createStatus(w http.ResponseWriter, r *http.Request) {
 	// Synchronizace konfigurace
 	_ = h.cfgStore.Update(func(c *config.Config) error {
 		c.TicketStatuses = append(c.TicketStatuses, config.StatusConfig{
-			Title: row.Title,
-			Color: row.Color,
+			Title:    row.Title,
+			Color:    row.Color,
+			IsClosed: row.IsClosed,
 		})
 		return nil
 	})
@@ -250,8 +264,9 @@ func (h *AdminHandler) createStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 type updateStatusRequest struct {
-	Title string `json:"title"`
-	Color string `json:"color"`
+	Title    string `json:"title"`
+	Color    string `json:"color"`
+	IsClosed bool   `json:"is_closed"`
 }
 
 // updateStatus aktualizuje existující stav tiketu a synchronizuje YAML konfiguraci.
@@ -286,9 +301,10 @@ func (h *AdminHandler) updateStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	row, err := h.queries.UpdateTicketStatus(r.Context(), db.UpdateTicketStatusParams{
-		ID:    id,
-		Title: body.Title,
-		Color: body.Color,
+		ID:       id,
+		Title:    body.Title,
+		Color:    body.Color,
+		IsClosed: body.IsClosed,
 	})
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -344,7 +360,7 @@ func (h *AdminHandler) syncStatusesToConfig(ctx context.Context) {
 	_ = h.cfgStore.Update(func(c *config.Config) error {
 		c.TicketStatuses = make([]config.StatusConfig, len(rows))
 		for i, r := range rows {
-			c.TicketStatuses[i] = config.StatusConfig{Title: r.Title, Color: r.Color}
+			c.TicketStatuses[i] = config.StatusConfig{Title: r.Title, Color: r.Color, IsClosed: r.IsClosed}
 		}
 		return nil
 	})
