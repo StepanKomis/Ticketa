@@ -83,8 +83,8 @@
 .settingsForm__save:disabled { opacity: 0.6; cursor: not-allowed; }
 
 @media (max-width: 960px) {
-  .settingsPage { padding: var(--sp-4); }
-  .settingsPage__grid { grid-template-columns: 1fr; gap: var(--sp-5); }
+  .settingsPage { padding: var(--sp-4) 0; }
+  .settingsPage__grid { grid-template-columns: 1fr; gap: var(--sp-4); }
   .settingsForm__row { grid-template-columns: 1fr; }
   .settingsCard { padding: var(--sp-4); }
   .settingsForm__input { font-size: 16px; }

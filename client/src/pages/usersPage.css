@@ -202,11 +202,13 @@
 .usersRow__menuItem:hover { background: var(--field-bg); }
 
 @media (max-width: 960px) {
-  .usersPage { padding: var(--sp-4); }
-  .usersPage__grid { grid-template-columns: 1fr; gap: var(--sp-5); }
+  .usersPage { padding: var(--sp-4) 0; }
+  .usersPage__grid { grid-template-columns: 1fr; gap: var(--sp-4); }
   .usersRow__active { display: none; }
   .usersRow td { padding: var(--sp-3); }
   .usersRow__menu { top: auto; bottom: calc(100% + 4px); }
+  .usersRow__email,
+  .usersRow__approvedBy { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 
 @media (max-width: 640px) {
