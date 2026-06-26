@@ -14,7 +14,8 @@ import { useStatuses } from '../hooks/useStatuses'
 import { useTicketActions } from '../hooks/useTicketActions'
 import type { ApiTicket } from '../types/api'
 import type { Ticket } from '../types/ticket'
-import { mapApiTicket } from '../utils/mappers'
+import type { FilterValue } from '../components/console/FilterTabs'
+import { mapApiTicket, statusIdForUiStatus } from '../utils/mappers'
 import { deriveActivity } from '../utils/activity'
 import { timeGreeting, roleSubtitle } from '../utils/greetings'
 import './consolePage.css'
@@ -25,26 +26,45 @@ export default function ConsolePage() {
   const isStaff = role === 'staff' || role === 'admin'
   const isMaintainer = role === 'maintainer'
 
-  // Dashboard zobrazuje jen aktivní (neuzavřené) tikety, ale StatCards
-  // matematika (open = grandTotal - inProgress - resolved) potřebuje skutečný
-  // celkový počet napříč všemi tikety — proto samostatný lehký dotaz.
-  const { data: apiTickets, isLoading } = useTickets({ closed: false })
-  const { data: allTickets } = useTickets({ limit: 1 })
+  const [filterTab, setFilterTab] = useState<FilterValue>('all')
+  const [modalOpen, setModalOpen] = useState(false)
+
   const { data: statuses } = useStatuses()
   const { advance, resolveModal } = useTicketActions(statuses ?? [])
+
+  // Stat card counts — independent of active tab
+  const { data: allTickets } = useTickets({ limit: 1 })
   const statCounts = useTicketStatusCounts(statuses ?? [], allTickets?.total ?? 0)
 
-  const [modalOpen, setModalOpen] = useState(false)
+  // Map active tab to server-side query params
+  const tabParams = (() => {
+    if (filterTab === 'resolved') return { closed: true as const }
+    if (filterTab === 'in_progress') {
+      const sid = statusIdForUiStatus('in_progress', statuses ?? [])
+      return sid != null ? { status_id: sid } : { closed: false as const }
+    }
+    if (filterTab === 'open') {
+      const sid = statusIdForUiStatus('open', statuses ?? [])
+      return sid != null ? { status_id: sid } : { closed: false as const }
+    }
+    return {} // 'all' — no filter
+  })()
+
+  const { data: apiTickets, isLoading } = useTickets(tabParams)
+
+  const tickets: Ticket[] = (apiTickets?.items ?? []).map((t: ApiTicket) => mapApiTicket(t, statuses ?? []))
+
+  const tabCounts: Partial<Record<FilterValue, number>> = {
+    all: allTickets?.total ?? 0,
+    open: statCounts.open,
+    in_progress: statCounts.inProgress,
+    resolved: statCounts.resolved,
+  }
 
   const firstName = user?.firstName || user?.email.split('@')[0] || ''
   const greeting = `${timeGreeting()}, ${firstName}`
 
-  const tickets: Ticket[] = (apiTickets?.items ?? []).map((t: ApiTicket) => mapApiTicket(t, statuses ?? []))
-
   const handleNew = () => setModalOpen(true)
-  // Staff/admin can advance status on any ticket; maintainers only on
-  // tickets assigned to them (enforced both here and server-side). Students
-  // see no action buttons (no handler passed).
   const handleTicketAction = (isStaff || isMaintainer) ? advance : undefined
   const canAct = isMaintainer && !isStaff ? (t: Ticket) => t.assigneeId === user?.id : undefined
 
@@ -65,7 +85,15 @@ export default function ConsolePage() {
         />
 
         <div className="consolePage__grid">
-          <TicketList tickets={tickets} isLoading={isLoading} onTicketAction={handleTicketAction} canAct={canAct} />
+          <TicketList
+            tickets={tickets}
+            isLoading={isLoading}
+            onTicketAction={handleTicketAction}
+            canAct={canAct}
+            filter={filterTab}
+            onFilterChange={setFilterTab}
+            counts={tabCounts}
+          />
 
           <aside className="consolePage__side">
             <ReportCTA role={role} onNew={handleNew} />
