@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import ConsoleLayout from '../components/layout/ConsoleLayout'
 import StatusBadge from '../components/console/StatusBadge'
@@ -141,6 +141,48 @@ function Avatar({ name, size = 30 }: { name: string; size?: number }) {
   )
 }
 
+function StatusMenu({ open, onToggle, disabled, label, children }: {
+  open: boolean
+  onToggle: () => void
+  disabled?: boolean
+  label: string
+  children: React.ReactNode
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [above, setAbove] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    const onOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onToggle()
+    }
+    document.addEventListener('mousedown', onOutside)
+    return () => document.removeEventListener('mousedown', onOutside)
+  }, [open, onToggle])
+
+  const handleToggle = () => {
+    if (!open && ref.current) {
+      const rect = ref.current.getBoundingClientRect()
+      setAbove(document.documentElement.clientHeight - rect.bottom < 160)
+    }
+    onToggle()
+  }
+
+  return (
+    <div className="td-statusMenu" ref={ref}>
+      <button type="button" className="td-chipBtn" onClick={handleToggle}
+        aria-haspopup="menu" aria-expanded={open} disabled={disabled}>
+        {label}
+      </button>
+      {open && (
+        <ul className={`td-statusMenu__list${above ? ' td-statusMenu__list--above' : ''}`} role="menu">
+          {children}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>()
   const ticketId = Number(id)
@@ -175,6 +217,7 @@ export default function TicketDetailPage() {
   const [draft, setDraft] = useState('')
   const [replyingTo, setReplyingTo] = useState<{ id: number; authorName: string } | null>(null)
   const [statusMenuOpen, setStatusMenuOpen] = useState(false)
+  const toggleStatusMenu = useCallback(() => setStatusMenuOpen(o => !o), [])
   const [resolveModalOpen, setResolveModalOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [mobileTab, setMobileTab] = useState<'detail' | 'activity'>('detail')
@@ -361,28 +404,18 @@ export default function TicketDetailPage() {
 
                 {canChangeStatus && (
                   <div className="ticketDetail__mobileActions">
-                    <div className="td-statusMenu">
-                      <button type="button" className="td-chipBtn"
-                        onClick={() => setStatusMenuOpen(o => !o)}
-                        aria-haspopup="menu" aria-expanded={statusMenuOpen}
-                        disabled={patchTicket.isPending}>
-                        Změnit stav
-                      </button>
-                      {statusMenuOpen && (
-                        <ul className="td-statusMenu__list" role="menu">
-                          {(['open', 'in_progress', 'resolved'] as TicketStatus[]).map(s => (
-                            <li key={s} role="none">
-                              <button type="button" role="menuitem"
-                                className="td-statusMenu__item"
-                                onClick={() => changeStatus(s)}
-                                disabled={statusIdForUiStatus(s, statuses ?? []) == null}>
-                                {STATUS_LABELS[s]}
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
+                    <StatusMenu open={statusMenuOpen} onToggle={toggleStatusMenu}
+                      disabled={patchTicket.isPending} label="Změnit stav">
+                      {(['open', 'in_progress', 'resolved'] as TicketStatus[]).map(s => (
+                        <li key={s} role="none">
+                          <button type="button" role="menuitem" className="td-statusMenu__item"
+                            onClick={() => changeStatus(s)}
+                            disabled={statusIdForUiStatus(s, statuses ?? []) == null}>
+                            {STATUS_LABELS[s]}
+                          </button>
+                        </li>
+                      ))}
+                    </StatusMenu>
                     {ticket.status === 'in_progress' && (
                       <button type="button" className="td-actionPrimary"
                         onClick={() => changeStatus('resolved')}
@@ -507,25 +540,18 @@ export default function TicketDetailPage() {
                 <div className="td-field__value td-field__value--row">
                   <StatusBadge status={ticket.status} />
                   {canChangeStatus && (
-                    <div className="td-statusMenu">
-                      <button type="button" className="td-chipBtn" onClick={() => setStatusMenuOpen(o => !o)}
-                        aria-haspopup="menu" aria-expanded={statusMenuOpen} disabled={patchTicket.isPending}>
-                        Změnit
-                      </button>
-                      {statusMenuOpen && (
-                        <ul className="td-statusMenu__list" role="menu">
-                          {(['open', 'in_progress', 'resolved'] as TicketStatus[]).map(s => (
-                            <li key={s} role="none">
-                              <button type="button" role="menuitem" className="td-statusMenu__item"
-                                onClick={() => changeStatus(s)}
-                                disabled={statusIdForUiStatus(s, statuses ?? []) == null}>
-                                {STATUS_LABELS[s]}
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
+                    <StatusMenu open={statusMenuOpen} onToggle={toggleStatusMenu}
+                      disabled={patchTicket.isPending} label="Změnit">
+                      {(['open', 'in_progress', 'resolved'] as TicketStatus[]).map(s => (
+                        <li key={s} role="none">
+                          <button type="button" role="menuitem" className="td-statusMenu__item"
+                            onClick={() => changeStatus(s)}
+                            disabled={statusIdForUiStatus(s, statuses ?? []) == null}>
+                            {STATUS_LABELS[s]}
+                          </button>
+                        </li>
+                      ))}
+                    </StatusMenu>
                   )}
                 </div>
               </div>

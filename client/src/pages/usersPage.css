@@ -175,16 +175,18 @@
   position: absolute;
   right: 0;
   top: calc(100% + 4px);
+  bottom: auto;
   z-index: 10;
   list-style: none;
   margin: 0;
   padding: 4px;
-  min-width: 140px;
+  width: max-content;
   background: var(--white);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-card);
 }
+.usersRow__menu--above { top: auto; bottom: calc(100% + 4px); }
 .usersRow__menuItem {
   width: 100%;
   text-align: left;
@@ -204,6 +206,7 @@
   .usersPage__grid { grid-template-columns: 1fr; gap: var(--sp-5); }
   .usersRow__active { display: none; }
   .usersRow td { padding: var(--sp-3); }
+  .usersRow__menu { top: auto; bottom: calc(100% + 4px); }
 }
 
 /* Pending tab alert indicator */

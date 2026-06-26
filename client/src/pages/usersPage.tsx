@@ -46,6 +46,7 @@ export default function UsersPage() {
   const [search, setSearch] = useState('')
   const [offset, setOffset] = useState(0)
   const [menuFor, setMenuFor] = useState<number | null>(null)
+  const [menuAbove, setMenuAbove] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('student')
@@ -298,7 +299,15 @@ export default function UsersPage() {
                               aria-label={`Akce pro ${fullName(u)}`}
                               aria-haspopup="menu"
                               aria-expanded={menuFor === u.ID}
-                              onClick={() => setMenuFor(menuFor === u.ID ? null : u.ID)}
+                              onClick={(e) => {
+                                if (menuFor !== u.ID) {
+                                  const rect = e.currentTarget.getBoundingClientRect()
+                                  setMenuAbove(window.innerHeight - rect.bottom < 120)
+                                  setMenuFor(u.ID)
+                                } else {
+                                  setMenuFor(null)
+                                }
+                              }}
                             >
                               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                                 <circle cx="8" cy="3.5" r="1.2" fill="currentColor" />
@@ -307,7 +316,7 @@ export default function UsersPage() {
                               </svg>
                             </button>
                             {menuFor === u.ID && (
-                              <ul className="usersRow__menu" role="menu">
+                              <ul className={`usersRow__menu${menuAbove ? ' usersRow__menu--above' : ''}`} role="menu">
                                 <li role="none">
                                   <button
                                     type="button"
