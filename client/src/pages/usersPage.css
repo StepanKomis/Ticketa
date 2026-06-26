@@ -207,13 +207,13 @@
   .usersRow__active { display: none; }
   .usersRow td { padding: var(--sp-3); }
   .usersRow__menu { top: auto; bottom: calc(100% + 4px); }
-  .usersTable { table-layout: fixed; }
+  .usersRow__user { max-width: 0; overflow: hidden; }
   .usersRow__meta { flex: 1; min-width: 0; }
   .usersRow__name,
   .usersRow__email,
   .usersRow__approvedBy { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .usersRow__role { width: 76px; padding-left: var(--sp-2); padding-right: var(--sp-2); }
-  .usersRow__actions:not(.usersRow__actions--pending) { width: 36px; padding-left: var(--sp-1); padding-right: var(--sp-2); }
+  .usersRow__role { white-space: nowrap; padding-left: var(--sp-2); padding-right: var(--sp-2); }
+  .usersRow__actions:not(.usersRow__actions--pending) { padding-left: var(--sp-2); padding-right: var(--sp-2); }
 }
 
 @media (max-width: 640px) {
