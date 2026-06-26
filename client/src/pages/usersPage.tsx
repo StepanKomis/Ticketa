@@ -175,7 +175,7 @@ export default function UsersPage() {
                 {isPending ? 'Žádní uživatelé nečekají na schválení.' : 'Žádní uživatelé.'}
               </p>
             ) : isPending ? (
-              <table className="usersTable">
+              <table className="usersTable usersTable--pending">
                 <thead>
                   <tr>
                     <th className="usersTable__th">Uživatel</th>
