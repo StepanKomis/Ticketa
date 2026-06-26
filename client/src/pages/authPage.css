@@ -1,0 +1,13 @@
+.authPage {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F6F8F7;
+}
+
+.authLogo {
+  height: 32px;
+  width: auto;
+  align-self: flex-start;
+}

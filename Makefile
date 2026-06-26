@@ -1,5 +1,3 @@
-CLIENT_REPO        := https://github.com/StepanKomis/Ticketa-client.git
-CLIENT_TMP         := /tmp/ticketa-client
 STATIC_DIR         := ./src/www/static
 DOCS_DIR           := ./src/www/docs
 SWAGGER_UI_VERSION := 5.18.2
@@ -13,15 +11,11 @@ test:
 build:
 	go build -o ./build/ticketa ./src/cmd/main.go
 
-# Clone client repo, build it, copy dist into embed directory
 build-frontend:
-	rm -rf $(CLIENT_TMP)
-	git clone $(CLIENT_REPO) $(CLIENT_TMP)
-	npm --prefix $(CLIENT_TMP) install
-	npm --prefix $(CLIENT_TMP) run build
+	npm --prefix ./client install
+	npm --prefix ./client run build
 	rm -rf $(STATIC_DIR)
-	cp -r $(CLIENT_TMP)/build $(STATIC_DIR)
-	rm -rf $(CLIENT_TMP)
+	cp -r ./client/build $(STATIC_DIR)
 
 # Full local build: frontend + Go binary
 build-full: build-frontend build
