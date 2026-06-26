@@ -27,44 +27,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Restore session from localStorage on mount. The session cookie has a
-  // 7-day Max-Age and survives browser restarts, so the display metadata must
-  // too — sessionStorage would make the user appear logged out while their
-  // cookie is still valid.
-  useEffect(() => {
-    try {
-      let stored = localStorage.getItem(SESSION_KEY)
-      // Migrate sessions persisted by older builds into sessionStorage
-      if (!stored) {
-        stored = sessionStorage.getItem(SESSION_KEY)
-        if (stored) {
-          localStorage.setItem(SESSION_KEY, stored)
-          sessionStorage.removeItem(SESSION_KEY)
-        }
-      }
-      if (stored) {
-        setUser(JSON.parse(stored) as AuthUser)
-      }
-    } catch {
-      localStorage.removeItem(SESSION_KEY)
-      sessionStorage.removeItem(SESSION_KEY)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
-
-  // The server can invalidate the session at any moment (expiry, account
-  // deactivation). When any API call gets a 401, drop the stale client-side
-  // session so route guards redirect to the login page.
-  useEffect(() => {
-    const onUnauthorized = () => {
-      localStorage.removeItem(SESSION_KEY)
-      setUser(null)
-    }
-    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
-    return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
-  }, [])
-
   const login = useCallback(async (email: string, password: string) => {
     // Server validates credentials, sets the HttpOnly session cookie and
     // returns the user profile — no need for a separate /api/me call.
@@ -81,8 +43,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(newUser)
   }, [])
 
-  // refreshUser aktualizuje metadata přihlášeného uživatele z /api/me.
-  // Volá se po změně hesla, aby se vymazal flag mustChangePw.
+  // Sync latest role/permissions from server. Called on mount and on tab focus
+  // so admin-approved role changes take effect without requiring logout/login.
   const refreshUser = useCallback(async () => {
     try {
       const apiUser = await authApi.me()
@@ -97,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(SESSION_KEY, JSON.stringify(updated))
       setUser(updated)
     } catch {
-      // Pokud /api/me selže, necháme aktuální stav beze změny
+      // /api/me failure leaves current state unchanged
     }
   }, [])
 
@@ -110,6 +72,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem(SESSION_KEY)
       setUser(null)
     }
+  }, [])
+
+  // Restore session from localStorage on mount. The session cookie has a
+  // 7-day Max-Age and survives browser restarts, so the display metadata must
+  // too — sessionStorage would make the user appear logged out while their
+  // cookie is still valid.
+  useEffect(() => {
+    let hasSession = false
+    try {
+      let stored = localStorage.getItem(SESSION_KEY)
+      // Migrate sessions persisted by older builds into sessionStorage
+      if (!stored) {
+        stored = sessionStorage.getItem(SESSION_KEY)
+        if (stored) {
+          localStorage.setItem(SESSION_KEY, stored)
+          sessionStorage.removeItem(SESSION_KEY)
+        }
+      }
+      if (stored) {
+        setUser(JSON.parse(stored) as AuthUser)
+        hasSession = true
+      }
+    } catch {
+      localStorage.removeItem(SESSION_KEY)
+      sessionStorage.removeItem(SESSION_KEY)
+    } finally {
+      setIsLoading(false)
+    }
+    if (hasSession) void refreshUser()
+  }, [refreshUser])
+
+  // Re-sync when the user returns to the tab (admin may approve while tab is in background)
+  useEffect(() => {
+    const onFocus = () => { if (localStorage.getItem(SESSION_KEY)) void refreshUser() }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [refreshUser])
+
+  // The server can invalidate the session at any moment (expiry, account
+  // deactivation). When any API call gets a 401, drop the stale client-side
+  // session so route guards redirect to the login page.
+  useEffect(() => {
+    const onUnauthorized = () => {
+      localStorage.removeItem(SESSION_KEY)
+      setUser(null)
+    }
+    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
   }, [])
 
   return (
