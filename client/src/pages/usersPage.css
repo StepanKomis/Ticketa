@@ -209,6 +209,9 @@
   .usersRow__menu { top: auto; bottom: calc(100% + 4px); }
   .usersTable { table-layout: fixed; width: 100%; }
   .usersTable--pending { table-layout: auto; }
+  .usersTable--pending thead th:nth-child(2),
+  .usersTable--pending thead th:nth-child(3) { display: none; }
+  .usersTable--pending .usersRow__role { display: none; }
   /* width = celková šířka sloupce (border-box): role = 12+78+0=90, actions = 12+30+12=54 */
   .usersRow__role { width: 90px; padding-right: 0; }
   .usersRow__actions:not(.usersRow__actions--pending) { width: 54px; }
