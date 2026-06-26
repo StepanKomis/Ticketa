@@ -207,8 +207,13 @@
   .usersRow__active { display: none; }
   .usersRow td { padding: var(--sp-3); }
   .usersRow__menu { top: auto; bottom: calc(100% + 4px); }
+  .usersTable { table-layout: fixed; }
+  .usersRow__meta { flex: 1; min-width: 0; }
+  .usersRow__name,
   .usersRow__email,
-  .usersRow__approvedBy { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .usersRow__approvedBy { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .usersRow__role { width: 90px; }
+  .usersRow__actions:not(.usersRow__actions--pending) { width: 44px; }
 }
 
 @media (max-width: 640px) {
@@ -390,6 +395,3 @@
   .inviteModal__input { font-size: 16px; }
 }
 
-@media (max-width: 960px) {
-  .usersTable { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-}
