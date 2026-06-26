@@ -207,4 +207,6 @@
   .ticketCard__body {
     flex: 1;
   }
+
+  .ticketCard__vote { padding: var(--sp-1) var(--sp-2); }
 }

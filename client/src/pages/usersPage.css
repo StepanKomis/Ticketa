@@ -361,3 +361,12 @@
   white-space: nowrap;
 }
 .inviteModal__copy:hover { background: var(--field-bg); }
+
+@media (max-width: 640px) {
+  .inviteModal { padding: var(--sp-4); }
+  .inviteModal__input { font-size: 16px; }
+}
+
+@media (max-width: 960px) {
+  .usersTable { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}

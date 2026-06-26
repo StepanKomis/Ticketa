@@ -68,6 +68,11 @@
   margin: 0;
 }
 
+@media (max-width: 640px) {
+  .registerPanel { padding: var(--sp-6) var(--sp-5); }
+  .registerNameRow { grid-template-columns: 1fr; gap: var(--sp-4); }
+}
+
 .registerSubmit:disabled {
   opacity: 0.6;
   cursor: not-allowed;
