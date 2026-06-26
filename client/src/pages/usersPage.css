@@ -209,6 +209,27 @@
   .usersRow__menu { top: auto; bottom: calc(100% + 4px); }
 }
 
+@media (max-width: 640px) {
+  .usersPanel__toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-4);
+  }
+  .usersPanel__tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .usersPanel__tabs::-webkit-scrollbar { display: none; }
+  .usersPanel__search {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 16px;
+  }
+  .usersPanel__inviteBtn { width: 100%; }
+}
+
 /* Pending tab alert indicator */
 .usersTab--alert { position: relative; }
 .usersTab--alert .usersTab__count { background: #e74c3c; color: white; }
