@@ -133,7 +133,7 @@
   font: inherit;
   font-size: 12px;
   font-weight: 700;
-  padding: 4px 12px;
+  padding: 4px 4px;
   cursor: pointer;
 }
 .roleChip--student { background: var(--field-bg); color: var(--ink-500); }
@@ -213,8 +213,9 @@
   .usersRow__name,
   .usersRow__email,
   .usersRow__approvedBy { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .usersRow__role { width: 80px; text-align: right; padding-right: 0; }
+  .usersRow__role { width: 80px; padding-right: 0; }
   .usersRow__actions:not(.usersRow__actions--pending) { width: 40px; padding-left: var(--sp-2); padding-right: var(--sp-2); }
+  .roleChip { width: 100%; box-sizing: border-box; text-align: center; }
 }
 
 @media (max-width: 640px) {
