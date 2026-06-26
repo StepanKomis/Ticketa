@@ -11,14 +11,23 @@ interface Props {
   isLoading?: boolean
   onTicketAction?: (ticket: Ticket) => void
   canAct?: (ticket: Ticket) => boolean
+  // Controlled mode — server already filtered the tickets; skip client-side re-filtering
+  filter?: FilterValue
+  onFilterChange?: (v: FilterValue) => void
+  counts?: Partial<Record<FilterValue, number>>
 }
 
 const FILTERS: FilterValue[] = ['all', 'open', 'in_progress', 'resolved']
 
-export default function TicketList({ tickets, title = 'Moje tikety', isLoading, onTicketAction, canAct }: Props) {
-  const { filter, setFilter, filtered } = useTicketFilter(tickets)
+export default function TicketList({ tickets, title = 'Moje tikety', isLoading, onTicketAction, canAct, filter: filterProp, onFilterChange, counts: countsProp }: Props) {
+  const internal = useTicketFilter(tickets)
 
-  const counts = Object.fromEntries(
+  const controlled = filterProp !== undefined
+  const filter = controlled ? filterProp : internal.filter
+  const setFilter = controlled ? (onFilterChange ?? (() => {})) : internal.setFilter
+  const filtered = controlled ? tickets : internal.filtered
+
+  const counts = countsProp ?? Object.fromEntries(
     FILTERS.map(f => [f, tickets.filter(t => matchesFilter(t, f)).length]),
   ) as Record<FilterValue, number>
 
