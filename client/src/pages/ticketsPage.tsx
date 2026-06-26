@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import ConsoleLayout from '../components/layout/ConsoleLayout'
 import TicketList from '../components/console/TicketList'
 import FilterBar, { FilterBarValues } from '../components/console/FilterBar'
-import FilterTabs, { FilterValue } from '../components/console/FilterTabs'
+import type { FilterValue } from '../components/console/FilterTabs'
 import NewTicketModal from '../components/tickets/NewTicketModal'
 import ResolveTicketModal from '../components/tickets/ResolveTicketModal'
 import Fab from '../components/layout/Fab'
@@ -149,11 +149,6 @@ export default function TicketsPage() {
           </div>
         )}
 
-        <FilterTabs
-          active={statusFilter}
-          onChange={handleStatusChange}
-        />
-
         <FilterBar
           values={{ q: filterQ, priority: filterPriority, category: filterCategory }}
           onChange={handleFilterChange}
@@ -165,6 +160,9 @@ export default function TicketsPage() {
           isLoading={isLoading}
           onTicketAction={handleTicketAction}
           canAct={canAct}
+          filter={statusFilter}
+          onFilterChange={handleStatusChange}
+          counts={{ [statusFilter]: total }}
         />
 
         {totalPages > 1 && (
