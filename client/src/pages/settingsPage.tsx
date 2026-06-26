@@ -9,18 +9,28 @@ import { ApiRequestError } from '../api/client'
 import type { ApiUser } from '../types/api'
 import './settingsPage.css'
 
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Administrátor',
+  staff: 'Učitel',
+  maintainer: 'Školník',
+  student: 'Student',
+  pending: 'Čekající na schválení',
+}
+
 export default function SettingsPage() {
   const { user } = useAuth()
   const role = user?.role ?? 'student'
+  const isAdmin = role === 'admin'
 
-  const { data: users } = useUsers(role === 'admin')
+  const { data: users } = useUsers(isAdmin)
   const patchMe = usePatchMe()
 
-  // Match the signed-in account in the admin user list by email to recover its
-  // current names (auth metadata may be stale if names were changed elsewhere).
-  const self: ApiUser | undefined = users?.items?.find(
-    (u: ApiUser) => u.Email.toLowerCase() === (user?.email ?? '').toLowerCase(),
-  )
+  // For admins: match the signed-in account in the user list to get up-to-date names.
+  const self: ApiUser | undefined = isAdmin
+    ? users?.items?.find(
+        (u: ApiUser) => u.Email.toLowerCase() === (user?.email ?? '').toLowerCase(),
+      )
+    : undefined
 
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -72,7 +82,7 @@ export default function SettingsPage() {
               </span>
               <div className="settingsCard__identity">
                 <span className="settingsCard__name">{displayName}</span>
-                <span className="settingsCard__role">Administrátor</span>
+                <span className="settingsCard__role">{ROLE_LABELS[role] ?? role}</span>
               </div>
             </div>
 

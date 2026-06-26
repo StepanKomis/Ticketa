@@ -45,7 +45,8 @@ const navClass = ({ isActive }: { isActive: boolean }) =>
 
 export default function SettingsNav() {
   const { user } = useAuth()
-  const pendingCount = usePendingCount(user?.role === 'admin')
+  const isAdmin = user?.role === 'admin'
+  const pendingCount = usePendingCount(isAdmin)
 
   return (
     <nav className="settingsNav" aria-label="Nastavení">
@@ -53,13 +54,15 @@ export default function SettingsNav() {
         <ProfileIcon />
         <span>Profil</span>
       </NavLink>
-      <NavLink to="/settings/users" className={navClass}>
-        <UsersIcon />
-        <span>Uživatelé</span>
-        {pendingCount > 0 && (
-          <span className="settingsNav__badge" aria-label={`${pendingCount} čekají na schválení`} />
-        )}
-      </NavLink>
+      {isAdmin && (
+        <NavLink to="/settings/users" className={navClass}>
+          <UsersIcon />
+          <span>Uživatelé</span>
+          {pendingCount > 0 && (
+            <span className="settingsNav__badge" aria-label={`${pendingCount} čekají na schválení`} />
+          )}
+        </NavLink>
+      )}
       <NavLink to="/settings/password" className={navClass}>
         <LockIcon />
         <span>Heslo</span>
