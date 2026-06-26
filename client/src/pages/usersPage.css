@@ -207,15 +207,12 @@
   .usersRow__active { display: none; }
   .usersRow td { padding: var(--sp-3); }
   .usersRow__menu { top: auto; bottom: calc(100% + 4px); }
-  .usersTable { table-layout: fixed; width: 100%; }
-  .usersRow__user { min-width: 0; }
+  .usersRow__role { white-space: nowrap; }
   .usersRow__meta { flex: 1; min-width: 0; }
   .usersRow__name,
   .usersRow__email,
   .usersRow__approvedBy { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .usersRow__role { width: 80px; padding-right: 0; }
-  .usersRow__actions:not(.usersRow__actions--pending) { width: 40px; padding-left: var(--sp-2); padding-right: var(--sp-3); }
-  .roleChip { width: 100%; box-sizing: border-box; text-align: center; }
+  .roleChip { text-align: center; }
 }
 
 @media (max-width: 640px) {
