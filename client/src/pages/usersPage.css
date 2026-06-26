@@ -207,12 +207,15 @@
   .usersRow__active { display: none; }
   .usersRow td { padding: var(--sp-3); }
   .usersRow__menu { top: auto; bottom: calc(100% + 4px); }
-  .usersRow__role { white-space: nowrap; }
+  .usersTable { table-layout: fixed; width: 100%; }
+  /* width = celková šířka sloupce (border-box): role = 12+78+0=90, actions = 12+30+12=54 */
+  .usersRow__role { width: 90px; padding-right: 0; }
+  .usersRow__actions:not(.usersRow__actions--pending) { width: 54px; }
   .usersRow__meta { flex: 1; min-width: 0; }
   .usersRow__name,
   .usersRow__email,
   .usersRow__approvedBy { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .roleChip { text-align: center; }
+  .roleChip { width: 100%; box-sizing: border-box; text-align: center; }
 }
 
 @media (max-width: 640px) {

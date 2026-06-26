@@ -14,7 +14,7 @@ const ROLE_LABELS: Record<ApiUser['UserType'], string> = {
   student: 'Student',
   staff: 'Učitel',
   maintainer: 'Údržbář',
-  admin: 'Správce systému',
+  admin: 'Správce',
   pending: 'Čekající',
 }
 
