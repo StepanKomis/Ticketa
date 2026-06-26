@@ -1,8 +1,8 @@
 FROM node:22-alpine AS frontend-builder
-RUN apk add --no-cache git
 WORKDIR /client
-RUN git clone https://github.com/StepanKomis/Ticketa-client.git .
+COPY client/package.json client/package-lock.json ./
 RUN npm install
+COPY client/ ./
 RUN npm run build
 
 FROM golang:1.25.0-alpine AS builder
