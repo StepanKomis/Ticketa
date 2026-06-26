@@ -1,0 +1,114 @@
+.registerPanel {
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 56px;
+  min-height: 100vh;
+}
+
+.registerForm {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.registerHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.registerTitle {
+  font-size: 24px;
+  font-weight: 800;
+  color: #0F1714;
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+.registerSubtitle {
+  font-size: 14.5px;
+  color: #5C6B64;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.registerSubtitle--admin {
+  color: #1B7A50;
+  font-weight: 500;
+  background: #EDF7F1;
+  border: 1px solid #b2e0cb;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.registerFields {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.registerNameRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+
+.registerError {
+  font-size: 13.5px;
+  color: #c0392b;
+  background: #fdf0ee;
+  border: 1px solid #f5c6c0;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 0;
+}
+
+.registerSubmit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.registerSubmit {
+  background: #1B7A50;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 13px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  width: 100%;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.registerSubmit:hover {
+  background: #166040;
+}
+
+.registerFooter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.registerSignIn {
+  font-size: 13px;
+  color: #5C6B64;
+}
+
+.registerSignIn a {
+  color: #1B7A50;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.registerSignIn a:hover {
+  text-decoration: underline;
+}

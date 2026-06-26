@@ -1,0 +1,210 @@
+.ticketCard {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-2);
+  border-radius: var(--radius-sm);
+}
+
+.ticketCard:hover { background: var(--field-bg); }
+
+/* Stretched link makes the whole row navigate to the detail page while the
+   action button and avatar stay individually interactive (raised above it). */
+.ticketCard__link {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: 0;
+}
+
+.ticketCard__body,
+.ticketCard__aside { position: relative; z-index: 1; pointer-events: none; }
+
+.ticketCard__action,
+.ticketCard__avatar,
+.ticketCard__vote { pointer-events: auto; }
+
+.ticketCard__dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  background: var(--ink-400);
+}
+
+.ticketCard__dot--new      { background: var(--dot-new); }
+.ticketCard__dot--open     { background: var(--dot-open); }
+.ticketCard__dot--in_progress { background: var(--dot-progress); }
+.ticketCard__dot--resolved { background: var(--dot-resolved); }
+.ticketCard__dot--closed   { background: var(--dot-closed); }
+
+.ticketCard__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ticketCard__title {
+  margin: 0 0 2px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ticketCard__meta {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--ink-400);
+  min-width: 0;
+}
+
+.ticketCard__id {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--ink-400);
+}
+
+.ticketCard__sep {
+  color: var(--ink-400);
+}
+
+.ticketCard__loc {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.ticketCard__aside {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-shrink: 0;
+}
+
+.ticketCard__prioDot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--ink-400);
+}
+
+.ticketCard__prioDot--urgent { background: var(--priority-urgent); }
+.ticketCard__prioDot--high   { background: var(--priority-high); }
+.ticketCard__prioDot--medium { background: var(--priority-medium); }
+.ticketCard__prioDot--low    { background: var(--priority-low); }
+
+.ticketCard__prioLabel {
+  display: none;
+}
+
+.ticketCard__time {
+  font-size: 12.5px;
+  color: var(--ink-400);
+  white-space: nowrap;
+  min-width: 36px;
+  text-align: right;
+}
+
+.ticketCard__avatar {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  background: var(--green-700);
+  color: var(--white);
+  font-size: 9px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.ticketCard__vote {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--ink-400);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+.ticketCard__vote:hover { border-color: var(--green-400); color: var(--green-600); }
+.ticketCard__vote--active {
+  border-color: var(--green-500);
+  background: var(--green-50, #f0fdf4);
+  color: var(--green-600);
+}
+.ticketCard__vote:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ticketCard__action {
+  padding: 4px var(--sp-3);
+  border: 1px solid var(--green-600);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--green-600);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.ticketCard__action:hover {
+  background: var(--green-600);
+  color: var(--white);
+}
+
+/* Mobile: each row becomes a standalone card with a two-line layout. */
+@media (max-width: 960px) {
+  .ticketCard {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    padding: var(--sp-4);
+    background: var(--white);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card);
+  }
+
+  .ticketCard__dot {
+    margin-top: 5px;
+  }
+
+  .ticketCard__aside {
+    width: 100%;
+    padding-left: calc(8px + var(--sp-3));
+    flex-wrap: wrap;
+    gap: var(--sp-2) var(--sp-3);
+  }
+
+  .ticketCard__prioDot {
+    display: none;
+  }
+
+  .ticketCard__prioLabel {
+    display: inline-flex;
+  }
+
+  .ticketCard__avatar {
+    display: inline-flex;
+    margin-left: auto;
+  }
+
+  /* On mobile the status badge belongs on the title row, not the meta row. */
+  .ticketCard__body {
+    flex: 1;
+  }
+}
