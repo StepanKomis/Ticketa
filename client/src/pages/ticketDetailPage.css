@@ -188,16 +188,18 @@
   position: absolute;
   right: 0;
   top: calc(100% + 4px);
+  bottom: auto;
   z-index: 10;
   list-style: none;
   margin: 0;
   padding: 4px;
-  min-width: 140px;
+  width: max-content;
   background: var(--white);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-card);
 }
+.td-statusMenu__list--above { top: auto; bottom: calc(100% + 4px); }
 .td-statusMenu__item {
   width: 100%;
   text-align: left;
@@ -287,6 +289,9 @@
   .ticketDetail__kv > div { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); }
   .ticketDetail__kv dt { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-400); margin: 0; }
   .ticketDetail__kv dd { margin: 0; font-size: 13.5px; color: var(--ink-700); }
+
+  /* On mobile the button is always near the bottom nav — always open above */
+  .td-statusMenu__list { top: auto; bottom: calc(100% + 4px); }
 }
 
 /* On desktop both panes are always visible (mobile tab state ignored) */
