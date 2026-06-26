@@ -39,6 +39,7 @@ WHERE
     AND (sqlc.narg('category')::VARCHAR IS NULL  OR t.category    = sqlc.narg('category'))
     AND (sqlc.narg('pending_priority_approval')::BOOLEAN IS NULL OR (t.requested_priority IS NOT NULL) = sqlc.narg('pending_priority_approval'))
     AND (sqlc.narg('unassigned_only')::BOOLEAN IS NULL OR (t.assigned_to IS NULL) = sqlc.narg('unassigned_only'))
+    AND (sqlc.narg('closed')::BOOLEAN IS NULL OR t.is_closed = sqlc.narg('closed'))
     AND (
         sqlc.arg('q')::TEXT = ''
         OR t.title ILIKE '%' || sqlc.arg('q') || '%'
@@ -59,6 +60,7 @@ WHERE
     AND (sqlc.narg('category')::VARCHAR IS NULL  OR t.category    = sqlc.narg('category'))
     AND (sqlc.narg('pending_priority_approval')::BOOLEAN IS NULL OR (t.requested_priority IS NOT NULL) = sqlc.narg('pending_priority_approval'))
     AND (sqlc.narg('unassigned_only')::BOOLEAN IS NULL OR (t.assigned_to IS NULL) = sqlc.narg('unassigned_only'))
+    AND (sqlc.narg('closed')::BOOLEAN IS NULL OR t.is_closed = sqlc.narg('closed'))
     AND (
         sqlc.arg('q')::TEXT = ''
         OR t.title ILIKE '%' || sqlc.arg('q') || '%'
@@ -76,7 +78,8 @@ SET title               = COALESCE(sqlc.narg('title'),    title),
     location            = COALESCE(sqlc.narg('location'), location),
     category            = COALESCE(sqlc.narg('category'), category),
     status_id           = CASE WHEN sqlc.arg('touch_status_id')::boolean THEN sqlc.narg('status_id') ELSE status_id END,
-    requested_priority  = COALESCE(sqlc.narg('requested_priority'), requested_priority)
+    requested_priority  = COALESCE(sqlc.narg('requested_priority'), requested_priority),
+    resolution_note     = COALESCE(sqlc.narg('resolution_note'), resolution_note)
 WHERE id = sqlc.arg('id')
 RETURNING *;
 
@@ -84,11 +87,12 @@ RETURNING *;
 -- touch_assigned_to/touch_status_id: stejný důvod jako u UpdateTicket výše —
 -- PATCH s jen jedním polem nesmí vynulovat to druhé.
 UPDATE tickets
-SET assigned_to = CASE WHEN sqlc.arg('touch_assigned_to')::boolean THEN sqlc.narg('assigned_to') ELSE assigned_to END,
-    status_id   = CASE WHEN sqlc.arg('touch_status_id')::boolean   THEN sqlc.narg('status_id')   ELSE status_id   END,
-    priority    = COALESCE(sqlc.narg('priority'), priority),
-    location    = COALESCE(sqlc.narg('location'), location),
-    category    = COALESCE(sqlc.narg('category'), category)
+SET assigned_to     = CASE WHEN sqlc.arg('touch_assigned_to')::boolean THEN sqlc.narg('assigned_to') ELSE assigned_to END,
+    status_id       = CASE WHEN sqlc.arg('touch_status_id')::boolean   THEN sqlc.narg('status_id')   ELSE status_id   END,
+    priority        = COALESCE(sqlc.narg('priority'), priority),
+    location        = COALESCE(sqlc.narg('location'), location),
+    category        = COALESCE(sqlc.narg('category'), category),
+    resolution_note = COALESCE(sqlc.narg('resolution_note'), resolution_note)
 WHERE id = sqlc.arg('id')
 RETURNING *;
 

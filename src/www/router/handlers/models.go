@@ -54,6 +54,8 @@ type ticketResponse struct {
 	UserHasVoted       bool      `json:"UserHasVoted" example:"false"`
 	RequestedPriority  *string   `json:"RequestedPriority" example:"urgent"`
 	PriorityApprovedBy *int32    `json:"PriorityApprovedBy"`
+	IsClosed           bool      `json:"IsClosed" example:"false"`
+	ResolutionNote     *string   `json:"ResolutionNote" example:"Restartoval jsem projektor a aktualizoval ovladače."`
 }
 
 // ticketListResponse je stránkovaná odpověď pro seznam tiketů.
@@ -86,6 +88,7 @@ type ticketStatusResponse struct {
 	Title    string `json:"Title" example:"Probíhá"`
 	Color    string `json:"Color" example:"#f39c12"`
 	Position int32  `json:"Position" example:"1"`
+	IsClosed bool   `json:"IsClosed" example:"false"`
 }
 
 // configLoggingResponse je konfigurace logování v odpovědi.
@@ -96,8 +99,9 @@ type configLoggingResponse struct {
 
 // configStatusResponse je jeden stav tiketu v odpovědi na konfiguraci.
 type configStatusResponse struct {
-	Title string `json:"Title" example:"Otevřeno"`
-	Color string `json:"Color" example:"#3498db"`
+	Title    string `json:"Title" example:"Otevřeno"`
+	Color    string `json:"Color" example:"#3498db"`
+	IsClosed bool   `json:"IsClosed" example:"false"`
 }
 
 // configResponse je JSON tvar odpovědi pro celou konfiguraci systému.
@@ -228,10 +232,12 @@ type patchLoggingRequest struct {
 
 // patchStatusRequest je jeden stav tiketu v požadavku pro PATCH konfigurace.
 // Pokud je uveden seznam TicketStatuses, musí obsahovat alespoň 3 položky
-// (první = otevřeno, poslední = vyřešeno).
+// (první = otevřeno, poslední = vyřešeno) a alespoň jedna musí mít
+// IsClosed = true.
 type patchStatusRequest struct {
-	Title string `json:"Title" example:"Otevřeno"`
-	Color string `json:"Color" example:"#3498db"`
+	Title    string `json:"Title" example:"Otevřeno"`
+	Color    string `json:"Color" example:"#3498db"`
+	IsClosed bool   `json:"IsClosed" example:"false"`
 }
 
 // ticketHistoryEntry je jeden záznam v historii tiketu.

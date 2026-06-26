@@ -23,6 +23,16 @@ func Seed(ctx context.Context, q upserter, statuses []config.StatusConfig) error
 	if len(statuses) < 3 {
 		return fmt.Errorf("statuses: at least 3 ticket statuses required, got %d", len(statuses))
 	}
+	hasClosed := false
+	for _, s := range statuses {
+		if s.IsClosed {
+			hasClosed = true
+			break
+		}
+	}
+	if !hasClosed {
+		return fmt.Errorf("statuses: at least one ticket status must have is_closed=true")
+	}
 	for i, s := range statuses {
 		color := s.Color
 		if color == "" {
@@ -32,6 +42,7 @@ func Seed(ctx context.Context, q upserter, statuses []config.StatusConfig) error
 			Title:    s.Title,
 			Color:    color,
 			Position: int32(i),
+			IsClosed: s.IsClosed,
 		})
 		if err != nil {
 			return fmt.Errorf("statuses: upsert position %d (%q): %w", i, s.Title, err)

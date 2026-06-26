@@ -43,6 +43,9 @@ var up00011 string
 //go:embed up/UP_00012.sql
 var up00012 string
 
+//go:embed up/UP_00013.sql
+var up00013 string
+
 var All = func() []migrate.Migration {
 	ms := []migrate.Migration{
 		{
@@ -191,6 +194,27 @@ var All = func() []migrate.Migration {
 					ALTER TABLE tickets
 						DROP COLUMN IF EXISTS requested_priority,
 						DROP COLUMN IF EXISTS priority_approved_by;
+				`)
+				return err
+			},
+		},
+		{
+			Name: "ticket_is_closed_and_resolution_note",
+			Up: func(db any) error {
+				_, err := db.(*sql.DB).Exec(up00013)
+				return err
+			},
+			Down: func(db any) error {
+				_, err := db.(*sql.DB).Exec(`
+					DROP TRIGGER IF EXISTS trg_ticket_statuses_is_closed ON ticket_statuses;
+					DROP FUNCTION IF EXISTS sync_tickets_is_closed_on_status_change;
+					DROP TRIGGER IF EXISTS trg_ticket_is_closed ON tickets;
+					DROP FUNCTION IF EXISTS sync_ticket_is_closed;
+					ALTER TABLE tickets
+						DROP COLUMN IF EXISTS is_closed,
+						DROP COLUMN IF EXISTS resolution_note;
+					ALTER TABLE ticket_statuses
+						DROP COLUMN IF EXISTS is_closed;
 				`)
 				return err
 			},

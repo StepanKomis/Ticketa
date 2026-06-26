@@ -192,6 +192,8 @@ type Ticket struct {
 	UpdatedAt          time.Time
 	RequestedPriority  sql.NullString
 	PriorityApprovedBy sql.NullInt32
+	IsClosed           bool
+	ResolutionNote     sql.NullString
 }
 
 type TicketComment struct {
@@ -221,6 +223,7 @@ type TicketStatus struct {
 	Title    string
 	Color    string
 	Position int32
+	IsClosed bool
 }
 
 type TicketVote struct {
