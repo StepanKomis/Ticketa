@@ -1,0 +1,18 @@
+.fab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--green-600);
+  color: var(--white);
+  cursor: pointer;
+  box-shadow: 0 8px 22px 0 rgba(27, 122, 80, 0.4);
+  transition: background 0.12s ease;
+}
+
+.fab:hover {
+  background: var(--green-700);
+}

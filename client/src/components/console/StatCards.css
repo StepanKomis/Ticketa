@@ -1,0 +1,69 @@
+.statCards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-4);
+}
+
+.statCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.statCard__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.statCard__label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-500);
+}
+
+.statCard__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-full);
+}
+
+.statCard[data-stat='open'] .statCard__icon {
+  background: var(--status-open-bg);
+  color: var(--status-open);
+}
+
+.statCard[data-stat='in_progress'] .statCard__icon {
+  background: var(--status-progress-bg);
+  color: var(--status-progress);
+}
+
+.statCard[data-stat='resolved'] .statCard__icon {
+  background: var(--status-resolved-bg);
+  color: var(--status-resolved);
+}
+
+.statCard__value {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink-900);
+}
+
+@media (max-width: 960px) {
+  .statCards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .statCard__value {
+    font-size: 24px;
+  }
+}
