@@ -211,7 +211,7 @@
 
 /* Pending tab alert indicator */
 .usersTab--alert { position: relative; }
-.usersTab--alert .usersTab__count { background: #e74c3c; color: white; }
+.usersTab--alert .usersTab__count { background: var(--status-urgent); color: var(--white); }
 
 /* Pending users table header */
 .usersTable__th {
@@ -231,10 +231,10 @@
 .usersRow__actions--pending { display: flex; gap: 6px; }
 
 .usersRow__approveBtn {
-  background: #1B7A50;
-  color: #fff;
+  background: var(--green-700);
+  color: var(--white);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 6px 12px;
   font-size: 12.5px;
   font-weight: 600;
@@ -242,14 +242,14 @@
   cursor: pointer;
   transition: background 0.15s;
 }
-.usersRow__approveBtn:hover { background: #166040; }
+.usersRow__approveBtn:hover { background: var(--green-800); }
 .usersRow__approveBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .usersRow__rejectBtn {
   background: none;
-  color: #c0392b;
-  border: 1.5px solid #e8b4b0;
-  border-radius: 6px;
+  color: var(--status-urgent);
+  border: 1.5px solid var(--status-urgent-bg);
+  border-radius: var(--radius-sm);
   padding: 6px 12px;
   font-size: 12.5px;
   font-weight: 600;
@@ -257,7 +257,7 @@
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
 }
-.usersRow__rejectBtn:hover { background: #fdf0ee; border-color: #c0392b; }
+.usersRow__rejectBtn:hover { background: var(--status-urgent-bg); border-color: var(--status-urgent); }
 .usersRow__rejectBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Approved by info */
