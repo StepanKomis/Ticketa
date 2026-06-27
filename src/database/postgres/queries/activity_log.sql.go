@@ -109,7 +109,8 @@ func (q *Queries) CreateActivityLog(ctx context.Context, arg CreateActivityLogPa
 }
 
 const listActivityLog = `-- name: ListActivityLog :many
-SELECT id, event_type, actor_id, target_type, target_id, payload, created_at FROM activity_log
+SELECT id, event_type, actor_id, target_type, target_id, payload, created_at
+FROM activity_log
 WHERE
     ($1::VARCHAR IS NULL  OR event_type  = $1)
     AND ($2::INTEGER IS NULL OR actor_id    = $2)
@@ -174,7 +175,8 @@ func (q *Queries) ListActivityLog(ctx context.Context, arg ListActivityLogParams
 }
 
 const listActivityLogForUser = `-- name: ListActivityLogForUser :many
-SELECT id, event_type, actor_id, target_type, target_id, payload, created_at FROM activity_log
+SELECT id, event_type, actor_id, target_type, target_id, payload, created_at
+FROM activity_log
 WHERE (
         actor_id = $1::INTEGER
         OR (target_type = 'ticket' AND target_id IN (

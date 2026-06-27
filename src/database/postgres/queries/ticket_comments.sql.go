@@ -68,10 +68,18 @@ const listCommentsByTicket = `-- name: ListCommentsByTicket :many
 SELECT id, ticket_id, author_id, parent_id, body, created_at, updated_at, deleted FROM ticket_comments
 WHERE ticket_id = $1 AND deleted = FALSE
 ORDER BY created_at ASC
+LIMIT  $3::INTEGER
+OFFSET $2::INTEGER
 `
 
-func (q *Queries) ListCommentsByTicket(ctx context.Context, ticketID int64) ([]TicketComment, error) {
-	rows, err := q.db.QueryContext(ctx, listCommentsByTicket, ticketID)
+type ListCommentsByTicketParams struct {
+	TicketID int64
+	Off      int32
+	Lim      int32
+}
+
+func (q *Queries) ListCommentsByTicket(ctx context.Context, arg ListCommentsByTicketParams) ([]TicketComment, error) {
+	rows, err := q.db.QueryContext(ctx, listCommentsByTicket, arg.TicketID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}

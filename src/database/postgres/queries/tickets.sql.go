@@ -269,10 +269,18 @@ SELECT id, ticket_id, actor_id, actor_name, event, old_val, new_val, created_at
 FROM ticket_history
 WHERE ticket_id = $1
 ORDER BY created_at ASC
+LIMIT  $3::INTEGER
+OFFSET $2::INTEGER
 `
 
-func (q *Queries) ListTicketHistory(ctx context.Context, ticketID int64) ([]TicketHistory, error) {
-	rows, err := q.db.QueryContext(ctx, listTicketHistory, ticketID)
+type ListTicketHistoryParams struct {
+	TicketID int64
+	Off      int32
+	Lim      int32
+}
+
+func (q *Queries) ListTicketHistory(ctx context.Context, arg ListTicketHistoryParams) ([]TicketHistory, error) {
+	rows, err := q.db.QueryContext(ctx, listTicketHistory, arg.TicketID, arg.Off, arg.Lim)
 	if err != nil {
 		return nil, err
 	}

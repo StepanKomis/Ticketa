@@ -3,7 +3,8 @@ INSERT INTO activity_log (event_type, actor_id, target_type, target_id, payload)
 VALUES ($1, $2, $3, $4, $5);
 
 -- name: ListActivityLog :many
-SELECT * FROM activity_log
+SELECT id, event_type, actor_id, target_type, target_id, payload, created_at
+FROM activity_log
 WHERE
     (sqlc.narg('event_type')::VARCHAR IS NULL  OR event_type  = sqlc.narg('event_type'))
     AND (sqlc.narg('actor_id')::INTEGER IS NULL OR actor_id    = sqlc.narg('actor_id'))
@@ -29,7 +30,8 @@ WHERE
 -- Zahrnuje vlastní akce uživatele a dále akce ostatních na tiketech, jejichž
 -- je uživatel autorem (např. když štáb změní stav mého tiketu). Stejné
 -- volitelné filtry jako ListActivityLog, navíc k povinnému actor_id.
-SELECT * FROM activity_log
+SELECT id, event_type, actor_id, target_type, target_id, payload, created_at
+FROM activity_log
 WHERE (
         actor_id = sqlc.arg('actor_id')::INTEGER
         OR (target_type = 'ticket' AND target_id IN (

@@ -9,7 +9,9 @@ SELECT * FROM ticket_comments WHERE id = $1;
 -- name: ListCommentsByTicket :many
 SELECT * FROM ticket_comments
 WHERE ticket_id = $1 AND deleted = FALSE
-ORDER BY created_at ASC;
+ORDER BY created_at ASC
+LIMIT  sqlc.arg('lim')::INTEGER
+OFFSET sqlc.arg('off')::INTEGER;
 
 -- name: UpdateComment :one
 UPDATE ticket_comments

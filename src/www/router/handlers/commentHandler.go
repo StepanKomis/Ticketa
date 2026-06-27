@@ -120,7 +120,11 @@ func (h *CommentHandler) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	comments, err := h.queries.ListCommentsByTicket(r.Context(), ticketID)
+	comments, err := h.queries.ListCommentsByTicket(r.Context(), db.ListCommentsByTicketParams{
+		TicketID: ticketID,
+		Lim:      500,
+		Off:      0,
+	})
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst komentáře")
 		return

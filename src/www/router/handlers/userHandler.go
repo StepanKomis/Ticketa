@@ -352,6 +352,8 @@ func (uh *UserHandler) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusBadRequest, "neplatné tělo požadavku")
 		return
 	}
+	body.FirstName = strings.TrimSpace(body.FirstName)
+	body.LastName = strings.TrimSpace(body.LastName)
 	if body.Token == "" || body.Password == "" {
 		WriteError(w, http.StatusBadRequest, "token a password jsou povinné")
 		return
