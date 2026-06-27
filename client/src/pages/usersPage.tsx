@@ -123,7 +123,7 @@ export default function UsersPage() {
     { value: 'all', label: 'Vše' },
     { value: 'student', label: 'Studenti' },
     { value: 'staff', label: 'Učitelé' },
-    { value: 'maintainer', label: 'Školníci' },
+    { value: 'maintainer', label: 'Údržbáři' },
     { value: 'pending', label: 'Čekající' },
   ]
 
