@@ -40,6 +40,12 @@
 }
 
 @media (max-width: 960px) {
-  .settingsNav { flex-direction: row; overflow-x: auto; }
+  .settingsNav {
+    flex-direction: row;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .settingsNav::-webkit-scrollbar { display: none; }
   .settingsNav__item { white-space: nowrap; }
 }

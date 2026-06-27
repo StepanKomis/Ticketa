@@ -9,7 +9,7 @@ import { ROLE_LABELS } from '../utils/labels'
 import type { ApiUser } from '../types/api'
 import './usersPage.css'
 
-type Filter = 'all' | 'student' | 'staff' | 'pending'
+type Filter = 'all' | 'student' | 'staff' | 'maintainer' | 'pending'
 
 const PAGE_SIZE = 50
 
@@ -45,7 +45,7 @@ export default function UsersPage() {
   const [inviteRole, setInviteRole] = useState('student')
 
   const typeParam = filter === 'pending' ? 'pending'
-    : filter === 'all' ? undefined
+    : filter === 'all' || filter === 'maintainer' ? undefined
     : filter
 
   const { data: paged, isLoading } = useUsers(role === 'admin', {
@@ -65,9 +65,11 @@ export default function UsersPage() {
   const rawItems: ApiUser[] = paged?.items ?? []
   // "Vše" tab — server vrátí všechny uživatele včetně pending; pending zobrazujeme
   // jen v dedicated záložce, proto je zde skryjeme.
-  const items = (filter === 'all')
+  const items = filter === 'all'
     ? rawItems.filter(u => u.UserType !== 'pending')
-    : rawItems
+    : filter === 'maintainer'
+      ? rawItems.filter(u => u.UserType === 'maintainer' || u.UserType === 'admin')
+      : rawItems
   const total = paged?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1
@@ -114,6 +116,7 @@ export default function UsersPage() {
     { value: 'all', label: 'Vše' },
     { value: 'student', label: 'Studenti' },
     { value: 'staff', label: 'Učitelé' },
+    { value: 'maintainer', label: 'Údržbáři' },
     { value: 'pending', label: 'Čekající' },
   ]
 
@@ -168,7 +171,7 @@ export default function UsersPage() {
                 {isPending ? 'Žádní uživatelé nečekají na schválení.' : 'Žádní uživatelé.'}
               </p>
             ) : isPending ? (
-              <table className="usersTable">
+              <table className="usersTable usersTable--pending">
                 <thead>
                   <tr>
                     <th className="usersTable__th">Uživatel</th>

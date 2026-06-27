@@ -11,8 +11,6 @@ import ActivityPage from './pages/activityPage';
 import TicketDetailPage from './pages/ticketDetailPage';
 import SettingsPage from './pages/settingsPage';
 import UsersPage from './pages/usersPage';
-import ChangePasswordPage from './pages/changePasswordPage';
-import ChangeEmailPage from './pages/changeEmailPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
 
 function App() {
@@ -25,10 +23,11 @@ function App() {
             <Route path="/tickets"  element={<ProtectedRoute><TicketsPage /></ProtectedRoute>} />
             <Route path="/tickets/:id" element={<ProtectedRoute><TicketDetailPage /></ProtectedRoute>} />
             <Route path="/activity" element={<ProtectedRoute><ActivityPage /></ProtectedRoute>} />
-            <Route path="/settings"       element={<ProtectedRoute roles={['admin']}><SettingsPage /></ProtectedRoute>} />
+            <Route path="/profile"        element={<Navigate to="/settings" replace />} />
+            <Route path="/settings"       element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/settings/users" element={<ProtectedRoute roles={['admin']}><UsersPage /></ProtectedRoute>} />
-            <Route path="/settings/password" element={<ProtectedRoute><ChangePasswordPage /></ProtectedRoute>} />
-            <Route path="/settings/email" element={<ProtectedRoute><ChangeEmailPage /></ProtectedRoute>} />
+            <Route path="/settings/password" element={<Navigate to="/settings" replace />} />
+            <Route path="/settings/email" element={<Navigate to="/settings" replace />} />
             <Route path="/login"    element={<AuthPage form="login" />} />
             <Route path="/register" element={<AuthPage form="register" />} />
             <Route path="/invite/accept" element={<AcceptInvitePage />} />

@@ -27,11 +27,12 @@
   }
 
   .consolePage__grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .consolePage__side {
     position: static;
+    min-width: 0;
     /* On mobile the report CTA / activity read better below the list. */
     order: 2;
   }

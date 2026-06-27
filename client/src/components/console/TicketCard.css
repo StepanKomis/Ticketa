@@ -185,9 +185,11 @@
 
   .ticketCard__aside {
     width: 100%;
+    max-width: 100%;
     padding-left: calc(8px + var(--sp-3));
     flex-wrap: wrap;
     gap: var(--sp-2) var(--sp-3);
+    overflow: hidden;
   }
 
   .ticketCard__prioDot {
@@ -207,4 +209,6 @@
   .ticketCard__body {
     flex: 1;
   }
+
+  .ticketCard__vote { padding: var(--sp-1) var(--sp-2); }
 }
