@@ -8,7 +8,7 @@ import { initials, avatarColor } from '../utils/avatar'
 import type { ApiUser } from '../types/api'
 import './usersPage.css'
 
-type Filter = 'all' | 'student' | 'staff' | 'pending'
+type Filter = 'all' | 'student' | 'staff' | 'maintainer' | 'admin' | 'pending'
 
 const ROLE_LABELS: Record<ApiUser['UserType'], string> = {
   student: 'Student',
@@ -121,6 +121,8 @@ export default function UsersPage() {
     { value: 'all', label: 'Vše' },
     { value: 'student', label: 'Studenti' },
     { value: 'staff', label: 'Učitelé' },
+    { value: 'maintainer', label: 'Školníci' },
+    { value: 'admin', label: 'Správci' },
     { value: 'pending', label: 'Čekající' },
   ]
 
