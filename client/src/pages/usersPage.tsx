@@ -5,18 +5,11 @@ import { useAuth } from '../hooks/useAuth'
 import { useUsers, useUpdateUser, useApproveUser, useRejectUser } from '../hooks/useUsers'
 import { useCreateInvitation } from '../hooks/useProfile'
 import { initials, avatarColor } from '../utils/avatar'
+import { ROLE_LABELS } from '../utils/labels'
 import type { ApiUser } from '../types/api'
 import './usersPage.css'
 
 type Filter = 'all' | 'student' | 'staff' | 'maintainer' | 'pending'
-
-const ROLE_LABELS: Record<ApiUser['UserType'], string> = {
-  student: 'Student',
-  staff: 'Učitel',
-  maintainer: 'Údržbář',
-  admin: 'Admin',
-  pending: 'Čekající',
-}
 
 const PAGE_SIZE = 50
 

@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useUsers } from '../hooks/useUsers'
 import { usePatchMe, useChangePassword, useChangeEmail } from '../hooks/useProfile'
 import { initials, avatarColor } from '../utils/avatar'
+import { ROLE_LABELS } from '../utils/labels'
 import { ApiRequestError } from '../api/client'
 import type { ApiUser } from '../types/api'
 import './settingsPage.css'
@@ -154,20 +155,18 @@ export default function SettingsPage() {
         <div className="settingsPage__grid">
           <SettingsNav />
 
-          <div className="settingsPage__cards">
-            <section className="settingsCard">
-              <div className="settingsCard__head">
-                <span
-                  className="settingsCard__avatar"
-                  style={{ background: avatarColor(displayName) }}
-                  aria-hidden="true"
-                >
-                  {initials(firstName, lastName, email)}
-                </span>
-                <div className="settingsCard__identity">
-                  <span className="settingsCard__name">{displayName}</span>
-                  <span className="settingsCard__role">{ROLE_LABELS[role] ?? role}</span>
-                </div>
+          <section className="settingsCard">
+            <div className="settingsCard__head">
+              <span
+                className="settingsCard__avatar"
+                style={{ background: avatarColor(displayName) }}
+                aria-hidden="true"
+              >
+                {initials(firstName, lastName, email)}
+              </span>
+              <div className="settingsCard__identity">
+                <span className="settingsCard__name">{displayName}</span>
+                <span className="settingsCard__role">{ROLE_LABELS[role as keyof typeof ROLE_LABELS] ?? role}</span>
               </div>
 
               <form className="settingsForm" onSubmit={handleProfileSubmit}>

@@ -1,13 +1,6 @@
 import { TicketStatus } from '../../types/ticket'
+import { STATUS_LABELS as LABELS } from '../../utils/labels'
 import './StatusBadge.css'
-
-const LABELS: Record<TicketStatus, string> = {
-  new:         'Nový',
-  open:        'Otevřený',
-  in_progress: 'Řeší se',
-  resolved:    'Vyřešený',
-  closed:      'Uzavřený',
-}
 
 // Small leading glyphs matching the design-system status swatches.
 function StatusIcon({ status }: { status: TicketStatus }) {
