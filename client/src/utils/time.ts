@@ -1,4 +1,5 @@
 export function relativeTime(date: Date): string {
+  // Math.max guards against future-dated timestamps (clock skew, optimistic updates).
   const diffMs = Math.max(0, Date.now() - date.getTime())
   const mins  = Math.floor(diffMs / 60_000)
   const hours = Math.floor(diffMs / 3_600_000)
