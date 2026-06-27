@@ -251,14 +251,16 @@ func (h *AdminHandler) createStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Synchronizace konfigurace
-	_ = h.cfgStore.Update(func(c *config.Config) error {
+	if err := h.cfgStore.Update(func(c *config.Config) error {
 		c.TicketStatuses = append(c.TicketStatuses, config.StatusConfig{
 			Title:    row.Title,
 			Color:    row.Color,
 			IsClosed: row.IsClosed,
 		})
 		return nil
-	})
+	}); err != nil {
+		h.httpLogger.Debugf("createStatus: cfgStore.Update selhalo: %s", err)
+	}
 
 	writeJSON(w, http.StatusCreated, row)
 }
@@ -355,15 +357,18 @@ func (h *AdminHandler) deleteStatus(w http.ResponseWriter, r *http.Request) {
 func (h *AdminHandler) syncStatusesToConfig(ctx context.Context) {
 	rows, err := h.queries.ListTicketStatuses(ctx)
 	if err != nil {
+		h.httpLogger.Debugf("syncStatusesToConfig: ListTicketStatuses selhalo: %s", err)
 		return
 	}
-	_ = h.cfgStore.Update(func(c *config.Config) error {
+	if err := h.cfgStore.Update(func(c *config.Config) error {
 		c.TicketStatuses = make([]config.StatusConfig, len(rows))
 		for i, r := range rows {
 			c.TicketStatuses[i] = config.StatusConfig{Title: r.Title, Color: r.Color, IsClosed: r.IsClosed}
 		}
 		return nil
-	})
+	}); err != nil {
+		h.httpLogger.Debugf("syncStatusesToConfig: cfgStore.Update selhalo: %s", err)
+	}
 }
 
 // ---- Users -----------------------------------------------------------------
@@ -404,6 +409,9 @@ func (h *AdminHandler) listUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	search := strings.TrimSpace(q.Get("q"))
+	if len(search) > 256 {
+		search = search[:256]
+	}
 
 	limit := defaultUsersLimit
 	if l, err := strconv.Atoi(q.Get("limit")); err == nil && l > 0 {

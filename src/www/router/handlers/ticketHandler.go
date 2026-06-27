@@ -1026,16 +1026,18 @@ func voteTicketIDFromPath(w http.ResponseWriter, path string) (int64, bool) {
 	return id, ok
 }
 
-// logHistory zapíše záznam do ticket_history. Chyby jsou ignorovány — audit log nesmí blokovat hlavní operaci.
+// logHistory zapíše záznam do ticket_history. Chyby neblokují hlavní operaci, ale jsou viditelné v debug výstupu.
 func (h *TicketHandler) logHistory(ctx context.Context, ticketID int64, actorID int32, actorName, event, oldVal, newVal string) {
-	_ = h.queries.InsertTicketHistory(ctx, db.InsertTicketHistoryParams{
+	if err := h.queries.InsertTicketHistory(ctx, db.InsertTicketHistoryParams{
 		TicketID:  ticketID,
 		ActorID:   actorID,
 		ActorName: actorName,
 		Event:     event,
 		OldVal:    sql.NullString{String: oldVal, Valid: oldVal != ""},
 		NewVal:    sql.NullString{String: newVal, Valid: newVal != ""},
-	})
+	}); err != nil {
+		h.httpLogger.Debugf("logHistory: InsertTicketHistory selhalo (ticket=%d event=%s): %s", ticketID, event, err)
+	}
 }
 
 // resolveStatusTitle vrátí název stavu tiketu dle ID, nebo prázdný řetězec při chybě.
@@ -1059,7 +1061,11 @@ func (h *TicketHandler) listHistory(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	rows, err := h.queries.ListTicketHistory(r.Context(), id)
+	rows, err := h.queries.ListTicketHistory(r.Context(), db.ListTicketHistoryParams{
+		TicketID: id,
+		Lim:      200,
+		Off:      0,
+	})
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst historii tiketu")
 		return

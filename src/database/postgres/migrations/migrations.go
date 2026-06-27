@@ -46,6 +46,9 @@ var up00012 string
 //go:embed up/UP_00013.sql
 var up00013 string
 
+//go:embed up/UP_00014.sql
+var up00014 string
+
 var All = func() []migrate.Migration {
 	ms := []migrate.Migration{
 		{
@@ -216,6 +219,17 @@ var All = func() []migrate.Migration {
 					ALTER TABLE ticket_statuses
 						DROP COLUMN IF EXISTS is_closed;
 				`)
+				return err
+			},
+		},
+		{
+			Name: "add_idx_users_is_active",
+			Up: func(db any) error {
+				_, err := db.(*sql.DB).Exec(up00014)
+				return err
+			},
+			Down: func(db any) error {
+				_, err := db.(*sql.DB).Exec(`DROP INDEX IF EXISTS idx_users_is_active;`)
 				return err
 			},
 		},
