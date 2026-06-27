@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useUsers } from '../hooks/useUsers'
 import { usePatchMe } from '../hooks/useProfile'
 import { initials, avatarColor } from '../utils/avatar'
+import { ROLE_LABELS } from '../utils/labels'
 import { ApiRequestError } from '../api/client'
 import type { ApiUser } from '../types/api'
 import './settingsPage.css'
@@ -72,7 +73,7 @@ export default function SettingsPage() {
               </span>
               <div className="settingsCard__identity">
                 <span className="settingsCard__name">{displayName}</span>
-                <span className="settingsCard__role">Administrátor</span>
+                <span className="settingsCard__role">{ROLE_LABELS[role as keyof typeof ROLE_LABELS] ?? role}</span>
               </div>
             </div>
 

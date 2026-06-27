@@ -1,6 +1,7 @@
 import { Link, NavLink } from 'react-router-dom'
 import type { UserRole } from '../../types/ticket'
 import { initials } from '../../utils/avatar'
+import { ROLE_LABELS } from '../../utils/labels'
 import './Sidebar.css'
 
 const BrandGlyph = () => (
@@ -51,14 +52,6 @@ const SettingsIcon = () => (
     <path d="M9 1.8v1.6M9 12.6v1.6M3.4 4.6l1.1 1.1M13.5 10.3l1.1 1.1M1.8 8h1.6M14.6 8h1.6M3.4 11.4l1.1-1.1M13.5 5.7l1.1-1.1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
   </svg>
 )
-
-const ROLE_LABELS: Record<UserRole, string> = {
-  student: 'Student',
-  staff: 'Učitel',
-  maintainer: 'Údržbář',
-  admin: 'Správce systému',
-  pending: 'Čekající na schválení',
-}
 
 const LogoutIcon = () => (
   <svg width="18" height="15" viewBox="0 0 18 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
