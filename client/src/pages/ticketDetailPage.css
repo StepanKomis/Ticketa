@@ -290,6 +290,9 @@
   .ticketDetail__kv dt { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-400); margin: 0; }
   .ticketDetail__kv dd { margin: 0; font-size: 13.5px; color: var(--ink-700); }
 
+  .ticketDetail__title { font-size: 19px; letter-spacing: -0.4px; }
+  .td-comment__delete { padding: var(--sp-1) var(--sp-2); min-width: 32px; min-height: 32px; }
+
   /* On mobile the button is always near the bottom nav — always open above */
   .td-statusMenu__list { top: auto; bottom: calc(100% + 4px); }
 }

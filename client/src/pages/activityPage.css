@@ -155,10 +155,20 @@
 
 @media (max-width: 640px) {
   .activityPage__content {
-    padding: var(--sp-4) var(--sp-4) 80px;
+    padding: var(--sp-4) 0 80px;
   }
 
   .activityPage__title {
     font-size: 20px;
   }
+
+  .activityPage__toolbar {
+    flex-wrap: nowrap;
+    gap: 0;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 480px) {
+  .activityPage__item { padding: var(--sp-3) var(--sp-4); }
 }

@@ -25,27 +25,13 @@ const BellIcon = () => (
   </svg>
 )
 
-const LockIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-    <rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
-    <path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-    <circle cx="8" cy="10.5" r="1" fill="currentColor" />
-  </svg>
-)
-
-const MailIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-    <rect x="2" y="4" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
-    <path d="M2.5 4.8 8 9l5.5-4.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-)
-
 const navClass = ({ isActive }: { isActive: boolean }) =>
   `settingsNav__item${isActive ? ' settingsNav__item--active' : ''}`
 
 export default function SettingsNav() {
   const { user } = useAuth()
-  const pendingCount = usePendingCount(user?.role === 'admin')
+  const isAdmin = user?.role === 'admin'
+  const pendingCount = usePendingCount(isAdmin)
 
   return (
     <nav className="settingsNav" aria-label="Nastavení">
@@ -53,21 +39,15 @@ export default function SettingsNav() {
         <ProfileIcon />
         <span>Profil</span>
       </NavLink>
-      <NavLink to="/settings/users" className={navClass}>
-        <UsersIcon />
-        <span>Uživatelé</span>
-        {pendingCount > 0 && (
-          <span className="settingsNav__badge" aria-label={`${pendingCount} čekají na schválení`} />
-        )}
-      </NavLink>
-      <NavLink to="/settings/password" className={navClass}>
-        <LockIcon />
-        <span>Heslo</span>
-      </NavLink>
-      <NavLink to="/settings/email" className={navClass}>
-        <MailIcon />
-        <span>E-mail</span>
-      </NavLink>
+      {isAdmin && (
+        <NavLink to="/settings/users" className={navClass}>
+          <UsersIcon />
+          <span>Uživatelé</span>
+          {pendingCount > 0 && (
+            <span className="settingsNav__badge" aria-label={`${pendingCount} čekají na schválení`} />
+          )}
+        </NavLink>
+      )}
       <span className="settingsNav__item settingsNav__item--inert" aria-disabled="true">
         <BellIcon />
         <span>Oznámení</span>

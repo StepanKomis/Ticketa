@@ -56,7 +56,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   student: 'Student',
   staff: 'Učitel',
   maintainer: 'Údržbář',
-  admin: 'Správce systému',
+  admin: 'Admin',
   pending: 'Čekající na schválení',
 }
 

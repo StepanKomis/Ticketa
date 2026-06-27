@@ -95,6 +95,10 @@
   margin: 0;
 }
 
+@media (max-width: 640px) {
+  .loginPanel { padding: var(--sp-6) var(--sp-5); }
+}
+
 .loginSubmit:disabled {
   opacity: 0.6;
   cursor: not-allowed;
