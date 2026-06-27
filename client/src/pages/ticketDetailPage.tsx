@@ -21,28 +21,11 @@ import { useComments, useAddComment, useDeleteComment } from '../hooks/useCommen
 import { useUsers } from '../hooks/useUsers'
 import { mapApiTicket, formatTicketId, statusIdForUiStatus } from '../utils/mappers'
 import { initials, avatarColor } from '../utils/avatar'
+import { relativeTime } from '../utils/time'
+import { STATUS_LABELS } from '../utils/labels'
 import type { ApiComment, ApiTicketHistoryEntry, ApiUser } from '../types/api'
 import type { TicketStatus, UserRole } from '../types/ticket'
 import './ticketDetailPage.css'
-
-function relativeTime(date: Date): string {
-  const diffMs = Math.max(0, Date.now() - date.getTime())
-  const mins  = Math.floor(diffMs / 60_000)
-  const hours = Math.floor(diffMs / 3_600_000)
-  const days  = Math.floor(diffMs / 86_400_000)
-  if (mins < 1)   return 'právě teď'
-  if (mins < 60)  return `${mins} min`
-  if (hours < 24) return `${hours} h`
-  return `${days} d`
-}
-
-const STATUS_LABELS: Record<TicketStatus, string> = {
-  new: 'Nový',
-  open: 'Otevřený',
-  in_progress: 'Řeší se',
-  resolved: 'Vyřešený',
-  closed: 'Uzavřený',
-}
 
 function historyLabel(event: string, oldVal: string, newVal: string): string {
   switch (event) {

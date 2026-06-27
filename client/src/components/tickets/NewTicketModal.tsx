@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useCreateTicket, useUpdateTicket } from '../../hooks/useTickets'
 import { ApiRequestError } from '../../api/client'
 import type { UserRole, TicketCategory, TicketPriority } from '../../types/ticket'
+import { PRIORITY_OPTIONS as PRIORITIES } from '../../utils/labels'
 import './NewTicketModal.css'
 
 interface EditValues {
@@ -21,12 +22,6 @@ interface Props {
 }
 
 const CATEGORIES: TicketCategory[] = ['AV / Hardware', 'Síť / Internet', 'Nábytek', 'Budova / Prostory', 'Účty / Přístupy']
-const PRIORITIES: { value: TicketPriority; label: string }[] = [
-  { value: 'low',    label: 'Nízká' },
-  { value: 'medium', label: 'Střední' },
-  { value: 'high',   label: 'Vysoká' },
-  { value: 'urgent', label: 'Urgentní' },
-]
 
 const CloseIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">

@@ -1,14 +1,9 @@
 import { useRef } from 'react'
-import type { TicketCategory, TicketPriority } from '../../types/ticket'
+import type { TicketCategory } from '../../types/ticket'
+import { PRIORITY_OPTIONS as PRIORITIES } from '../../utils/labels'
 import './FilterBar.css'
 
 const CATEGORIES: TicketCategory[] = ['AV / Hardware', 'Síť / Internet', 'Nábytek', 'Budova / Prostory', 'Účty / Přístupy']
-const PRIORITIES: { value: TicketPriority; label: string }[] = [
-  { value: 'low',    label: 'Nízká' },
-  { value: 'medium', label: 'Střední' },
-  { value: 'high',   label: 'Vysoká' },
-  { value: 'urgent', label: 'Urgentní' },
-]
 
 const SearchIcon = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">

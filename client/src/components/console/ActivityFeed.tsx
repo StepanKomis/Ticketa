@@ -1,20 +1,11 @@
 import { ActivityEvent } from '../../types/ticket'
+import { relativeTime } from '../../utils/time'
 import './ActivityFeed.css'
 
 const ACTION_LABELS: Record<ActivityEvent['action'], string> = {
   created:     'nový požadavek',
   in_progress: 'přesunuto na Řeší se',
   resolved:    'vyřešeno',
-}
-
-function relativeTime(date: Date): string {
-  const diffMs = Date.now() - date.getTime()
-  const mins  = Math.floor(diffMs / 60_000)
-  const hours = Math.floor(diffMs / 3_600_000)
-  const days  = Math.floor(diffMs / 86_400_000)
-  if (mins < 60)  return `${mins} min`
-  if (hours < 24) return `${hours} h`
-  return `${days} d`
 }
 
 interface Props {

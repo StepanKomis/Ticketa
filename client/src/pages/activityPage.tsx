@@ -3,6 +3,7 @@ import ConsoleLayout from '../components/layout/ConsoleLayout'
 import { useAuth } from '../hooks/useAuth'
 import { useUserActivity, useGlobalActivity } from '../hooks/useActivity'
 import { activityEventLabel, activityTargetLabel } from '../utils/activity'
+import { relativeTime } from '../utils/time'
 import type { ApiActivityLogEntry } from '../types/api'
 import './activityPage.css'
 
@@ -23,17 +24,6 @@ const EVENT_TYPE_OPTIONS = [
   { value: 'uzivatel_zamitnuv', label: 'Zamítnutí uživatele' },
   { value: 'uzivatel_deaktivovan', label: 'Deaktivace uživatele' },
 ]
-
-function relativeTime(date: Date): string {
-  const diffMs = Math.max(0, Date.now() - date.getTime())
-  const mins  = Math.floor(diffMs / 60_000)
-  const hours = Math.floor(diffMs / 3_600_000)
-  const days  = Math.floor(diffMs / 86_400_000)
-  if (mins < 1)   return 'právě teď'
-  if (mins < 60)  return `${mins} min`
-  if (hours < 24) return `${hours} h`
-  return `${days} d`
-}
 
 export default function ActivityPage() {
   const { user } = useAuth()
