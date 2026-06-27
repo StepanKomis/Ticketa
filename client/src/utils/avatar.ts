@@ -19,6 +19,15 @@ export function initials(firstName?: string, lastName?: string, email?: string):
   return (local.slice(0, 2) || '?').toUpperCase()
 }
 
+// Two-letter initials from a pre-joined full name string (e.g. "Jan Novák").
+export function initialsFromName(name?: string): string {
+  if (!name) return ''
+  const parts = name.trim().split(/\s+/)
+  return parts.length >= 2
+    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    : (parts[0][0] ?? '').toUpperCase()
+}
+
 // Deterministic background colour for an avatar, derived from a stable key.
 export function avatarColor(key: string): string {
   let hash = 0

@@ -1,20 +1,12 @@
 import { Link } from 'react-router-dom'
 import { Ticket } from '../../types/ticket'
 import { formatTicketId } from '../../utils/mappers'
+import { relativeTime } from '../../utils/time'
+import { initialsFromName } from '../../utils/avatar'
 import { useVoteTicket, useUnvoteTicket } from '../../hooks/useTickets'
 import StatusBadge from './StatusBadge'
 import PriorityBadge from './PriorityBadge'
 import './TicketCard.css'
-
-function relativeTime(date: Date): string {
-  const diffMs = Date.now() - date.getTime()
-  const mins  = Math.floor(diffMs / 60_000)
-  const hours = Math.floor(diffMs / 3_600_000)
-  const days  = Math.floor(diffMs / 86_400_000)
-  if (mins < 60)  return `${mins} min`
-  if (hours < 24) return `${hours} h`
-  return `${days} d`
-}
 
 const PinIcon = () => (
   <svg width="10" height="10" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -28,14 +20,6 @@ const UpvoteIcon = () => (
     <path d="M6 2 L10.5 9 L1.5 9 Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" fill="currentColor" fillOpacity="0" />
   </svg>
 )
-
-function getAssigneeInitials(name?: string): string {
-  if (!name) return ''
-  const parts = name.trim().split(/\s+/)
-  return parts.length >= 2
-    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-    : (parts[0][0] ?? '').toUpperCase()
-}
 
 interface Props {
   ticket: Ticket
@@ -62,7 +46,7 @@ export default function TicketCard({ ticket, onAction, canAct }: Props) {
     }
   }
 
-  const assigneeInitials = getAssigneeInitials(ticket.assigneeName)
+  const assigneeInitials = initialsFromName(ticket.assigneeName)
 
   return (
     <article className="ticketCard" data-testid="ticket-card">
