@@ -1,16 +1,23 @@
 # Ticketa
 
-Helpdesk pro školy. Studenti a zaměstnanci zakládají tikety, udržovatelé je řeší a celý systém spravují za běhu bez restartu.
+Helpdesk pro školy. Studenti a zaměstnanci zakládají tikety, údržbáři je řeší a správci spravují celý systém za běhu bez restartu serveru.
 
 ## Architektura
 
-Jedna Go binárka — obsluhuje REST API i zkompilovaný React frontend. Frontend ([Ticketa-client](https://github.com/StepanKomis/Ticketa-client)) se klonuje a builduje přímo v Docker image, žádné předbuilděné assety se do tohoto repozitáře necommitují. Výsledná image je postavená na `scratch` a obsahuje jen samotnou binárku.
+Monorepo se dvěma hlavními částmi:
+
+| Adresář | Technologie | Popis |
+|---|---|---|
+| `src/` | Go 1.25 | REST API server, databáze, konfigurace |
+| `client/` | React (CRA), TypeScript | SPA frontend |
+
+Go binárka obsluhuje API i zkompilovaný React frontend — frontend je vložen přes `//go:embed` přímo do binárky. Výsledná Docker image je postavená na `scratch`.
 
 ```
 Fáze Docker buildu
-  1. frontend-builder  — node:22-alpine  — klonuje Ticketa-client, spustí npm build
-  2. builder           — golang:1.24-alpine — vloží frontend přes //go:embed, sestaví binárku
-  3. runtime           — scratch — obsahuje pouze staticky linkovanou binárku
+  1. frontend-builder  — node:22-alpine   — npm install + npm run build
+  2. builder           — golang:1.25-alpine — go:embed frontendu, go build
+  3. runtime           — scratch           — pouze staticky linkovaná binárka
 ```
 
 Databáze je PostgreSQL. Migrace se spustí automaticky při startu — žádný externí nástroj není potřeba.
@@ -19,266 +26,40 @@ Databáze je PostgreSQL. Migrace se spustí automaticky při startu — žádný
 
 | Role | Popis |
 |---|---|
-| `student` | Vytváří a spravuje vlastní tikety |
-| `staff` | Vytváří a spravuje vlastní tikety |
-| `maintainer` | Plný přístup — tikety, uživatelé, stavy, runtime konfigurace |
+| `student` | Vytváří a spravuje vlastní tikety, hlasuje |
+| `staff` | Totéž co student + schvaluje/zamítá žádosti o vysokou prioritu a nové uživatele |
+| `maintainer` | Řeší tikety, přijímá přiřazení, přistupuje ke všem tiketům |
+| `admin` | Plný přístup — správa uživatelů, stavů tiketů, pozvánky, runtime konfigurace |
+| `pending` | Čeká na schválení (přechodný stav po registraci pro staff/maintainer) |
 
 ## API
 
-Živá dokumentace běží na `/docs` hned po spuštění serveru.
+Živá dokumentace (Swagger UI) běží na `/docs` hned po spuštění serveru. Níže je přehled skupin endpointů.
 
-Přihlašování funguje přes cookie (`session_token`, HTTP-only). Chráněné endpointy vrátí `401` bez platného cookie, `403` při nedostatečné roli. Všechny chyby mají stejný tvar:
+Autentizace funguje přes HTTP-only cookie `session_token` (TTL 7 dní). Všechny chyby mají jednotný tvar:
 
 ```json
 { "code": 404, "status": "Not Found", "msg": "tiket nenalezen" }
 ```
 
-### Veřejné
+### Skupiny endpointů
 
-#### `POST /api/register`
-
-Vytvoří lokální účet.
-
-**Tělo požadavku**
-
-| Pole | Typ | Povinné | Poznámky |
-|---|---|---|---|
-| `email` | string | ano | Platná e-mailová adresa |
-| `password` | string | ano | Min. 8 znaků, musí obsahovat velké písmeno, číslici a speciální znak |
-| `user_type` | string | ano | `student`, `staff` nebo `maintainer` |
-| `first_name` | string | ne | |
-| `last_name` | string | ne | |
-
-**Odpovědi**
-
-| Status | Popis |
-|---|---|
-| `201` | `{ "id": 42 }` |
-| `400` | Chybí pole, slabé heslo nebo neznámý typ uživatele |
-| `500` | Interní chyba (např. duplicitní e-mail) |
-
----
-
-#### `POST /api/login`
-
-Přihlásí uživatele a nastaví session cookie.
-
-**Tělo požadavku**
-
-| Pole | Typ | Povinné |
+| Skupina | Middleware | Endpointy |
 |---|---|---|
-| `email` | string | ano |
-| `password` | string | ano |
-
-**Odpovědi**
-
-| Status | Popis |
-|---|---|
-| `200` | Nastaví HTTP-only cookie `session_token` platný 7 dní |
-| `400` | Neplatné tělo požadavku |
-| `401` | Špatné přihlašovací údaje nebo neaktivní účet |
-
----
-
-### Přihlášení (libovolný aktivní uživatel)
-
-Vyžaduje platný cookie `session_token`.
-
-#### `POST /api/tickets` — Vytvoření tiketu
-
-**Tělo požadavku**
-
-| Pole | Typ | Povinné | Poznámky |
-|---|---|---|---|
-| `title` | string | ano | Krátký souhrn |
-| `body` | string | ano | Úplný popis |
-| `status_id` | integer | ne | ID počátečního stavu |
-
-**Odpovědi:** `201` tiket · `400` chybné tělo · `401` chybí session · `422` chybí title nebo body · `500`
-
----
-
-#### `GET /api/tickets` — Seznam tiketů
-
-Vrátí všechny tikety od nejnovějšího. Prázdný seznam vrátí `[]`.
-
-**Odpovědi:** `200` pole tiketů · `401` · `500`
-
----
-
-#### `GET /api/tickets/{id}` — Detail tiketu
-
-**Odpovědi:** `200` tiket · `400` chybné ID · `401` · `404` · `500`
-
----
-
-#### `PUT /api/tickets/{id}` — Úprava tiketu
-
-Upravovat může jen autor. Všechna pole jsou volitelná.
-
-**Tělo požadavku:** `title`, `body`, `status_id` (vše volitelné)
-
-**Odpovědi:** `200` tiket · `400` · `401` · `403` nejste autor · `404` · `500`
-
----
-
-#### `DELETE /api/tickets/{id}` — Smazání tiketu
-
-Smazat může jen autor.
-
-**Odpovědi:** `204` · `400` · `401` · `403` nejste autor · `404` · `500`
-
----
-
-### Admin (jen maintainer)
-
-Vyžaduje platný cookie `session_token` **a** `user_type = maintainer`.
-
-#### `GET /api/admin/config` — Aktuální konfigurace
-
-**Odpovědi:** `200` konfigurace · `401` · `403`
-
----
-
-#### `PATCH /api/admin/config` — Změna konfigurace
-
-Změny se zapíší atomicky do `/config/ticketa.yaml` a projeví se okamžitě. Pokud posíláte `ticket_statuses`, musí mít aspoň 3 položky.
-
-**Tělo požadavku (vše volitelné)**
-
-```json
-{
-  "logging": { "level": "debug", "dir": "/var/log/ticketa" },
-  "ticket_statuses": [
-    { "title": "Otevřeno", "color": "#3498db" },
-    { "title": "Probíhá",  "color": "#f39c12" },
-    { "title": "Vyřešeno", "color": "#2ecc71" }
-  ]
-}
-```
-
-**Odpovědi:** `200` konfigurace · `400` chybné tělo nebo chyba zápisu · `401` · `403`
-
----
-
-#### `GET /api/admin/ticket-statuses` — Seznam stavů
-
-Seřazeno podle pozice. Prázdný seznam vrátí `[]`.
-
-**Odpovědi:** `200` pole · `401` · `403` · `500`
-
----
-
-#### `POST /api/admin/ticket-statuses` — Nový stav
-
-Nový stav se automaticky přidá i do YAML konfigurace.
-
-**Tělo požadavku**
-
-| Pole | Typ | Povinné | Poznámky |
-|---|---|---|---|
-| `title` | string | ano | |
-| `color` | string | ne | HEX formát, např. `#9b59b6`. Výchozí `#808080` |
-| `position` | integer | ne | Musí být unikátní |
-
-**Odpovědi:** `201` stav · `400` · `401` · `403` · `422` chybí title · `500`
-
----
-
-#### `PUT /api/admin/ticket-statuses/{id}` — Úprava stavu
-
-Změna se synchronizuje do YAML konfigurace.
-
-**Tělo požadavku:** `title`, `color` (obojí volitelné)
-
-**Odpovědi:** `200` stav · `400` · `401` · `403` · `404` · `500`
-
----
-
-#### `DELETE /api/admin/ticket-statuses/{id}` — Smazání stavu
-
-Tikety s tímto stavem budou mít `status_id` nastaveno na `null`. YAML se synchronizuje automaticky.
-
-**Odpovědi:** `204` · `400` · `401` · `403` · `500`
-
----
-
-#### `GET /api/admin/users` — Seznam uživatelů
-
-**Odpovědi:** `200` pole uživatelů · `401` · `403` · `500`
-
----
-
-#### `GET /api/admin/users/{id}` — Detail uživatele
-
-**Odpovědi:** `200` uživatel · `400` · `401` · `403` · `404` · `500`
-
----
-
-#### `PATCH /api/admin/users/{id}` — Úprava uživatele
-
-**Tělo požadavku (vše volitelné)**
-
-| Pole | Typ | Poznámky |
-|---|---|---|
-| `is_active` | boolean | Neaktivní uživatelé se nepřihlásí |
-| `user_type` | string | `student`, `staff` nebo `maintainer` |
-
-**Odpovědi:** `200` uživatel · `400` · `401` · `403` · `404` · `500`
-
----
-
-### Datové struktury
-
-**Tiket**
-```json
-{
-  "ID": 1,
-  "Title": "Nemohu se přihlásit",
-  "Body": "Po zadání hesla se nic nestane.",
-  "CreatedAt": "2026-06-07T14:22:55Z",
-  "AuthorID": 3,
-  "StatusID": { "Int32": 0, "Valid": false }
-}
-```
-
-**Stav tiketu**
-```json
-{ "ID": 1, "Title": "Probíhá", "Color": "#f39c12", "Position": 1 }
-```
-
-**Uživatel**
-```json
-{
-  "ID": 3,
-  "Email": "jan.novak@skola.cz",
-  "FirstName": { "String": "Jan", "Valid": true },
-  "LastName":  { "String": "Novák", "Valid": true },
-  "UserType": "student",
-  "Provider": "local",
-  "IsActive": true,
-  "CreatedAt": "2026-06-07T12:00:00Z",
-  "LastLoginAt": { "Time": "0001-01-01T00:00:00Z", "Valid": false }
-}
-```
-
-**Konfigurace**
-```json
-{
-  "Logging": { "Level": "info", "Dir": "/var/log/ticketa" },
-  "TicketStatuses": [
-    { "Title": "Otevřeno", "Color": "#3498db" },
-    { "Title": "Probíhá",  "Color": "#f39c12" },
-    { "Title": "Vyřešeno", "Color": "#2ecc71" }
-  ]
-}
-```
+| **Veřejné** | — | `POST /api/register`, `POST /api/login`, `POST /api/auth/invite/accept`, `GET /api/setup-status` |
+| **Přihlášený uživatel** | `auth` | `/api/me`, `PATCH /api/me/password`, `PATCH /api/me/email`, `POST /api/logout` |
+| **Tikety** | `auth + mustChangePw` | CRUD na `/api/tickets/{id}`, hlasování, history, claim |
+| **Komentáře** | `auth + mustChangePw` | CRUD na `/api/tickets/{id}/comments`, `/api/comments/{id}` |
+| **Priorita** | `staff nebo admin` | `POST /api/tickets/{id}/approve-priority`, `reject-priority` |
+| **Stavy** | `auth + mustChangePw` | `GET /api/ticket-statuses` |
+| **Activity log** | `admin` / `auth` | `GET /api/activity`, `GET /api/users/{id}/activity` |
+| **Admin** | `admin` | Konfigurace, stavy tiketů, správa uživatelů, pozvánky |
+
+Middleware `mustChangePw` blokuje uživatele s příznakem `must_change_pw = true` — takový uživatel musí nejprve změnit heslo přes `/api/me/password`.
 
 ## Konfigurace
 
-Konfigurace jsou ve dvou souborech:
-
-### `.env` — přístupy a infrastruktura
+### `.env` — infrastruktura a přístupy
 
 ```shell
 cp .env.example .env
@@ -288,15 +69,17 @@ cp .env.example .env
 |---|---|---|
 | `PG_HOST` | `database` | Hostname Postgres |
 | `PG_PORT` | `5432` | Port Postgres |
-| `PG_USER` | — | Uživatel Postgres (povinné) |
-| `PG_PASSWORD` | — | Heslo Postgres (povinné) |
+| `PG_USER` | — | Uživatel Postgres **(povinné)** |
+| `PG_PASSWORD` | — | Heslo Postgres **(povinné)** |
 | `PG_DATABASE` | `ticketa` | Název databáze |
+| `PG_SSLMODE` | `disable` | SSL režim (`disable`, `require`, `verify-full`) |
 | `SERVER_PORT` | `8080` | HTTP port serveru |
-| `LOG_LEVEL` | `info` | Přepíše úroveň logování z YAML (`info` nebo `debug`) |
+| `LOG_LEVEL` | — | Přepíše úroveň logování z YAML (`debug`, `info`) |
+| `COOKIE_SECURE` | `false` | Nastavit `true` při nasazení za HTTPS proxy |
 
 ### `config/ticketa.yaml` — runtime nastavení
 
-Logování a stavy tiketů. Soubor je volume-mountován z hostu, takže změny provedené přes admin API přežijí restart kontejneru.
+Logování a stavy tiketů. Soubor je volume-mountován z hostu — změny provedené přes admin API jsou zapsány zpět do souboru a přežijí restart kontejneru.
 
 ```shell
 cp config/ticketa.yaml.example config/ticketa.yaml
@@ -304,7 +87,7 @@ cp config/ticketa.yaml.example config/ticketa.yaml
 
 ```yaml
 logging:
-  level: info          # debug | info
+  level: info          # debug | info | warn | error
   dir: /var/log/ticketa
 
 ticket_statuses:
@@ -314,13 +97,10 @@ ticket_statuses:
     color: "#f39c12"
   - title: "Vyřešeno"
     color: "#2ecc71"
+    is_closed: true    # tikety v tomto stavu jsou považovány za uzavřené
 ```
 
-Pár pravidel pro `ticket_statuses`:
-- Minimum jsou tři stavy
-- První = otevřeno, poslední = vyřešeno, prostřední = cokoliv mezitím
-- Pořadí v poli se uloží jako `position` v databázi
-- Změny přes `PATCH /api/admin/config` se automaticky zapíší zpět do souboru
+`ticket_statuses` je synchronizován obousměrně — DB je autoritativní zdroj, YAML je persistentní záloha pro případ přepsání kontejneru.
 
 ## Nasazení
 
@@ -329,80 +109,139 @@ git clone https://github.com/StepanKomis/Ticketa.git
 cd Ticketa
 cp .env.example .env
 cp config/ticketa.yaml.example config/ticketa.yaml
-# doplňte hodnoty v obou souborech
+# doplňte hodnoty v .env
 make docker-build
 make deploy
 ```
 
-Aplikace běží na `http://localhost:8080`, API dokumentace je na `http://localhost:8080/docs`.
+Aplikace: `http://localhost:8080`  
+API dokumentace: `http://localhost:8080/docs`
 
 ## Vývoj
 
-Potřebujete: Go 1.24+, Docker, `sqlc` (pro regeneraci dotazů).
+Potřebujete: Go 1.25+, Node.js 22+, Docker, `sqlc` (pro změny SQL dotazů).
 
 ```shell
-# jen databáze
+# 1. spustit jen databázi
 docker compose up -d database
 
-# sestavit a spustit lokálně (bez frontendu)
+# 2a. sestavit Go binárku bez frontendu (API je plně funkční)
 make build
 ./build/ticketa
 
-# kompletní sestavení včetně frontendu
+# 2b. sestavit kompletně (frontend + backend)
 make build-full
 ./build/ticketa
+
+# frontend samostatně (pro react dev server)
+cd client && npm install && npm start
 ```
 
-## Make cíle
+Při vývoji frontendu proxy v `client/package.json` přeposílá `/api` požadavky na Go server — stačí spustit obojí paralelně.
+
+### Make cíle
 
 | Cíl | Popis |
 |---|---|
 | `build` | Zkompiluje Go binárku do `./build/ticketa` |
-| `build-frontend` | Klonuje Ticketa-client, sestaví ho a zkopíruje `dist/` do embed adresáře |
+| `build-frontend` | `npm install + npm run build` v `client/`, zkopíruje výstup do embed adresáře |
 | `build-full` | `build-frontend` + `build` |
 | `run-local` | Spustí databázi přes Docker a pak lokální binárku |
 | `docker-build` | Sestaví Docker image (s cache) |
 | `docker-build-nc` | Sestaví Docker image bez cache |
 | `deploy` | `docker compose up -d` |
-| `test` | Spustí testy |
-| `sqlc` | Regeneruje kód dotazů přes sqlc |
-| `swagger-ui` | Stáhne Swagger UI assety do `src/www/docs/` |
+| `test` | `go test ./...` |
+| `sqlc` | Regeneruje Go kód z SQL dotazů v `src/database/postgres/queries/` |
 | `swag` | Regeneruje `swagger.yaml` ze swag anotací v handlerech |
+| `swagger-ui` | Stáhne Swagger UI assets do `src/www/docs/` |
 | `clean` | Smaže `./build` a embed adresář frontendu |
+
+### Změny SQL
+
+Po úpravě libovolného `.sql` souboru v `src/database/postgres/queries/` je nutné regenerovat Go kód:
+
+```shell
+make sqlc
+```
+
+Nové migrace patří do `src/database/postgres/migrations/up/` a musí být zaregistrovány v `migrations.go`.
 
 ## Databáze
 
-Migrace jsou součástí binárky a spustí se automaticky. Schéma:
+Migrace jsou vloženy do binárky (`//go:embed`) a spustí se automaticky při startu. Aktuální schéma (14 migrací):
 
-- `users` — účty s rolí (`student`, `staff`, `maintainer`) a příznakem aktivity
-- `sessions` — HTTP-only cookie sessions s expirací
-- `ticket_statuses` — seřazený seznam stavů synchronizovaný s YAML konfigurací
-- `tickets` — tikety s nadpisem, popisem, autorem a volitelným stavem
+| Tabulka | Popis |
+|---|---|
+| `users` | Účty s rolí (`student`, `staff`, `maintainer`, `admin`, `pending`), příznakem aktivity a schvalovatelem |
+| `local_login` | Lokální přihlášení — bcrypt hash hesla, příznak `must_change_pw` |
+| `ldap_login` | LDAP/AD přihlášení — DN uživatele |
+| `sessions` | HTTP-only cookie sessions (TTL 7 dní, soft-delete při odhlášení/deaktivaci) |
+| `ticket_statuses` | Seřazené stavy tiketů synchronizované s YAML konfigurací; příznak `is_closed` |
+| `tickets` | Tikety — titulek, tělo, autor, priorita, stav, hlasy, řešitel, `is_closed`, `resolution_note` |
+| `ticket_votes` | Hlasy uživatelů na tiketech (unikátní per user+ticket) |
+| `ticket_comments` | Komentáře k tiketům, podpora odpovědí (`parent_id`), soft-delete |
+| `ticket_history` | Auditní log změn tiketu (změna stavu, priority, přiřazení…) |
+| `invitations` | Pozvánkové tokeny (e-mail + role + expirace) |
+| `activity_log` | Systemový audit log — actor, typ události, payload JSONB |
 
 ## Struktura projektu
 
 ```
+client/                          React frontend (CRA + TypeScript)
+  src/
+    components/                  Znovupoužitelné UI komponenty
+      console/                   Tikety — TicketCard, FilterBar, ActivityFeed, StatusBadge…
+      layout/                    Sidebar, BottomNav, AppShell
+      tickets/                   NewTicketModal, PriorityBadge
+      auth/                      Formuláře přihlášení a registrace
+      admin/                     Admin panely (uživatelé, pozvánky, konfigurace)
+    pages/                       Stránky (consolePage, ticketDetailPage, usersPage…)
+    hooks/                       React Query hooky pro API volání
+    utils/                       Sdílené utility (relativeTime, labels, avatar…)
+    types/                       TypeScript typy
+
 config/
-  ticketa.yaml.example     šablona runtime konfigurace
+  ticketa.yaml.example           Šablona runtime konfigurace
+
 src/
   cmd/
-    main.go                vstupní bod — načte konfiguraci, spustí server
+    main.go                      Vstupní bod — načte config, spustí server
     server/
-      logs/                file logger
-      startup/             připojení k DB, migrace, start HTTP serveru
-  config/                  YAML typy, loader, atomický writer, thread-safe Store
-  database/postgres/
-    migrations/            vložené SQL migrace (UP_000N.sql)
-    queries/               sqlc-generované dotazy
+      env/                       Pomocné funkce pro čtení env proměnných
+      logs/                      File logger s rotací (lumberjack)
+      startup/                   Připojení k DB, migrace, start HTTP serveru
+  config/                        YAML typy, loader, atomický writer, thread-safe Store (RWMutex)
+  database/
+    postgres/
+      connection.go              Sestavení DSN a otevření *sql.DB
+      migrations/                Vložené SQL migrace (UP_000N.sql) + runner
+      queries/                   sqlc-generované dotazy (.sql zdrojové + .sql.go výstup)
   internal/
-    ctxkeys/               sdílené klíče kontextu (zamezuje cyklickým importům)
-    security/              session store, generování tokenů, cookie helpers
+    activity/                    ActivityLogger — duální zápis do DB a JSONL souboru
+    API/users/                   Login a registrační logika (oddělena od handlerů)
+    ctxkeys/                     Sdílené klíče kontextu (zabraňuje cyklickým importům)
+    security/                    SessionStore, generování tokenů, bcrypt, cookie helpers
   www/
-    docs/                  Swagger UI assety + swagger.yaml (generováno přes make swag)
-    midleware/             AuthMiddleware, MaintainerMiddleware
+    docs/                        Swagger UI assety + swagger.yaml (generováno přes make swag)
+    midleware/                   AuthMiddleware, AdminMiddleware, MustChangePwMiddleware
     router/
-      handlers/            UserHandler, TicketHandler, AdminHandler, StaticHandler, DocsHandler
-      router.go            registrace routes
-    embed.go               //go:embed pro frontend assety
-    docs_embed.go          //go:embed pro Swagger UI assety
+      handlers/                  UserHandler, TicketHandler, CommentHandler,
+                                 AdminHandler, ActivityHandler, StaticHandler, DocsHandler
+      router.go                  Registrace routes a sestavení middleware chain
+    embed.go                     //go:embed pro frontend assety
+    docs_embed.go                //go:embed pro Swagger UI assety
 ```
+
+## Čtení kódu
+
+**Kde začít:** `src/www/router/router.go` — vidíte všechny routes a jaký middleware je chrání.
+
+**Request flow:** HTTP požadavek → `router.go` → middleware chain (auth → mustChangePw → role) → handler → sqlc dotaz → PostgreSQL.
+
+**Handler pattern:** Každý handler dostává přes dependency injection `*db.Queries` (sqlc), `*logs.Logger` a `*activity.ActivityLogger`. Handlery nesdílí stav — jsou bezpečné pro souběžný přístup.
+
+**Konfigurace za běhu:** `config.Store` je chráněn `RWMutex`. Změny přes admin API se atomicky zapíší do YAML souboru a okamžitě se projeví — server není nutné restartovat.
+
+**Migrace:** Každá migrace je samostatný SQL soubor vložený přes `//go:embed`. Nová migrace = nový soubor `UP_000N.sql` + záznam v `migrations.go`. Runner spustí jen migrace s vyšším číslem než je aktuální verze v DB.
+
+**Frontend → Backend:** React Query hooky v `client/src/hooks/` volají API. Při lokálním vývoji proxy (`client/package.json`) přeposílá `/api` na Go server. V produkci Go binárka servíruje obojí.
