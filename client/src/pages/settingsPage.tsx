@@ -12,7 +12,7 @@ import type { ApiUser } from '../types/api'
 import './settingsPage.css'
 
 const ROLE_LABELS: Record<string, string> = {
-  admin: 'Administrátor',
+  admin: 'Admin',
   staff: 'Učitel',
   maintainer: 'Školník',
   student: 'Student',
