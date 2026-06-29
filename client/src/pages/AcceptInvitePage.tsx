@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import * as authApi from '../api/auth'
 import { ApiRequestError } from '../api/client'
-import './acceptInvitePage.css'
+import './acceptInvitePage.scss'
 
 export default function AcceptInvitePage() {
   const [searchParams] = useSearchParams()

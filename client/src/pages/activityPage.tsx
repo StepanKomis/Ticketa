@@ -5,7 +5,7 @@ import { useUserActivity, useGlobalActivity } from '../hooks/useActivity'
 import { activityEventLabel, activityTargetLabel } from '../utils/activity'
 import { relativeTime } from '../utils/time'
 import type { ApiActivityLogEntry } from '../types/api'
-import './activityPage.css'
+import './activityPage.scss'
 
 const PAGE_SIZE = 20
 

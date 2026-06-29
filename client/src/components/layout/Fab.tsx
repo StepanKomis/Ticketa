@@ -1,4 +1,4 @@
-import './Fab.css'
+import './Fab.scss'
 
 interface Props {
   onClick?: () => void

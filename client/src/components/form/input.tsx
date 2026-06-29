@@ -1,4 +1,4 @@
-import './input.css'
+import './input.scss'
 
 // Explicit props take priority; all other standard input attributes are forwarded.
 interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'name'> {

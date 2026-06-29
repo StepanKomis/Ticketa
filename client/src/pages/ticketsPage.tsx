@@ -15,7 +15,7 @@ import { mapApiTicket } from '../utils/mappers'
 import { statusIdForUiStatus } from '../utils/mappers'
 import type { ApiTicket } from '../types/api'
 import type { Ticket } from '../types/ticket'
-import './ticketsPage.css'
+import './ticketsPage.scss'
 
 const PAGE_SIZE = 20
 
@@ -116,7 +116,6 @@ export default function TicketsPage() {
   return (
     <ConsoleLayout
       user={{ firstName: user?.firstName, lastName: user?.lastName, email: user?.email ?? '', role }}
-      ticketCount={total}
       onNew={handleNew}
       fab={<Fab onClick={handleNew} label={role === 'student' ? 'Nový požadavek' : 'Nový tiket'} />}
     >

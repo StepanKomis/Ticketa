@@ -1,4 +1,4 @@
-import './HeroSection.css'
+import './HeroSection.scss'
 
 interface Props {
   greeting: string

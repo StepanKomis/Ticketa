@@ -1,0 +1,15 @@
+@use '../../styles/mixins' as *;
+
+.card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+
+  &__title {
+    margin: 0 0 var(--sp-5);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink-900);
+  }
+}

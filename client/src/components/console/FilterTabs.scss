@@ -1,0 +1,50 @@
+@use '../../styles/variables' as *;
+
+.filterTabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--field-bg);
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar { display: none; }
+
+  &__tab {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    flex-shrink: 0;
+    height: 29px;
+    padding: 0 var(--sp-3);
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--ink-500);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background $ease-fast, color $ease-fast;
+
+    &:hover { color: var(--ink-900); }
+
+    &--active {
+      background: var(--white);
+      color: var(--ink-900);
+      box-shadow: 0 1px 2px 0 rgba(16, 40, 30, 0.06);
+
+      .filterTabs__count { color: var(--green-600); }
+    }
+  }
+
+  &__count {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--ink-400);
+  }
+}
