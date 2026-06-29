@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import ConsoleLayout from '../components/layout/ConsoleLayout'
 import SettingsNav from '../components/admin/SettingsNav'
 import Password from '../components/form/password'
+import Card from '../components/ui/Card'
 import { useAuth } from '../hooks/useAuth'
 import { useUsers } from '../hooks/useUsers'
 import { usePatchMe, useChangePassword, useChangeEmail } from '../hooks/useProfile'
@@ -10,15 +11,7 @@ import { initials, avatarColor } from '../utils/avatar'
 import { ROLE_LABELS } from '../utils/labels'
 import { ApiRequestError } from '../api/client'
 import type { ApiUser } from '../types/api'
-import './settingsPage.css'
-
-const ROLE_LABELS: Record<string, string> = {
-  admin: 'Admin',
-  staff: 'Učitel',
-  maintainer: 'Školník',
-  student: 'Student',
-  pending: 'Čekající na schválení',
-}
+import './settingsPage.scss'
 
 function isPasswordValid(pw: string): boolean {
   return pw.length >= 8 && pw.length <= 72 && /\d/.test(pw) && /[^A-Za-z0-9]/.test(pw)
@@ -155,7 +148,8 @@ export default function SettingsPage() {
         <div className="settingsPage__grid">
           <SettingsNav />
 
-          <section className="settingsCard">
+          <div className="settingsPage__cards">
+          <Card className="settingsCard">
             <div className="settingsCard__head">
               <span
                 className="settingsCard__avatar"
@@ -168,8 +162,9 @@ export default function SettingsPage() {
                 <span className="settingsCard__name">{displayName}</span>
                 <span className="settingsCard__role">{ROLE_LABELS[role as keyof typeof ROLE_LABELS] ?? role}</span>
               </div>
+            </div>
 
-              <form className="settingsForm" onSubmit={handleProfileSubmit}>
+            <form className="settingsForm" onSubmit={handleProfileSubmit}>
                 <div className="settingsForm__row">
                   <label className="settingsForm__field">
                     <span className="settingsForm__label">Jméno</span>
@@ -204,12 +199,11 @@ export default function SettingsPage() {
                   </button>
                 </div>
               </form>
-            </section>
+            </Card>
 
-            <section className="settingsCard">
-              <h2 className="settingsCard__sectionTitle">Změna hesla</h2>
+            <Card title="Změna hesla" className="settingsCard">
               <form className="settingsForm" onSubmit={handlePasswordSubmit}>
-                <Password
+                <Password variant="box"
                   name="current_password"
                   label="Aktuální heslo"
                   value={currentPw}
@@ -217,7 +211,7 @@ export default function SettingsPage() {
                   autoComplete="current-password"
                   required
                 />
-                <Password
+                <Password variant="box"
                   name="new_password"
                   label="Nové heslo"
                   value={newPw}
@@ -226,7 +220,7 @@ export default function SettingsPage() {
                   autoComplete="new-password"
                   required
                 />
-                <Password
+                <Password variant="box"
                   name="confirm_password"
                   label="Potvrďte nové heslo"
                   value={confirmPw}
@@ -243,10 +237,9 @@ export default function SettingsPage() {
                   </button>
                 </div>
               </form>
-            </section>
+            </Card>
 
-            <section className="settingsCard">
-              <h2 className="settingsCard__sectionTitle">Změna e-mailu</h2>
+            <Card title="Změna e-mailu" className="settingsCard">
               <form className="settingsForm" onSubmit={handleEmailSubmit}>
                 <label className="settingsForm__field">
                   <span className="settingsForm__label">Současný e-mail</span>
@@ -262,7 +255,7 @@ export default function SettingsPage() {
                     required
                   />
                 </label>
-                <Password
+                <Password variant="box"
                   name="email_current_password"
                   label="Aktuální heslo"
                   value={emailPw}
@@ -278,10 +271,10 @@ export default function SettingsPage() {
                   </button>
                 </div>
               </form>
-            </section>
+            </Card>
+          </div>
           </div>
         </div>
-      </div>
     </ConsoleLayout>
   )
 }

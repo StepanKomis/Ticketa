@@ -21,11 +21,12 @@ import { useComments, useAddComment, useDeleteComment } from '../hooks/useCommen
 import { useUsers } from '../hooks/useUsers'
 import { mapApiTicket, formatTicketId, statusIdForUiStatus } from '../utils/mappers'
 import { initials, avatarColor } from '../utils/avatar'
-import { relativeTime } from '../utils/time'
+import { relativeTime, smartTime } from '../utils/time'
 import { STATUS_LABELS } from '../utils/labels'
 import type { ApiComment, ApiTicketHistoryEntry, ApiUser } from '../types/api'
 import type { TicketStatus, UserRole } from '../types/ticket'
-import './ticketDetailPage.css'
+import { MapPin, Tag, Clock, Send, Check, ChevronUp, Pencil } from 'lucide-react'
+import './ticketDetailPage.scss'
 
 function historyLabel(event: string, oldVal: string, newVal: string): string {
   switch (event) {
@@ -67,50 +68,6 @@ function buildTimeline(
   return [...historyItems, ...commentItems].sort((a, b) => a.time.getTime() - b.time.getTime())
 }
 
-const PinIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-    <path d="M7 1.5a3.7 3.7 0 0 1 3.7 3.7c0 2.7-3.7 6.8-3.7 6.8s-3.7-4.1-3.7-6.8A3.7 3.7 0 0 1 7 1.5Z" stroke="currentColor" strokeWidth="1.2"/>
-    <circle cx="7" cy="5.2" r="1.3" stroke="currentColor" strokeWidth="1.2"/>
-  </svg>
-)
-
-const TagIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-    <path d="M2 2h5l5 5-5 5-5-5V2Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
-    <circle cx="4.6" cy="4.6" r="0.9" fill="currentColor"/>
-  </svg>
-)
-
-const ClockIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-    <circle cx="7" cy="7" r="5.2" stroke="currentColor" strokeWidth="1.2"/>
-    <path d="M7 4.2V7l2 1.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-  </svg>
-)
-
-const SendIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-    <path d="M1.5 6h7M5.5 3l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-)
-
-const CheckIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-    <path d="m2.5 6 2.2 2.3L9.5 3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-)
-
-const UpvoteIcon = () => (
-  <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-    <path d="M6 2 L10.5 9 L1.5 9 Z"/>
-  </svg>
-)
-
-const EditIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-    <path d="M9.5 2.5l2 2L4 12H2v-2L9.5 2.5Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
-  </svg>
-)
 
 function Avatar({ name, size = 30 }: { name: string; size?: number }) {
   return (
@@ -189,9 +146,11 @@ export default function TicketDetailPage() {
   const staffUsers = staffUsersData?.items ?? []
   const { data: maintainerUsersData } = useUsers(isStaff, { type: 'maintainer', limit: 100 })
   const maintainerUsers = maintainerUsersData?.items ?? []
+  const { data: adminUsersData } = useUsers(isStaff, { type: 'admin', limit: 100 })
+  const adminUsers = adminUsersData?.items ?? []
 
-  const isAssignee = !!user && apiTicket?.AssignedTo === user.id
-  const canChangeStatus = isStaff || (isMaintainer && isAssignee)
+  const canChangeStatus = isStaff ||
+    (isMaintainer && (apiTicket?.AssignedTo == null || apiTicket?.AssignedTo === user?.id))
 
   const comments = useComments(ticketId, !!apiTicket)
   const addComment = useAddComment(ticketId)
@@ -201,11 +160,14 @@ export default function TicketDetailPage() {
   const [replyingTo, setReplyingTo] = useState<{ id: number; authorName: string } | null>(null)
   const [statusMenuOpen, setStatusMenuOpen] = useState(false)
   const toggleStatusMenu = useCallback(() => setStatusMenuOpen(o => !o), [])
+  const [mobileStatusMenuOpen, setMobileStatusMenuOpen] = useState(false)
+  const toggleMobileStatusMenu = useCallback(() => setMobileStatusMenuOpen(o => !o), [])
   const [resolveModalOpen, setResolveModalOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [mobileTab, setMobileTab] = useState<'detail' | 'activity'>('detail')
 
   const ticket = apiTicket ? mapApiTicket(apiTicket, statuses ?? []) : null
+  const canClaim = !ticket?.isClosed && !ticket?.assigneeId && (isStaff || isMaintainer)
 
   const canEdit = !!ticket && (
     isAdmin ||
@@ -232,6 +194,7 @@ export default function TicketDetailPage() {
     const statusId = statusIdForUiStatus(target, statuses ?? [])
     if (statusId == null) return
     setStatusMenuOpen(false)
+    setMobileStatusMenuOpen(false)
     if (target === 'resolved') {
       setResolveModalOpen(true)
       return
@@ -259,8 +222,12 @@ export default function TicketDetailPage() {
     })
   }
 
-  function handleClaim() {
-    claimTicket.mutate()
+  function handleClaimOrAssign() {
+    if (isMaintainer) {
+      claimTicket.mutate()
+    } else if (user?.id) {
+      patchTicket.mutate({ id: ticketId, payload: { assigned_to: user.id } })
+    }
   }
 
   function handleVote() {
@@ -290,7 +257,11 @@ export default function TicketDetailPage() {
     )
   }
 
-  const updatedDisplay = ticket?.updatedAt ? relativeTime(ticket.updatedAt) : ticket ? relativeTime(ticket.createdAt) : '–'
+  const createdDisplay  = ticket ? smartTime(ticket.createdAt) : '–'
+  const wasUpdated      = ticket?.updatedAt != null
+    && Math.abs(ticket.updatedAt.getTime() - ticket.createdAt.getTime()) > 60_000
+  const updatedDisplay  = wasUpdated ? smartTime(ticket.updatedAt!) : null
+  const resolvedDisplay = ticket?.resolvedAt ? smartTime(ticket.resolvedAt) : null
   const timeline = buildTimeline(history, comments.data ?? [])
 
   return (
@@ -322,7 +293,7 @@ export default function TicketDetailPage() {
                     disabled={vote.isPending || unvote.isPending}
                     aria-label={ticket.userHasVoted ? 'Odebrat hlas' : 'Hlasovat pro důležitost'}
                   >
-                    <UpvoteIcon />{ticket.voteCount ?? 0}
+                    <ChevronUp size={11} strokeWidth={2} />{ticket.voteCount ?? 0}
                   </button>
                   {canEdit && (
                     <button
@@ -331,15 +302,17 @@ export default function TicketDetailPage() {
                       onClick={() => setEditOpen(true)}
                       aria-label="Upravit tiket"
                     >
-                      <EditIcon />Upravit
+                      <Pencil size={13} strokeWidth={1.4} />Upravit
                     </button>
                   )}
                 </div>
                 <h1 className="ticketDetail__title">{ticket.title}</h1>
                 <div className="ticketDetail__meta">
-                  {ticket.category && <span className="ticketDetail__metaItem"><TagIcon />{ticket.category}</span>}
-                  {ticket.location && <span className="ticketDetail__metaItem"><PinIcon />{ticket.location}</span>}
-                  <span className="ticketDetail__metaItem"><ClockIcon />Aktualizováno {updatedDisplay}</span>
+                  {ticket.category && <span className="ticketDetail__metaItem"><Tag size={13} strokeWidth={1.4} />{ticket.category}</span>}
+                  {ticket.location && <span className="ticketDetail__metaItem"><MapPin size={13} strokeWidth={1.4} />{ticket.location}</span>}
+                  <span className="ticketDetail__metaItem"><Clock size={13} strokeWidth={1.4} />Vytvořeno {createdDisplay}</span>
+                  {updatedDisplay && <span className="ticketDetail__metaItem"><Clock size={13} strokeWidth={1.4} />Aktualizováno {updatedDisplay}</span>}
+                  {resolvedDisplay && <span className="ticketDetail__metaItem"><Check size={13} strokeWidth={2} />Vyřešeno {resolvedDisplay}</span>}
                 </div>
               </div>
 
@@ -364,13 +337,15 @@ export default function TicketDetailPage() {
                   </div>
                 </section>
 
-                {(ticket.status === 'resolved' || ticket.status === 'closed') && (
+                {(ticket.isClosed || ticket.resolutionNote) && (
                   <section className="td-card">
-                    <h2 className="td-card__label">Řešení</h2>
+                    <h2 className="td-card__label">
+                      {ticket.isClosed ? 'Řešení' : 'Předchozí řešení'}
+                    </h2>
                     {ticket.resolutionNote ? (
                       <p className="td-card__body">{ticket.resolutionNote}</p>
                     ) : (
-                      <p className="td-card__body td-card__body--muted">Tento ticket byl založen v době kdy Ticketa nepodporovala popis řešení.</p>
+                      <p className="td-card__body td-card__body--muted">Tento tiket byl vyřešen před zavedením popisů řešení.</p>
                     )}
                   </section>
                 )}
@@ -382,28 +357,45 @@ export default function TicketDetailPage() {
                   {ticket.assigneeName && <div><dt>Řešitel</dt><dd>{ticket.assigneeName}</dd></div>}
                   {ticket.location && <div><dt>Místo</dt><dd>{ticket.location}</dd></div>}
                   {ticket.category && <div><dt>Kategorie</dt><dd>{ticket.category}</dd></div>}
-                  <div><dt>Aktualizováno</dt><dd>{updatedDisplay}</dd></div>
+                  <div><dt>Vytvořeno</dt><dd>{createdDisplay}</dd></div>
+                  {updatedDisplay && <div><dt>Aktualizováno</dt><dd>{updatedDisplay}</dd></div>}
+                  {resolvedDisplay && <div><dt>Vyřešeno</dt><dd>{resolvedDisplay}</dd></div>}
                 </dl>
 
-                {canChangeStatus && (
+                {(canChangeStatus || canClaim) && (
                   <div className="ticketDetail__mobileActions">
-                    <StatusMenu open={statusMenuOpen} onToggle={toggleStatusMenu}
-                      disabled={patchTicket.isPending} label="Změnit stav">
-                      {(['open', 'in_progress', 'resolved'] as TicketStatus[]).map(s => (
-                        <li key={s} role="none">
-                          <button type="button" role="menuitem" className="td-statusMenu__item"
-                            onClick={() => changeStatus(s)}
-                            disabled={statusIdForUiStatus(s, statuses ?? []) == null}>
-                            {STATUS_LABELS[s]}
-                          </button>
-                        </li>
-                      ))}
-                    </StatusMenu>
-                    {ticket.status === 'in_progress' && (
+                    {canChangeStatus && (
+                      <StatusMenu open={mobileStatusMenuOpen} onToggle={toggleMobileStatusMenu}
+                        disabled={patchTicket.isPending} label="Změnit stav">
+                        {(['open', 'in_progress'] as TicketStatus[]).map(s => (
+                          <li key={s} role="none">
+                            <button type="button" role="menuitem" className="td-statusMenu__item"
+                              onClick={() => changeStatus(s)}
+                              disabled={statusIdForUiStatus(s, statuses ?? []) == null}>
+                              {STATUS_LABELS[s]}
+                            </button>
+                          </li>
+                        ))}
+                      </StatusMenu>
+                    )}
+                    {canClaim && (
+                      <button type="button" className="td-actionPrimary"
+                        onClick={handleClaimOrAssign}
+                        disabled={claimTicket.isPending || patchTicket.isPending}>
+                        Převzít
+                      </button>
+                    )}
+                    {ticket.isClosed ? (
+                      <button type="button" className="td-chipBtn"
+                        onClick={() => changeStatus('open')}
+                        disabled={patchTicket.isPending}>
+                        Znovu otevřít
+                      </button>
+                    ) : ticket.status === 'in_progress' && (
                       <button type="button" className="td-actionPrimary"
                         onClick={() => changeStatus('resolved')}
                         disabled={patchTicket.isPending}>
-                        <CheckIcon />Vyřešit
+                        <Check size={12} strokeWidth={2} />Vyřešit
                       </button>
                     )}
                   </div>
@@ -506,7 +498,7 @@ export default function TicketDetailPage() {
                     />
                     <div className="td-composer__row">
                       <button type="submit" className="td-composer__send" disabled={!draft.trim() || addComment.isPending}>
-                        <SendIcon />Odeslat
+                        <Send size={12} strokeWidth={1.4} />Odeslat
                       </button>
                     </div>
                     {addComment.error && (
@@ -525,7 +517,7 @@ export default function TicketDetailPage() {
                   {canChangeStatus && (
                     <StatusMenu open={statusMenuOpen} onToggle={toggleStatusMenu}
                       disabled={patchTicket.isPending} label="Změnit">
-                      {(['open', 'in_progress', 'resolved'] as TicketStatus[]).map(s => (
+                      {(['open', 'in_progress'] as TicketStatus[]).map(s => (
                         <li key={s} role="none">
                           <button type="button" role="menuitem" className="td-statusMenu__item"
                             onClick={() => changeStatus(s)}
@@ -584,7 +576,7 @@ export default function TicketDetailPage() {
               {isStaff ? (
                 <div className="td-field">
                   <span className="td-field__label">Řešitel</span>
-                  <div className="td-field__value">
+                  <div className="td-field__value td-field__value--row">
                     <select
                       className="td-assigneeSelect"
                       value={ticket.assigneeId ?? ''}
@@ -593,6 +585,17 @@ export default function TicketDetailPage() {
                       aria-label="Přiřadit řešitele"
                     >
                       <option value="">— Nepřiřazeno —</option>
+                      {adminUsers.length > 0 && (
+                        <optgroup label="Správci">
+                          {adminUsers.map((u: ApiUser) => {
+                            const name = [
+                              u.FirstName.Valid ? u.FirstName.String : '',
+                              u.LastName.Valid ? u.LastName.String : '',
+                            ].filter(Boolean).join(' ') || u.Email
+                            return <option key={u.ID} value={u.ID}>{name}</option>
+                          })}
+                        </optgroup>
+                      )}
                       <optgroup label="Učitelé">
                         {staffUsers.map((u: ApiUser) => {
                           const name = [
@@ -612,19 +615,23 @@ export default function TicketDetailPage() {
                         })}
                       </optgroup>
                     </select>
+                    {canClaim && (
+                      <button type="button" className="td-actionPrimary"
+                        onClick={handleClaimOrAssign}
+                        disabled={claimTicket.isPending || patchTicket.isPending}>
+                        Převzít
+                      </button>
+                    )}
                   </div>
                 </div>
-              ) : isMaintainer && !ticket.assigneeId ? (
+              ) : canClaim ? (
                 <div className="td-field">
                   <span className="td-field__label">Řešitel</span>
                   <div className="td-field__value">
-                    <button
-                      type="button"
-                      className="td-actionPrimary"
-                      onClick={handleClaim}
-                      disabled={claimTicket.isPending}
-                    >
-                      Vzít si
+                    <button type="button" className="td-actionPrimary"
+                      onClick={handleClaimOrAssign}
+                      disabled={claimTicket.isPending || patchTicket.isPending}>
+                      Převzít
                     </button>
                   </div>
                 </div>
@@ -641,21 +648,33 @@ export default function TicketDetailPage() {
               {ticket.location && (
                 <div className="td-field">
                   <span className="td-field__label">Místo</span>
-                  <div className="td-field__value"><PinIcon />{ticket.location}</div>
+                  <div className="td-field__value"><MapPin size={13} strokeWidth={1.4} />{ticket.location}</div>
                 </div>
               )}
 
               {ticket.category && (
                 <div className="td-field">
                   <span className="td-field__label">Kategorie</span>
-                  <div className="td-field__value"><TagIcon />{ticket.category}</div>
+                  <div className="td-field__value"><Tag size={13} strokeWidth={1.4} />{ticket.category}</div>
                 </div>
               )}
 
               <div className="td-field">
-                <span className="td-field__label">Aktualizováno</span>
-                <div className="td-field__value"><ClockIcon />{updatedDisplay}</div>
+                <span className="td-field__label">Vytvořeno</span>
+                <div className="td-field__value"><Clock size={13} strokeWidth={1.4} />{createdDisplay}</div>
               </div>
+              {updatedDisplay && (
+                <div className="td-field">
+                  <span className="td-field__label">Aktualizováno</span>
+                  <div className="td-field__value"><Clock size={13} strokeWidth={1.4} />{updatedDisplay}</div>
+                </div>
+              )}
+              {resolvedDisplay && (
+                <div className="td-field">
+                  <span className="td-field__label">Vyřešeno</span>
+                  <div className="td-field__value"><Check size={12} strokeWidth={2} />{resolvedDisplay}</div>
+                </div>
+              )}
 
               {canChangeStatus && (
                 <>
@@ -663,11 +682,19 @@ export default function TicketDetailPage() {
                   <div className="td-field">
                     <span className="td-field__label">Rychlé akce</span>
                     <div className="td-actions">
-                      <button type="button" className="td-actionPrimary"
-                        onClick={() => changeStatus('resolved')}
-                        disabled={patchTicket.isPending || statusIdForUiStatus('resolved', statuses ?? []) == null}>
-                        <CheckIcon />Vyřešit
-                      </button>
+                      {ticket.isClosed ? (
+                        <button type="button" className="td-chipBtn"
+                          onClick={() => changeStatus('open')}
+                          disabled={patchTicket.isPending}>
+                          Znovu otevřít
+                        </button>
+                      ) : ticket.status === 'in_progress' && (
+                        <button type="button" className="td-actionPrimary"
+                          onClick={() => changeStatus('resolved')}
+                          disabled={patchTicket.isPending || statusIdForUiStatus('resolved', statuses ?? []) == null}>
+                          <Check size={12} strokeWidth={2} />Vyřešit
+                        </button>
+                      )}
                     </div>
                   </div>
                 </>

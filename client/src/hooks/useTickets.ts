@@ -81,9 +81,9 @@ export function usePatchTicket() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: PatchTicketPayload }) =>
       ticketsApi.patchTicket(id, payload),
-    onSuccess: (_, { id }) => {
+    onSuccess: (data, { id }) => {
+      qc.setQueryData([...TICKETS_KEY, id], data)
       qc.invalidateQueries({ queryKey: TICKETS_KEY })
-      qc.invalidateQueries({ queryKey: [...TICKETS_KEY, id] })
     },
   })
 }

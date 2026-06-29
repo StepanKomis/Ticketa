@@ -1,0 +1,36 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.bottomNav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: var(--white);
+  box-shadow: var(--shadow-nav);
+  padding: var(--sp-2) var(--sp-4);
+  padding-bottom: calc(var(--sp-2) + env(safe-area-inset-bottom, 0px));
+
+  @include mobile { display: flex; }
+
+  &__item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: var(--sp-1) 0;
+    color: var(--ink-400);
+    text-decoration: none;
+    font-size: 10px;
+    font-weight: 500;
+    transition: color $ease-fast;
+    min-height: 44px;
+    justify-content: center;
+
+    &:hover    { color: var(--ink-700); }
+    &--active  { color: var(--green-700); }
+  }
+}

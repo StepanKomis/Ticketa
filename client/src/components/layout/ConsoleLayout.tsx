@@ -4,8 +4,9 @@ import AppHeader from './AppHeader'
 import MobileTopBar from './MobileTopBar'
 import BottomNav from './BottomNav'
 import { useAuth } from '../../hooks/useAuth'
+import { useTickets } from '../../hooks/useTickets'
 import type { UserRole } from '../../types/ticket'
-import './ConsoleLayout.css'
+import './ConsoleLayout.scss'
 
 interface LayoutUser {
   firstName?: string
@@ -17,7 +18,6 @@ interface LayoutUser {
 interface Props {
   user: LayoutUser
   onNew?: () => void
-  ticketCount?: number
   /** Replaces the header search field (e.g. a breadcrumb on the detail page). */
   headerLeft?: ReactNode
   showNew?: boolean
@@ -29,13 +29,13 @@ interface Props {
 export default function ConsoleLayout({
   user,
   onNew,
-  ticketCount,
   headerLeft,
   showNew = true,
   fab,
   children,
 }: Props) {
   const { logout } = useAuth()
+  const { data: openTickets } = useTickets({ closed: false, limit: 1 })
 
   return (
     <div className="appShell">
@@ -44,7 +44,7 @@ export default function ConsoleLayout({
         lastName={user.lastName}
         email={user.email}
         role={user.role}
-        ticketCount={ticketCount}
+        ticketCount={openTickets?.total ?? 0}
         onLogout={logout}
       />
 

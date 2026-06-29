@@ -18,7 +18,7 @@ import type { FilterValue } from '../components/console/FilterTabs'
 import { mapApiTicket, statusIdForUiStatus } from '../utils/mappers'
 import { deriveActivity } from '../utils/activity'
 import { timeGreeting, roleSubtitle } from '../utils/greetings'
-import './consolePage.css'
+import './consolePage.scss'
 
 export default function ConsolePage() {
   const { user } = useAuth()
@@ -71,7 +71,6 @@ export default function ConsolePage() {
   return (
     <ConsoleLayout
       user={{ firstName: user?.firstName, lastName: user?.lastName, email: user?.email ?? '', role }}
-      ticketCount={apiTickets?.total ?? tickets.length}
       onNew={handleNew}
       fab={<Fab onClick={handleNew} label="Nový požadavek" />}
     >

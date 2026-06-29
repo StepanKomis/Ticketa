@@ -18,6 +18,7 @@ export function mapApiTicket(
     status: resolveStatus(apiTicket.StatusID, statuses),
     createdAt: new Date(apiTicket.CreatedAt),
     updatedAt: apiTicket.UpdatedAt ? new Date(apiTicket.UpdatedAt) : undefined,
+    resolvedAt: apiTicket.ResolvedAt ? new Date(apiTicket.ResolvedAt) : undefined,
     authorId: apiTicket.AuthorID,
     authorName: apiTicket.AuthorName || undefined,
     priority: (apiTicket.Priority as Ticket['priority']) || undefined,
@@ -29,6 +30,7 @@ export function mapApiTicket(
     voteCount: apiTicket.VoteCount ?? 0,
     userHasVoted: apiTicket.UserHasVoted ?? false,
     resolutionNote: apiTicket.ResolutionNote || null,
+    isClosed: apiTicket.IsClosed,
   }
 }
 
