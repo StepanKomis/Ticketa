@@ -2,12 +2,13 @@ import { useState } from 'react'
 import ConsoleLayout from '../components/layout/ConsoleLayout'
 import SettingsNav from '../components/admin/SettingsNav'
 import { useAuth } from '../hooks/useAuth'
-import { useUsers, useUpdateUser, useApproveUser, useRejectUser } from '../hooks/useUsers'
+import { useUsers, usePendingCount, useUpdateUser, useApproveUser, useRejectUser } from '../hooks/useUsers'
 import { useCreateInvitation } from '../hooks/useProfile'
 import { initials, avatarColor } from '../utils/avatar'
 import { ROLE_LABELS } from '../utils/labels'
 import type { ApiUser } from '../types/api'
-import './usersPage.css'
+import Card from '../components/ui/Card'
+import './usersPage.scss'
 
 type Filter = 'all' | 'student' | 'staff' | 'maintainer' | 'pending'
 
@@ -34,6 +35,7 @@ function fullName(u: ApiUser): string {
 export default function UsersPage() {
   const { user } = useAuth()
   const role = user?.role ?? 'student'
+  const pendingCount = usePendingCount(role === 'admin')
 
   const [filter, setFilter] = useState<Filter>('all')
   const [search, setSearch] = useState('')
@@ -131,7 +133,7 @@ export default function UsersPage() {
         <div className="usersPage__grid">
           <SettingsNav />
 
-          <section className="usersPanel">
+          <Card className="usersPanel">
             <div className="usersPanel__toolbar">
               <div className="usersPanel__tabs" role="tablist">
                 {tabs.map(t => (
@@ -139,7 +141,7 @@ export default function UsersPage() {
                     key={t.value}
                     role="tab"
                     aria-selected={filter === t.value}
-                    className={`usersTab${filter === t.value ? ' usersTab--active' : ''}${t.value === 'pending' ? ' usersTab--alert' : ''}`}
+                    className={`usersTab${filter === t.value ? ' usersTab--active' : ''}${t.value === 'pending' && pendingCount > 0 ? ' usersTab--alert' : ''}`}
                     onClick={() => handleFilterChange(t.value)}
                   >
                     {t.label}
@@ -262,31 +264,14 @@ export default function UsersPage() {
                       </td>
 
                       <td className="usersRow__role">
-                        <select
-                          className={`roleChip roleChip--${u.UserType}`}
-                          value={u.UserType}
-                          aria-label={`Role uživatele ${fullName(u)}`}
-                          onChange={e => changeRole(u, e.target.value as ApiUser['UserType'])}
-                        >
-                          <option value="student">{ROLE_LABELS.student}</option>
-                          <option value="staff">{ROLE_LABELS.staff}</option>
-                          <option value="maintainer">{ROLE_LABELS.maintainer}</option>
-                          <option value="admin">{ROLE_LABELS.admin}</option>
-                        </select>
+                        <span className={`roleChip roleChip--${u.UserType}`}>
+                          {ROLE_LABELS[u.UserType as keyof typeof ROLE_LABELS] ?? u.UserType}
+                        </span>
                       </td>
 
                       <td className="usersRow__active">{lastActive(u)}</td>
 
                       <td className="usersRow__actions">
-                        {!u.IsActive && (
-                          <button
-                            type="button"
-                            className="usersRow__approve"
-                            onClick={() => setActive(u, true)}
-                          >
-                            Aktivovat
-                          </button>
-                        )}
                         {u.ID !== user?.id && (
                           <div className="usersRow__menuWrap">
                             <button
@@ -298,7 +283,7 @@ export default function UsersPage() {
                               onClick={(e) => {
                                 if (menuFor !== u.ID) {
                                   const rect = e.currentTarget.getBoundingClientRect()
-                                  setMenuAbove(window.innerHeight - rect.bottom < 120)
+                                  setMenuAbove(window.innerHeight - rect.bottom < 200)
                                   setMenuFor(u.ID)
                                 } else {
                                   setMenuFor(null)
@@ -322,6 +307,31 @@ export default function UsersPage() {
                                   >
                                     {u.IsActive ? 'Deaktivovat' : 'Aktivovat'}
                                   </button>
+                                </li>
+                                <li role="none" className="usersRow__menuItemSub">
+                                  <span className="usersRow__menuItem usersRow__menuItem--hasSubmenu">
+                                    Změnit roli
+                                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                                      <path d="M4 2.5L7.5 6 4 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                  </span>
+                                  <ul className="usersRow__submenu" role="menu">
+                                    {(['student', 'staff', 'maintainer', 'admin'] as const).map(r => (
+                                      <li role="none" key={r}>
+                                        <button
+                                          type="button"
+                                          role="menuitemradio"
+                                          aria-checked={u.UserType === r}
+                                          className={`usersRow__menuItem${u.UserType === r ? ' usersRow__menuItem--current' : ''}`}
+                                          disabled={u.UserType === r}
+                                          onClick={() => { changeRole(u, r); setMenuFor(null) }}
+                                        >
+                                          {u.UserType === r && <span className="usersRow__menuCheck" aria-hidden="true">✓</span>}
+                                          {ROLE_LABELS[r]}
+                                        </button>
+                                      </li>
+                                    ))}
+                                  </ul>
                                 </li>
                               </ul>
                             )}
@@ -355,7 +365,7 @@ export default function UsersPage() {
                 </button>
               </div>
             )}
-          </section>
+          </Card>
         </div>
       </div>
 

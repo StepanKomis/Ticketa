@@ -1,0 +1,35 @@
+@use '../styles/mixins' as *;
+
+.consolePage {
+  max-width: 1024px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+
+  @include mobile { gap: var(--sp-5); }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    align-items: start;
+    gap: var(--sp-6);
+
+    @include mobile { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  &__side {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-5);
+    position: sticky;
+    top: calc(66px + var(--sp-6));
+
+    @include mobile {
+      position: static;
+      min-width: 0;
+      /* On mobile the report CTA / activity read better below the list. */
+      order: 2;
+    }
+  }
+}

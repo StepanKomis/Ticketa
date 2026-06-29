@@ -1,0 +1,208 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.ticketCard {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-2);
+  border-radius: var(--radius-sm);
+
+  &:hover { background: var(--field-bg); }
+
+  /* Stretched link makes the whole row navigate to the detail page while the
+     action button and avatar stay individually interactive (raised above it). */
+  &__link {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    z-index: 0;
+  }
+
+  &__body,
+  &__aside { position: relative; z-index: 1; pointer-events: none; }
+
+  &__action,
+  &__avatar,
+  &__vote { pointer-events: auto; }
+
+  &__dot {
+    width: 8px;
+    height: 8px;
+    flex-shrink: 0;
+    border-radius: var(--radius-full);
+    background: var(--ink-400);
+
+    &--new        { background: var(--dot-new); }
+    &--open       { background: var(--dot-open); }
+    &--in_progress { background: var(--dot-progress); }
+    &--resolved   { background: var(--dot-resolved); }
+    &--closed     { background: var(--dot-closed); }
+  }
+
+  &__body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__title {
+    margin: 0 0 2px;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--ink-900);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__meta {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--ink-400);
+    min-width: 0;
+  }
+
+  &__id {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--ink-400);
+  }
+
+  &__sep { color: var(--ink-400); }
+
+  &__loc {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  &__aside {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    flex-shrink: 0;
+  }
+
+  &__prioDot {
+    width: 7px;
+    height: 7px;
+    border-radius: var(--radius-full);
+    background: var(--ink-400);
+
+    &--urgent { background: var(--priority-urgent); }
+    &--high   { background: var(--priority-high); }
+    &--medium { background: var(--priority-medium); }
+    &--low    { background: var(--priority-low); }
+  }
+
+  &__prioLabel { display: none; }
+
+  &__time {
+    font-size: 12.5px;
+    color: var(--ink-400);
+    white-space: nowrap;
+    min-width: 36px;
+    text-align: right;
+  }
+
+  &__avatar {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: var(--radius-sm);
+    background: var(--green-700);
+    color: var(--white);
+    font-size: 9px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  &__vote {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 7px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--ink-400);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color $ease-fast, border-color $ease-fast, background $ease-fast;
+
+    &:hover    { border-color: var(--green-400); color: var(--green-600); }
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    &--active {
+      border-color: var(--green-500);
+      background: var(--green-50, #f0fdf4);
+      color: var(--green-600);
+    }
+  }
+
+  &__action {
+    padding: 4px var(--sp-3);
+    border: 1px solid var(--green-600);
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--green-600);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background $ease-fast, color $ease-fast;
+
+    &:hover {
+      background: var(--green-600);
+      color: var(--white);
+    }
+
+    &--reopen {
+      border-color: var(--ink-400);
+      color: var(--ink-500);
+
+      &:hover {
+        background: var(--ink-400);
+        color: var(--white);
+      }
+    }
+  }
+
+  /* Mobile: each row becomes a standalone card with a two-line layout. */
+  @include mobile {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    padding: var(--sp-4);
+    background: var(--white);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card);
+
+    &__dot     { margin-top: 5px; }
+    &__prioDot { display: none; }
+    &__prioLabel { display: inline-flex; }
+    &__avatar  { display: inline-flex; margin-left: auto; }
+
+    &__aside {
+      width: 100%;
+      max-width: 100%;
+      padding-left: calc(8px + var(--sp-3));
+      flex-wrap: wrap;
+      gap: var(--sp-2) var(--sp-3);
+      overflow: hidden;
+    }
+
+    &__body { flex: 1; }
+
+    &__vote { padding: var(--sp-1) var(--sp-2); }
+  }
+}

@@ -22,6 +22,7 @@ export interface Ticket {
   status: TicketStatus
   createdAt: Date
   updatedAt?: Date
+  resolvedAt?: Date
   body?: string
   authorId?: number
   authorName?: string
@@ -34,6 +35,7 @@ export interface Ticket {
   voteCount?: number
   userHasVoted?: boolean
   resolutionNote?: string | null
+  isClosed?: boolean
 }
 
 // Activity is derived from real ticket data (no fabricated actors): a recent

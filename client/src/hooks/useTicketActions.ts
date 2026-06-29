@@ -9,6 +9,7 @@ import type { Ticket, TicketStatus } from '../types/ticket'
 function nextStatus(status: TicketStatus): TicketStatus | null {
   if (status === 'new' || status === 'open') return 'in_progress'
   if (status === 'in_progress') return 'resolved'
+  if (status === 'resolved' || status === 'closed') return 'open'
   return null
 }
 

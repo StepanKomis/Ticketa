@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { MapPin, ChevronUp } from 'lucide-react'
 import { Ticket } from '../../types/ticket'
 import { formatTicketId } from '../../utils/mappers'
 import { relativeTime } from '../../utils/time'
@@ -6,20 +7,7 @@ import { initialsFromName } from '../../utils/avatar'
 import { useVoteTicket, useUnvoteTicket } from '../../hooks/useTickets'
 import StatusBadge from './StatusBadge'
 import PriorityBadge from './PriorityBadge'
-import './TicketCard.css'
-
-const PinIcon = () => (
-  <svg width="10" height="10" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <path d="M6 1.5a3.2 3.2 0 0 1 3.2 3.2c0 2.3-3.2 5.8-3.2 5.8s-3.2-3.5-3.2-5.8A3.2 3.2 0 0 1 6 1.5Z" stroke="currentColor" strokeWidth="1.1"/>
-    <circle cx="6" cy="4.7" r="1.1" stroke="currentColor" strokeWidth="1.1"/>
-  </svg>
-)
-
-const UpvoteIcon = () => (
-  <svg width="10" height="10" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <path d="M6 2 L10.5 9 L1.5 9 Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" fill="currentColor" fillOpacity="0" />
-  </svg>
-)
+import './TicketCard.scss'
 
 interface Props {
   ticket: Ticket
@@ -33,8 +21,11 @@ export default function TicketCard({ ticket, onAction, canAct }: Props) {
   const unvote = useUnvoteTicket(ticketId)
 
   const actionLabel =
-    ticket.status === 'new' ? 'Zahájit' :
-    ticket.status === 'in_progress' ? 'Vyřešit' : null
+    (ticket.status === 'new' || ticket.status === 'open') ? 'Zahájit' :
+    ticket.status === 'in_progress' ? 'Vyřešit' :
+    (ticket.status === 'resolved' || ticket.status === 'closed') ? 'Znovu otevřít' : null
+
+  const isReopen = ticket.status === 'resolved' || ticket.status === 'closed'
 
   function handleVote(e: React.MouseEvent) {
     e.preventDefault()
@@ -70,7 +61,7 @@ export default function TicketCard({ ticket, onAction, canAct }: Props) {
           {ticket.location && (
             <>
               <span className="ticketCard__sep" aria-hidden="true">·</span>
-              <span className="ticketCard__loc"><PinIcon />{ticket.location}</span>
+              <span className="ticketCard__loc"><MapPin size={10} strokeWidth={1.4} />{ticket.location}</span>
             </>
           )}
         </p>
@@ -101,12 +92,16 @@ export default function TicketCard({ ticket, onAction, canAct }: Props) {
           aria-label={ticket.userHasVoted ? 'Odebrat hlas' : 'Hlasovat pro důležitost'}
           disabled={vote.isPending || unvote.isPending}
         >
-          <UpvoteIcon />
+          <ChevronUp size={10} strokeWidth={2} />
           <span>{ticket.voteCount ?? 0}</span>
         </button>
         <StatusBadge status={ticket.status} />
         {actionLabel && onAction && (!canAct || canAct(ticket)) && (
-          <button type="button" className="ticketCard__action" onClick={() => onAction(ticket)}>
+          <button
+            type="button"
+            className={`ticketCard__action${isReopen ? ' ticketCard__action--reopen' : ''}`}
+            onClick={() => onAction(ticket)}
+          >
             {actionLabel}
           </button>
         )}

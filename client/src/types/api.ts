@@ -23,6 +23,7 @@ export interface ApiTicket {
   PriorityApprovedBy: number | null
   IsClosed: boolean
   ResolutionNote: string | null
+  ResolvedAt?: string
 }
 
 export interface ApiTicketList {
