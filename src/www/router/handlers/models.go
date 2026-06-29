@@ -54,8 +54,9 @@ type ticketResponse struct {
 	UserHasVoted       bool      `json:"UserHasVoted" example:"false"`
 	RequestedPriority  *string   `json:"RequestedPriority" example:"urgent"`
 	PriorityApprovedBy *int32    `json:"PriorityApprovedBy"`
-	IsClosed           bool      `json:"IsClosed" example:"false"`
-	ResolutionNote     *string   `json:"ResolutionNote" example:"Restartoval jsem projektor a aktualizoval ovladače."`
+	IsClosed           bool       `json:"IsClosed" example:"false"`
+	ResolutionNote     *string    `json:"ResolutionNote" example:"Restartoval jsem projektor a aktualizoval ovladače."`
+	ResolvedAt         *time.Time `json:"ResolvedAt,omitempty"`
 }
 
 // ticketListResponse je stránkovaná odpověď pro seznam tiketů.

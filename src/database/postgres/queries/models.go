@@ -194,6 +194,7 @@ type Ticket struct {
 	PriorityApprovedBy sql.NullInt32
 	IsClosed           bool
 	ResolutionNote     sql.NullString
+	ResolvedAt         sql.NullTime
 }
 
 type TicketComment struct {

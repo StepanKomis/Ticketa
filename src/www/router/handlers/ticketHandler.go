@@ -461,7 +461,7 @@ func (h *TicketHandler) patch(w http.ResponseWriter, r *http.Request) {
 		_, locationTouched := presence["location"]
 		_, categoryTouched := presence["category"]
 		if assignedToTouched || priorityTouched || locationTouched || categoryTouched {
-			WriteError(w, http.StatusForbidden, "údržbář může u přiřazeného tiketu měnit jen stav")
+			WriteError(w, http.StatusForbidden, "údržbář může měnit jen stav a poznámku k řešení")
 			return
 		}
 	}
@@ -544,6 +544,22 @@ func (h *TicketHandler) patch(w http.ResponseWriter, r *http.Request) {
 		} else if ticket.AssignedTo.Valid {
 			newAssigneeName := resolveAuthorName(r.Context(), h.queries, ticket.AssignedTo.Int32)
 			h.logHistory(r.Context(), id, int32(session.UserID), actorName, "assigned", "", newAssigneeName)
+		}
+	}
+	// Auto-přiřazení: každý stav kromě "Otevřeno" (position 0) vyžaduje přiřazeného pracovníka.
+	if statusIDTouched && !ticket.AssignedTo.Valid && ticket.StatusID.Valid {
+		if newSt, stErr := h.queries.GetTicketStatus(r.Context(), ticket.StatusID.Int32); stErr == nil {
+			if newSt.IsClosed || newSt.Position > 0 {
+				resolverID := int32(session.UserID)
+				if _, autoErr := h.queries.UpdateTicketMeta(r.Context(), db.UpdateTicketMetaParams{
+					ID:              id,
+					TouchAssignedTo: true,
+					AssignedTo:      sql.NullInt32{Int32: resolverID, Valid: true},
+				}); autoErr == nil {
+					h.logHistory(r.Context(), id, resolverID, actorName, "assigned", "", actorName)
+					h.activityLogger.LogTiketPrirazen(r.Context(), int32(session.UserID), id, nil, &resolverID)
+				}
+			}
 		}
 	}
 	// Po meta-update znovu načteme pro assignee jméno
@@ -820,11 +836,11 @@ func canMetaUpdate(user db.User) bool {
 	return user.UserType == db.UserTypeStaff || user.UserType == db.UserTypeAdmin
 }
 
-// canUpdateOwnStatus: údržbář může měnit stav tiketu, který je přiřazen jemu
-// — nemá ale správcovská práva na přiřazení/prioritu/lokaci/kategorii.
+// canUpdateOwnStatus: údržbář může měnit stav tiketu přiřazeného jemu,
+// nebo nepřiřazeného tiketu (při vyřešení se k tiketu auto-přiřadí).
 func canUpdateOwnStatus(user db.User, ticket db.GetTicketRow) bool {
 	return user.UserType == db.UserTypeMaintainer &&
-		ticket.AssignedTo.Valid && ticket.AssignedTo.Int32 == user.ID
+		(!ticket.AssignedTo.Valid || ticket.AssignedTo.Int32 == user.ID)
 }
 
 // canClaim: nepřiřazený tiket si může sám převzít jen údržbář.
@@ -913,6 +929,10 @@ func toTicketResponseFromRow(r db.ListTicketsFilteredRow) ticketResponse {
 		v := r.ResolutionNote.String
 		tr.ResolutionNote = &v
 	}
+	if r.ResolvedAt.Valid {
+		v := r.ResolvedAt.Time
+		tr.ResolvedAt = &v
+	}
 	return tr
 }
 
@@ -950,6 +970,10 @@ func toTicketResponseFromGetRow(r db.GetTicketRow, currentUserID int32) ticketRe
 		v := r.ResolutionNote.String
 		tr.ResolutionNote = &v
 	}
+	if r.ResolvedAt.Valid {
+		v := r.ResolvedAt.Time
+		tr.ResolvedAt = &v
+	}
 	return tr
 }
 
@@ -983,6 +1007,10 @@ func toTicketResponseFromTicket(t db.Ticket, assigneeName string, _ int32) ticke
 	if t.ResolutionNote.Valid {
 		v := t.ResolutionNote.String
 		tr.ResolutionNote = &v
+	}
+	if t.ResolvedAt.Valid {
+		v := t.ResolvedAt.Time
+		tr.ResolvedAt = &v
 	}
 	return tr
 }
