@@ -1,4 +1,4 @@
-import './FilterTabs.css'
+import './FilterTabs.scss'
 
 export type FilterValue = 'all' | 'open' | 'in_progress' | 'resolved'
 

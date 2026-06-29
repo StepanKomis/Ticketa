@@ -1,0 +1,38 @@
+@use '../../styles/variables' as *;
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  &-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-700);
+    cursor: default;
+
+    &-icon {
+      display: flex;
+      align-items: center;
+      color: var(--ink-400);
+    }
+  }
+
+  &-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1.5px solid var(--ink-900);
+    padding: 8px 0;
+    font-size: 14.5px;
+    font-family: inherit;
+    color: var(--ink-900);
+    outline: none;
+    width: 100%;
+
+    &::placeholder { color: var(--ink-400); }
+    &:focus        { border-bottom-color: var(--green-600); }
+  }
+}

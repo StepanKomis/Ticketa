@@ -2,10 +2,11 @@ import { useState } from 'react'
 import ConsoleLayout from '../components/layout/ConsoleLayout'
 import SettingsNav from '../components/admin/SettingsNav'
 import Password from '../components/form/password'
+import Card from '../components/ui/Card'
 import { useAuth } from '../hooks/useAuth'
 import { useChangeEmail } from '../hooks/useProfile'
 import { ApiRequestError } from '../api/client'
-import './settingsPage.css'
+import './settingsPage.scss'
 
 function isEmailValid(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -64,7 +65,7 @@ export default function ChangeEmailPage() {
         <div className="settingsPage__grid">
           <SettingsNav />
 
-          <section className="settingsCard">
+          <Card title="Změna e-mailu" className="settingsCard">
             <form className="settingsForm" onSubmit={handleSubmit}>
               <label className="settingsForm__field">
                 <span className="settingsForm__label">Současný e-mail</span>
@@ -104,7 +105,7 @@ export default function ChangeEmailPage() {
                 </button>
               </div>
             </form>
-          </section>
+          </Card>
         </div>
       </div>
     </ConsoleLayout>

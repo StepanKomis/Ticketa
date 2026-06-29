@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import './registerForm.css'
+import './registerForm.scss'
 import Input from '../form/input'
 import Password from '../form/password'
 import RoleSelector from '../form/RoleSelector'
 import * as authApi from '../../api/auth'
 import { ApiRequestError } from '../../api/client'
+import { UserRound, Mail, Lock } from 'lucide-react'
 
 type Role = 'student' | 'staff' | 'maintainer'
 
@@ -17,27 +18,6 @@ interface FormState {
   password: string
   confirmPassword: string
 }
-
-const PersonIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="6.5" cy="4" r="2.5" stroke="currentColor" strokeWidth="1.2" fill="none"/>
-    <path d="M1 12c0-3.038 2.462-5.5 5.5-5.5S12 8.962 12 12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" fill="none"/>
-  </svg>
-)
-
-const EmailIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="1" y="2.5" width="11" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none"/>
-    <path d="M1 4.5l5.5 4 5.5-4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" fill="none"/>
-  </svg>
-)
-
-const LockIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="2" y="5.5" width="9" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none"/>
-    <path d="M4 5.5V4a2.5 2.5 0 0 1 5 0v1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" fill="none"/>
-  </svg>
-)
 
 
 function isPasswordValid(password: string): boolean {
@@ -130,7 +110,7 @@ export default function RegisterForm() {
               type="text"
               name="firstName"
               label="Jméno"
-              icon={<PersonIcon />}
+              icon={<UserRound size={13} strokeWidth={1.4} />}
               placeholder="Jan"
               value={form.firstName}
               onChange={handleChange}
@@ -141,7 +121,7 @@ export default function RegisterForm() {
               type="text"
               name="lastName"
               label="Příjmení"
-              icon={<PersonIcon />}
+              icon={<UserRound size={13} strokeWidth={1.4} />}
               placeholder="Novák"
               value={form.lastName}
               onChange={handleChange}
@@ -154,7 +134,7 @@ export default function RegisterForm() {
             type="email"
             name="email"
             label="Školní e-mail"
-            icon={<EmailIcon />}
+            icon={<Mail size={13} strokeWidth={1.4} />}
             placeholder="jan.novak@skola.cz"
             value={form.email}
             onChange={handleChange}
@@ -173,7 +153,7 @@ export default function RegisterForm() {
           <Password
             name="password"
             label="Heslo"
-            icon={<LockIcon />}
+            icon={<Lock size={13} strokeWidth={1.4} />}
             value={form.password}
             showRequirements
             onChange={handleChange}
@@ -183,7 +163,7 @@ export default function RegisterForm() {
           <Password
             name="confirmPassword"
             label="Potvrdit heslo"
-            icon={<LockIcon />}
+            icon={<Lock size={13} strokeWidth={1.4} />}
             value={form.confirmPassword}
             compareWith={form.password}
             onChange={handleChange}

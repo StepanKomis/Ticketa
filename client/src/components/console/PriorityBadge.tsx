@@ -1,6 +1,6 @@
 import type { TicketPriority } from '../../types/ticket'
 import { PRIORITY_LABELS } from '../../utils/labels'
-import './PriorityBadge.css'
+import './PriorityBadge.scss'
 
 interface Props {
   priority: TicketPriority

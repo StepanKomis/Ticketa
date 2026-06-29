@@ -1,0 +1,75 @@
+@use '../../styles/variables' as *;
+
+.roleSelector {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  &__label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-700);
+  }
+
+  &__buttons {
+    display: flex;
+
+    &--locked { position: relative; }
+  }
+
+  &__btn {
+    flex: 1;
+    background: var(--white);
+    border: none;
+    border-bottom: 1px solid var(--line);
+    padding: 12px 8px;
+    font-size: 13.3px;
+    font-family: inherit;
+    color: var(--ink-900);
+    cursor: pointer;
+    transition: background $ease-base, border-color $ease-base;
+
+    &--selected {
+      background: var(--green-50);
+      border-bottom-color: var(--green-500);
+      color: var(--green-600);
+      font-weight: 500;
+    }
+
+    &:hover:not(&--selected):not(:disabled) { background: var(--canvas); }
+
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    &--locked { opacity: 0.25; cursor: default; pointer-events: none; }
+  }
+
+  &__adminOverlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    background: rgba(237, 247, 241, 0.92);
+    backdrop-filter: blur(1px);
+    pointer-events: none;
+  }
+
+  &__adminBadge {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--green-600);
+    letter-spacing: 0.03em;
+    padding: 3px 10px;
+    border: 1.5px solid var(--green-500);
+    border-radius: var(--radius-sm);
+    background: var(--white);
+  }
+
+  &__adminNote {
+    font-size: 11.5px;
+    color: var(--ink-700);
+    opacity: 0.8;
+  }
+}

@@ -1,6 +1,6 @@
 import { TicketStatus } from '../../types/ticket'
 import { STATUS_LABELS as LABELS } from '../../utils/labels'
-import './StatusBadge.css'
+import './StatusBadge.scss'
 
 // Small leading glyphs matching the design-system status swatches.
 function StatusIcon({ status }: { status: TicketStatus }) {

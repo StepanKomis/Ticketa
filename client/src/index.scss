@@ -23,7 +23,7 @@
   --canvas:  #F6F8F7;
   --white:   #FFFFFF;
 
-  /* Status colours — mapped to the design-system "Status · Functional" swatches */
+  /* Status colours */
   --status-new:         #5C6B64;
   --status-new-bg:      #EEF1EF;
   --status-open:        #2F6DB3;
@@ -37,7 +37,7 @@
   --status-urgent:      #C2452F;
   --status-urgent-bg:   #FBEAE6;
 
-  /* Status accent dots (leading indicator on ticket rows) */
+  /* Status accent dots */
   --dot-new:        #8A968F;
   --dot-open:       #2F6DB3;
   --dot-progress:   #D08A12;
@@ -50,7 +50,7 @@
   --priority-medium: #2F6DB3;
   --priority-low:    #5C6B64;
 
-  /* Avatar palette — assigned deterministically by name hash */
+  /* Avatar palette */
   --avatar-1: #1B7A50;
   --avatar-2: #15623F;
   --avatar-3: #2F6DB3;
@@ -86,6 +86,9 @@
   /* Shadows */
   --shadow-card: 0 1px 3px 0 rgba(15,23,20,0.06), 0 1px 2px -1px rgba(15,23,20,0.04);
   --shadow-nav:  0 -1px 0 0 var(--line);
+
+  /* Error */
+  --color-error: #c0392b;
 }
 
 *, *::before, *::after {

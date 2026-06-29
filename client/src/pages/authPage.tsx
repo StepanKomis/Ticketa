@@ -1,4 +1,4 @@
-import './authPage.css'
+import './authPage.scss'
 import LoginForm from '../components/auth/loginForm'
 import RegisterForm from '../components/auth/registerForm'
 

@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import ConsoleLayout from '../components/layout/ConsoleLayout'
 import SettingsNav from '../components/admin/SettingsNav'
 import Password from '../components/form/password'
+import Card from '../components/ui/Card'
 import { useAuth } from '../hooks/useAuth'
 import { useChangePassword } from '../hooks/useProfile'
 import { ApiRequestError } from '../api/client'
-import './settingsPage.css'
+import './settingsPage.scss'
 
 function isPasswordValid(pw: string): boolean {
   return pw.length >= 8 && pw.length <= 72 && /\d/.test(pw) && /[^A-Za-z0-9]/.test(pw)
@@ -74,7 +75,7 @@ export default function ChangePasswordPage() {
         <div className="settingsPage__grid">
           <SettingsNav />
 
-          <section className="settingsCard">
+          <Card title="Změna hesla" className="settingsCard">
             <form className="settingsForm" onSubmit={handleSubmit}>
               <Password
                 name="current_password"
@@ -118,7 +119,7 @@ export default function ChangePasswordPage() {
                 </button>
               </div>
             </form>
-          </section>
+          </Card>
         </div>
       </div>
     </ConsoleLayout>
