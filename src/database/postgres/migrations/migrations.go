@@ -49,6 +49,9 @@ var up00013 string
 //go:embed up/UP_00014.sql
 var up00014 string
 
+//go:embed up/UP_00015.sql
+var up00015 string
+
 var All = func() []migrate.Migration {
 	ms := []migrate.Migration{
 		{
@@ -230,6 +233,21 @@ var All = func() []migrate.Migration {
 			},
 			Down: func(db any) error {
 				_, err := db.(*sql.DB).Exec(`DROP INDEX IF EXISTS idx_users_is_active;`)
+				return err
+			},
+		},
+		{
+			Name: "ticket_resolved_at",
+			Up: func(db any) error {
+				_, err := db.(*sql.DB).Exec(up00015)
+				return err
+			},
+			Down: func(db any) error {
+				_, err := db.(*sql.DB).Exec(`
+					DROP TRIGGER IF EXISTS trg_ticket_resolved_at ON tickets;
+					DROP FUNCTION IF EXISTS set_ticket_resolved_at;
+					ALTER TABLE tickets DROP COLUMN IF EXISTS resolved_at;
+				`)
 				return err
 			},
 		},
