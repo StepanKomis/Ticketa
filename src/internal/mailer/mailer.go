@@ -1,8 +1,14 @@
 package mailer
 
 import (
+	"bytes"
+	"crypto/rand"
 	"crypto/tls"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
+	"io"
+	"mime/quotedprintable"
 	"net/smtp"
 
 	"github.com/StepanKomis/Ticketa/src/cmd/server/env"
@@ -71,10 +77,77 @@ func (m *Mailer) Send(to, subject, body string) {
 	if m == nil {
 		return
 	}
+	msg, err := buildMessage(m.from, to, subject, body)
+	if err != nil {
+		m.logger.Debugf("mailer: buildMessage selhalo: %s", err)
+		return
+	}
 	addr := m.host + ":" + m.port
 	auth := smtp.PlainAuth("", m.username, m.password, m.host)
-	msg := []byte(fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s", m.from, to, subject, body))
 	if err := smtp.SendMail(addr, auth, m.from, []string{to}, msg); err != nil {
 		m.logger.Debugf("mailer: odeslání selhalo (to=%s): %s", to, err)
 	}
+}
+
+// buildMessage sestaví email jako multipart/alternative (plain text + HTML).
+func buildMessage(from, to, subject, plainText string) ([]byte, error) {
+	var buf bytes.Buffer
+
+	// Náhodná MIME boundary
+	b := make([]byte, 12)
+	if _, err := io.ReadFull(rand.Reader, b); err != nil {
+		return nil, fmt.Errorf("buildMessage: rand: %w", err)
+	}
+	boundary := hex.EncodeToString(b)
+
+	// Hlavičky
+	fmt.Fprintf(&buf, "From: %s\r\n", from)
+	fmt.Fprintf(&buf, "To: %s\r\n", to)
+	fmt.Fprintf(&buf, "Subject: %s\r\n", encodeSubject(subject))
+	fmt.Fprintf(&buf, "MIME-Version: 1.0\r\n")
+	fmt.Fprintf(&buf, "Content-Type: multipart/alternative; boundary=%q\r\n", boundary)
+	fmt.Fprintf(&buf, "\r\n")
+
+	// -- Plain text část
+	fmt.Fprintf(&buf, "--%s\r\n", boundary)
+	fmt.Fprintf(&buf, "Content-Type: text/plain; charset=UTF-8\r\n")
+	fmt.Fprintf(&buf, "Content-Transfer-Encoding: quoted-printable\r\n")
+	fmt.Fprintf(&buf, "\r\n")
+	qwText := quotedprintable.NewWriter(&buf)
+	if _, err := qwText.Write([]byte(plainText)); err != nil {
+		return nil, fmt.Errorf("buildMessage: qp text: %w", err)
+	}
+	qwText.Close()
+	fmt.Fprintf(&buf, "\r\n")
+
+	// -- HTML část
+	htmlBytes, err := renderHTML(plainText)
+	if err != nil {
+		return nil, fmt.Errorf("buildMessage: renderHTML: %w", err)
+	}
+	fmt.Fprintf(&buf, "--%s\r\n", boundary)
+	fmt.Fprintf(&buf, "Content-Type: text/html; charset=UTF-8\r\n")
+	fmt.Fprintf(&buf, "Content-Transfer-Encoding: quoted-printable\r\n")
+	fmt.Fprintf(&buf, "\r\n")
+	qwHTML := quotedprintable.NewWriter(&buf)
+	if _, err := qwHTML.Write(htmlBytes); err != nil {
+		return nil, fmt.Errorf("buildMessage: qp html: %w", err)
+	}
+	qwHTML.Close()
+	fmt.Fprintf(&buf, "\r\n")
+
+	// Uzavírací boundary
+	fmt.Fprintf(&buf, "--%s--\r\n", boundary)
+
+	return buf.Bytes(), nil
+}
+
+// encodeSubject zakóduje subject do RFC 2047 formátu pokud obsahuje non-ASCII znaky (čeština).
+func encodeSubject(s string) string {
+	for _, r := range s {
+		if r > 127 {
+			return "=?UTF-8?B?" + base64.StdEncoding.EncodeToString([]byte(s)) + "?="
+		}
+	}
+	return s
 }

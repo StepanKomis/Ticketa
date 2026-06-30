@@ -37,10 +37,10 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	staffAdmin := func(h http.Handler) http.Handler { return authEnforced(middleware.StaffOrAdminMiddleware()(h)) }
 
 	activityLogger := activity.NewActivityLogger(queries, cfg, httpLogger)
-	notifier := notifications.NewNotifier(queries, httpLogger)
 	m := mailer.New(httpLogger)
+	notifier := notifications.NewNotifier(queries, httpLogger, m)
 
-	userHandler, err := handlers.NewUserHandler(httpLogger, sqlDB, sessionStore, cfg, activityLogger, m)
+	userHandler, err := handlers.NewUserHandler(httpLogger, sqlDB, sessionStore, cfg, activityLogger)
 	if err != nil {
 		httpLogger.Fatalf("nepodařilo se vytvořit user handler v routeru: %s", err)
 	}
