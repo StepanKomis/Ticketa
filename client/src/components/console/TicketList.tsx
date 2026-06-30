@@ -16,11 +16,12 @@ interface Props {
   filter?: FilterValue
   onFilterChange?: (v: FilterValue) => void
   counts?: Partial<Record<FilterValue, number>>
+  showDeletedTab?: boolean
 }
 
 const FILTERS: FilterValue[] = ['all', 'open', 'in_progress', 'resolved']
 
-export default function TicketList({ tickets, title = 'Moje tikety', isLoading, onTicketAction, canAct, filter: filterProp, onFilterChange, counts: countsProp }: Props) {
+export default function TicketList({ tickets, title = 'Moje tikety', isLoading, onTicketAction, canAct, filter: filterProp, onFilterChange, counts: countsProp, showDeletedTab }: Props) {
   const internal = useTicketFilter(tickets)
 
   const controlled = filterProp !== undefined
@@ -36,7 +37,7 @@ export default function TicketList({ tickets, title = 'Moje tikety', isLoading, 
     <Card className="ticketList">
       <div className="ticketList__header">
         <h2 className="ticketList__title">{title}</h2>
-        <FilterTabs active={filter} onChange={setFilter} counts={counts} />
+        <FilterTabs active={filter} onChange={setFilter} counts={counts} showDeletedTab={showDeletedTab} />
       </div>
 
       {isLoading ? (

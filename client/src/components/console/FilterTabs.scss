@@ -40,6 +40,9 @@
 
       .filterTabs__count { color: var(--green-600); }
     }
+
+    &--deleted { margin-left: var(--sp-2); }
+    &--deleted#{&}--active .filterTabs__count { color: var(--ink-500); }
   }
 
   &__count {
