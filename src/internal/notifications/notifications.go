@@ -84,7 +84,7 @@ func (n *Notifier) NotifyTicketResolved(ctx context.Context, authorID int32, tic
 	n.send(ctx, authorID, TypeTicketResolved, text, &ticketID)
 	if n.isEmailEnabled(ctx, authorID, TypeTicketResolved) {
 		if email := n.emailForUser(ctx, authorID); email != "" {
-			go n.mailer.Send(email, "Ticket vyřešen", text)
+			go n.mailer.Send(email, "Ticket vyřešen", "Váš ticket byl vyřešen.")
 		}
 	}
 }
@@ -94,7 +94,7 @@ func (n *Notifier) NotifyTicketDeleted(ctx context.Context, authorID int32, tick
 	n.send(ctx, authorID, TypeTicketDeleted, text, &ticketID)
 	if n.isEmailEnabled(ctx, authorID, TypeTicketDeleted) {
 		if email := n.emailForUser(ctx, authorID); email != "" {
-			go n.mailer.Send(email, "Ticket smazán", text)
+			go n.mailer.Send(email, "Ticket smazán", "Váš ticket byl smazán.")
 		}
 	}
 }
@@ -104,7 +104,7 @@ func (n *Notifier) NotifyTicketAssigned(ctx context.Context, assigneeID int32, t
 	n.send(ctx, assigneeID, TypeTicketAssigned, text, &ticketID)
 	if n.isEmailEnabled(ctx, assigneeID, TypeTicketAssigned) {
 		if email := n.emailForUser(ctx, assigneeID); email != "" {
-			go n.mailer.Send(email, "Přidělení tiketu", text)
+			go n.mailer.Send(email, "Přidělení tiketu", "Byl vám přidělen tiket.")
 		}
 	}
 }
@@ -147,7 +147,7 @@ func (n *Notifier) NotifyPriorityApproved(ctx context.Context, authorID int32, t
 	n.send(ctx, authorID, TypePriorityApproved, text, &ticketID)
 	if n.isEmailEnabled(ctx, authorID, TypePriorityApproved) {
 		if email := n.emailForUser(ctx, authorID); email != "" {
-			go n.mailer.Send(email, "Priorita schválena", text)
+			go n.mailer.Send(email, "Priorita schválena", "Urgentní priorita vašeho ticketu byla schválena.")
 		}
 	}
 }
@@ -166,7 +166,7 @@ func (n *Notifier) NotifyUrgentTicketBroadcast(ctx context.Context, ticketID int
 		n.send(ctx, u.ID, TypeUrgentBroadcast, text, &ticketID)
 		if u.Email != "" && n.mailer != nil {
 			email := u.Email
-			go n.mailer.Send(email, "Urgentní tiket", text)
+			go n.mailer.Send(email, "Urgentní tiket", "Byl nahlášen urgentní tiket (havárie).")
 		}
 	}
 }

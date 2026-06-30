@@ -25,13 +25,14 @@ var emailTmpl = template.Must(template.New("email").Parse(`<!DOCTYPE html>
           <!-- Logo row -->
           <tr>
             <td style="padding:0 0 20px 0;">
-              <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
-                <tr>
-                  <td>
-                    <span style="font-size:13px;font-weight:700;color:#6366f1;letter-spacing:4px;text-transform:uppercase;">TICKETA</span>
-                  </td>
-                </tr>
-              </table>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100" width="150" height="50" role="img" aria-label="Ticketa">
+                <g transform="translate(4 18) scale(0.64)">
+                  <rect x="3" y="3" width="94" height="94" rx="27" fill="#1B7A50"></rect>
+                  <line x1="50" y1="14" x2="50" y2="86" stroke="#EDF7F1" stroke-width="3" stroke-dasharray="2.6 5" stroke-linecap="round" opacity="0.35"></line>
+                  <path d="M30 33 H70 V44 H56 V70 H44 V44 H30 Z" fill="#ffffff"></path>
+                </g>
+                <text x="86" y="64" font-family="system-ui,-apple-system,'Segoe UI',sans-serif" font-size="48" font-weight="800" letter-spacing="-1.6" fill="#0F1714">Ticketa</text>
+              </svg>
             </td>
           </tr>
 
@@ -42,7 +43,7 @@ var emailTmpl = template.Must(template.New("email").Parse(`<!DOCTYPE html>
               <!-- Accent bar -->
               <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
                 <tr>
-                  <td style="height:4px;background:#6366f1;font-size:0;line-height:0;">&nbsp;</td>
+                  <td style="height:4px;background:#1B7A50;font-size:0;line-height:0;">&nbsp;</td>
                 </tr>
               </table>
 
