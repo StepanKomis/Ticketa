@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { User, Users, Bell } from 'lucide-react'
+import { User, Users, Bell, Server } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { usePendingCount } from '../../hooks/useUsers'
 import './SettingsNav.scss'
@@ -31,6 +31,12 @@ export default function SettingsNav() {
         <Bell size={16} strokeWidth={1.4} />
         <span>Oznámení</span>
       </NavLink>
+      {isAdmin && (
+        <NavLink to="/settings/server" className={navClass}>
+          <Server size={16} strokeWidth={1.4} />
+          <span>Server</span>
+        </NavLink>
+      )}
     </nav>
   )
 }

@@ -18,7 +18,7 @@ import (
 	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
 )
 
-func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.ServeMux {
+func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store, m *mailer.Mailer) *http.ServeMux {
 	cfg := cfgStore.Get()
 	httpLogger, err := logs.NewLogger("http", cfg)
 	if err != nil {
@@ -37,7 +37,6 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	staffAdmin := func(h http.Handler) http.Handler { return authEnforced(middleware.StaffOrAdminMiddleware()(h)) }
 
 	activityLogger := activity.NewActivityLogger(queries, cfg, httpLogger)
-	m := mailer.New(httpLogger)
 	notifier := notifications.NewNotifier(queries, httpLogger, m)
 
 	userHandler, err := handlers.NewUserHandler(httpLogger, sqlDB, sessionStore, cfg, activityLogger)
@@ -51,6 +50,7 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	activityHandler := handlers.NewActivityHandler(queries, httpLogger)
 	notificationHandler := handlers.NewNotificationHandler(queries, httpLogger)
 	notificationPreferencesHandler := handlers.NewNotificationPreferencesHandler(queries, httpLogger)
+	serverSettingsHandler := handlers.NewServerSettingsHandler(queries, m, httpLogger)
 
 	mux := http.NewServeMux()
 
@@ -73,6 +73,8 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	mux.Handle("POST /api/register", userHandler)
 	mux.Handle("POST /api/login", userHandler)
 	mux.Handle("POST /api/auth/invite/accept", userHandler)
+	mux.Handle("POST /api/setup/smtp/test", serverSettingsHandler)
+	mux.Handle("POST /api/setup/db/test", serverSettingsHandler)
 
 	// User routes (authenticated)
 	// /api/me/password, /api/me/email a /api/logout jsou whitelistovány — uživatel
@@ -119,6 +121,14 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	// Activity log
 	mux.Handle("GET /api/activity", admin(activityHandler))
 	mux.Handle("GET /api/users/{id}/activity", authEnforced(activityHandler))
+
+	// Setup wizard completion (admin only, only before wizard_completed)
+	mux.Handle("POST /api/setup/complete", admin(serverSettingsHandler))
+
+	// Server settings (admin only)
+	mux.Handle("GET /api/admin/server-settings", admin(serverSettingsHandler))
+	mux.Handle("PATCH /api/admin/server-settings/smtp", admin(serverSettingsHandler))
+	mux.Handle("POST /api/admin/server-settings/smtp/test", admin(serverSettingsHandler))
 
 	// Admin routes (maintainer only)
 	mux.Handle("GET /api/admin/config", admin(adminHandler))

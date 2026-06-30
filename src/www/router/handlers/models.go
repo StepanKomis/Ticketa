@@ -170,7 +170,8 @@ type loginRequest struct {
 
 // setupStatusResponse informuje, zda je systém nakonfigurován (existuje alespoň jeden uživatel).
 type setupStatusResponse struct {
-	NeedsSetup bool `json:"needs_setup" example:"true"`
+	NeedsSetup      bool `json:"needs_setup" example:"true"`
+	WizardCompleted bool `json:"wizard_completed" example:"false"`
 }
 
 // patchMeRequest je tělo požadavku pro PATCH /api/me.

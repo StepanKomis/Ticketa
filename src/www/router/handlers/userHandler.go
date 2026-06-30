@@ -451,7 +451,11 @@ func (uh *UserHandler) setupStatus(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se ověřit stav systému")
 		return
 	}
-	res := setupStatusResponse{NeedsSetup: count == 0}
+	wizardCompleted := false
+	if s, err := uh.queries.GetServerSetting(r.Context(), "wizard_completed"); err == nil {
+		wizardCompleted = s.Value == "true"
+	}
+	res := setupStatusResponse{NeedsSetup: count == 0, WizardCompleted: wizardCompleted}
 	jsonRes, err := json.Marshal(res)
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, "interní chyba serveru")

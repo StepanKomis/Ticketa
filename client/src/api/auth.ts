@@ -23,8 +23,8 @@ export function register(payload: RegisterPayload): Promise<{ id: number }> {
   })
 }
 
-export function getSetupStatus(): Promise<{ needs_setup: boolean }> {
-  return request<{ needs_setup: boolean }>('/api/setup-status')
+export function getSetupStatus(): Promise<{ needs_setup: boolean; wizard_completed: boolean }> {
+  return request<{ needs_setup: boolean; wizard_completed: boolean }>('/api/setup-status')
 }
 
 export function patchMe(payload: { first_name?: string; last_name?: string }): Promise<CurrentUser> {

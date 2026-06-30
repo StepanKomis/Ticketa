@@ -19,6 +19,42 @@ import (
 	"github.com/StepanKomis/Ticketa/src/www/router"
 )
 
+// seedServerSettings uloží hodnoty z env proměnných do server_settings tabulky.
+// Volá se při každém startu; from_env=true zabraňuje přepsání hodnot nastaveným
+// přes admin UI (které mají from_env=false).
+func seedServerSettings(ctx context.Context, queries *dbq.Queries) {
+	type envSetting struct {
+		key      string
+		envName  string
+		defVal   string
+		required bool
+	}
+	settings := []envSetting{
+		{key: "smtp_host", envName: "SMTP_HOST"},
+		{key: "smtp_port", envName: "SMTP_PORT", defVal: "587"},
+		{key: "smtp_user", envName: "SMTP_USER"},
+		{key: "smtp_password", envName: "SMTP_PASSWORD"},
+		{key: "smtp_from", envName: "SMTP_FROM"},
+		{key: "pg_host", envName: "PG_HOST", defVal: "database"},
+		{key: "pg_port", envName: "PG_PORT", defVal: "5432"},
+		{key: "pg_user", envName: "PG_USER"},
+		{key: "pg_database", envName: "PG_DATABASE", defVal: "ticketa"},
+		{key: "pg_sslmode", envName: "PG_SSLMODE", defVal: "disable"},
+	}
+	for _, s := range settings {
+		val := env.Get(s.envName, s.defVal)
+		if val == "" {
+			continue
+		}
+		stored := val
+		_ = queries.UpsertServerSetting(ctx, dbq.UpsertServerSettingParams{
+			Key:     s.key,
+			Value:   stored,
+			FromEnv: true,
+		})
+	}
+}
+
 // InitializeServer spustí celý server: připojí se k DB, aplikuje migrace, seeduje stavy
 // tiketů, sestaví router a začne naslouchat na SERVER_PORT (výchozí 8080).
 // Blokuje dokud server nespadne nebo nevrátí chybu.
@@ -57,22 +93,33 @@ func InitializeServer(l *logs.Logger, cfgStore *config.Store) error {
 
 	l.Info("Migrace dokončeny.")
 
+	queries := dbq.New(db)
+
 	l.Info("Seedování stavů tiketů z konfigurace...")
-	if err := statuses.Seed(context.Background(), dbq.New(db), cfgStore.Get().TicketStatuses); err != nil {
+	if err := statuses.Seed(context.Background(), queries, cfgStore.Get().TicketStatuses); err != nil {
 		return fmt.Errorf("seedování stavů tiketů: %w", err)
 	}
 	l.Info("Stavy tiketů seedovány.")
 
-	if err := mailer.Ping(l); err != nil {
-		l.Infof("SMTP: test připojení selhal: %s", err)
-	} else if env.Get("SMTP_HOST", "") != "" {
-		l.Info("SMTP: připojení ověřeno.")
+	l.Info("Seeding nastavení serveru z prostředí...")
+	seedServerSettings(context.Background(), queries)
+
+	m := mailer.New(l)
+	if m == nil {
+		m = mailer.NewFromDB(context.Background(), queries, l)
+	}
+	if m != nil {
+		if err := m.Ping(); err != nil {
+			l.Infof("SMTP: test připojení selhal: %s", err)
+		} else {
+			l.Info("SMTP: připojení ověřeno.")
+		}
 	}
 
 	port := env.Get("SERVER_PORT", "8080")
 	addr := ":" + port
 
-	mux := router.NewRouter(www.StaticFiles, db, cfgStore)
+	mux := router.NewRouter(www.StaticFiles, db, cfgStore, m)
 
 	// Timeouty brání vyčerpání zdrojů pomalými či nedokončenými požadavky (Slowloris).
 	srv := &http.Server{
