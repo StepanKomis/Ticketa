@@ -36,7 +36,7 @@ export default function TicketsPage() {
   const filterCategory = searchParams.get('category') ?? ''
   const filterOffset   = Number(searchParams.get('offset') ?? '0')
   const scope = (searchParams.get('scope') ?? 'mine') as MaintainerScope
-  const showDeleted = isStaff && searchParams.get('show_deleted') === 'true'
+  const showDeleted = isStaff && statusFilter === 'deleted'
 
   const { data: statuses } = useStatuses()
   const { advance, resolveModal } = useTicketActions(statuses ?? [])
@@ -44,7 +44,7 @@ export default function TicketsPage() {
   // "Vše" = aktivní tikety (uzavřené se nezobrazují, dokud o ně uživatel
   // explicitně nepožádá přes tab "Vyřešené", který teď cílí přímo na
   // is_closed namísto odvozování přes status_id).
-  const statusIdParam = (statusFilter !== 'all' && statusFilter !== 'resolved')
+  const statusIdParam = (statusFilter !== 'all' && statusFilter !== 'resolved' && statusFilter !== 'deleted')
     ? statusIdForUiStatus(statusFilter, statuses ?? [])
     : undefined
   const closedParam = statusFilter === 'all' ? false : statusFilter === 'resolved' ? true : undefined
@@ -154,18 +154,6 @@ export default function TicketsPage() {
           </div>
         )}
 
-        {isStaff && (
-          <div className="ticketsPage__deletedToggle">
-            <button
-              type="button"
-              className={`ticketsPage__deletedBtn${showDeleted ? ' ticketsPage__deletedBtn--active' : ''}`}
-              onClick={() => setParam('show_deleted', showDeleted ? '' : 'true')}
-            >
-              {showDeleted ? '← Aktivní tikety' : 'Smazané tikety'}
-            </button>
-          </div>
-        )}
-
         {!showDeleted && (
           <FilterBar
             values={{ q: filterQ, priority: filterPriority, category: filterCategory }}
@@ -182,6 +170,7 @@ export default function TicketsPage() {
           filter={statusFilter}
           onFilterChange={handleStatusChange}
           counts={{ [statusFilter]: total }}
+          showDeletedTab={isStaff}
         />
 
         {totalPages > 1 && (
