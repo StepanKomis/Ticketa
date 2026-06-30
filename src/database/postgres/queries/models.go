@@ -165,6 +165,13 @@ type NotificationEmailOptout struct {
 	CreatedAt time.Time
 }
 
+type ServerSetting struct {
+	Key       string
+	Value     string
+	FromEnv   bool
+	UpdatedAt time.Time
+}
+
 type Session struct {
 	ID         int64
 	UserID     int64

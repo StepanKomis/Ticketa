@@ -55,6 +55,12 @@ var up00015 string
 //go:embed up/UP_00016.sql
 var up00016 string
 
+//go:embed up/UP_00017.sql
+var up00017 string
+
+//go:embed up/UP_00018.sql
+var up00018 string
+
 var All = func() []migrate.Migration {
 	ms := []migrate.Migration{
 		{
@@ -266,6 +272,28 @@ var All = func() []migrate.Migration {
 					DROP INDEX IF EXISTS idx_tickets_deleted_at;
 					ALTER TABLE tickets DROP COLUMN IF EXISTS deleted_at;
 				`)
+				return err
+			},
+		},
+		{
+			Name: "notification_email_optouts",
+			Up: func(db any) error {
+				_, err := db.(*sql.DB).Exec(up00017)
+				return err
+			},
+			Down: func(db any) error {
+				_, err := db.(*sql.DB).Exec(`DROP TABLE IF EXISTS notification_email_optouts CASCADE;`)
+				return err
+			},
+		},
+		{
+			Name: "server_settings",
+			Up: func(db any) error {
+				_, err := db.(*sql.DB).Exec(up00018)
+				return err
+			},
+			Down: func(db any) error {
+				_, err := db.(*sql.DB).Exec(`DROP TABLE IF EXISTS server_settings CASCADE;`)
 				return err
 			},
 		},
