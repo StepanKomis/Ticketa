@@ -50,6 +50,7 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	adminHandler := handlers.NewAdminHandler(queries, cfgStore, httpLogger, activityLogger, notifier)
 	activityHandler := handlers.NewActivityHandler(queries, httpLogger)
 	notificationHandler := handlers.NewNotificationHandler(queries, httpLogger)
+	notificationPreferencesHandler := handlers.NewNotificationPreferencesHandler(queries, httpLogger)
 
 	mux := http.NewServeMux()
 
@@ -112,6 +113,8 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	// Notifications
 	mux.Handle("GET /api/notifications", authEnforced(notificationHandler))
 	mux.Handle("POST /api/notifications/mark-viewed", authEnforced(notificationHandler))
+	mux.Handle("GET /api/notifications/preferences", authEnforced(notificationPreferencesHandler))
+	mux.Handle("PUT /api/notifications/preferences", authEnforced(notificationPreferencesHandler))
 
 	// Activity log
 	mux.Handle("GET /api/activity", admin(activityHandler))

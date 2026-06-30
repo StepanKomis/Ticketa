@@ -161,6 +161,9 @@ func (h *TicketHandler) create(w http.ResponseWriter, r *http.Request) {
 		h.logHistory(r.Context(), ticket.ID, int32(session.UserID), actorName, "priority_approval_requested", "", ticket.RequestedPriority.String)
 		h.activityLogger.LogTiketPrioritaKeSchvaleni(r.Context(), int32(session.UserID), ticket.ID, ticket.RequestedPriority.String)
 	}
+	if ticket.Priority == "urgent" {
+		h.notifier.NotifyUrgentTicketBroadcast(r.Context(), ticket.ID, ticket.Title)
+	}
 	writeJSON(w, http.StatusCreated, toTicketResponseFromTicket(ticket, "", int32(session.UserID)))
 }
 
@@ -538,6 +541,9 @@ func (h *TicketHandler) patch(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.Priority != nil && existing.Priority != ticket.Priority {
 		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "priority_changed", existing.Priority, ticket.Priority)
+		if ticket.Priority == "urgent" {
+			h.notifier.NotifyUrgentTicketBroadcast(r.Context(), id, ticket.Title)
+		}
 	}
 	if body.Location != nil && existing.Location != ticket.Location {
 		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "location_changed", existing.Location, ticket.Location)
@@ -792,6 +798,9 @@ func (h *TicketHandler) approvePriority(w http.ResponseWriter, r *http.Request) 
 	h.logHistory(r.Context(), id, int32(session.UserID), actorName, "priority_changed", existing.Priority, ticket.Priority)
 	h.activityLogger.LogTiketPrioritaSchvalena(r.Context(), int32(session.UserID), id, ticket.Priority)
 	h.notifier.NotifyPriorityApproved(r.Context(), existing.AuthorID, id, ticket.Title)
+	if ticket.Priority == "urgent" {
+		h.notifier.NotifyUrgentTicketBroadcast(r.Context(), id, ticket.Title)
+	}
 	writeJSON(w, http.StatusOK, toTicketResponseFromTicket(ticket, existing.AssigneeName, int32(session.UserID)))
 }
 

@@ -64,6 +64,8 @@ Po změně SQL dotazů: `make sqlc`. Nová migrace = soubor `UP_000N.sql` v `src
 - Komentáře s odpověďmi a soft-delete
 - Role a schvalovací workflow (`pending` → `staff` / `maintainer`)
 - In-app notifikace (vyřešení, smazání, přiřazení, schválení role/priority)
+- E-mailové notifikace (SMTP) pro všechny in-app události
+- Uživatelská nastavení oznámení — opt-out e-mailu per typ, celoškolní broadcast pro urgentní tikety
 - Soft-delete tiketů (přístupné přes přímou URL, viditelné pro staff/admin)
 - Admin panel — uživatelé, pozvánky, stavy tiketů, runtime konfigurace
 - Activity log
@@ -72,6 +74,5 @@ Po změně SQL dotazů: `make sqlc`. Nová migrace = soubor `UP_000N.sql` v `src
 ### Plánováno
 - [ ] Reporty a statistiky (počty tiketů, průměrná doba řešení, vytížení údržbářů)
 - [ ] Adresář uživatelů pro staff
-- [ ] E-mailové notifikace
 - [ ] LDAP/AD přihlášení (schéma připraveno)
 - [ ] Vícejazyčnost (i18n)
