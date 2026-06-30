@@ -1,15 +1,17 @@
-import './Card.scss'
+import type { ReactNode } from 'react'
+import './Card.css'
 
-type CardProps = {
+interface CardProps {
   title?: string
-  children: React.ReactNode
-} & React.HTMLAttributes<HTMLElement>
+  className?: string
+  children: ReactNode
+}
 
-export default function Card({ title, className, children, ...props }: CardProps) {
+export default function Card({ title, className, children }: CardProps) {
   return (
-    <section className={['card', className].filter(Boolean).join(' ')} {...props}>
+    <div className={`card${className ? ` ${className}` : ''}`}>
       {title && <h2 className="card__title">{title}</h2>}
       {children}
-    </section>
+    </div>
   )
 }

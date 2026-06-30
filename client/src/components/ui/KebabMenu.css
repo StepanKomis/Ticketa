@@ -1,0 +1,129 @@
+.kebabMenu {
+  position: relative;
+}
+
+.kebabMenu__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-400);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.kebabMenu__trigger:hover {
+  background: var(--field-bg);
+  color: var(--ink-700);
+}
+
+.kebabMenu__list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  min-width: 160px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-card);
+}
+
+.kebabMenu__list--above {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.kebabMenu__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-700);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.kebabMenu__item:hover:not(:disabled) {
+  background: var(--field-bg);
+}
+
+.kebabMenu__item:disabled {
+  cursor: default;
+}
+
+.kebabMenu__item--current {
+  color: var(--ink-400);
+}
+
+.kebabMenu__item--current:hover {
+  background: none;
+}
+
+.kebabMenu__item--danger {
+  color: var(--priority-urgent);
+}
+
+.kebabMenu__item--danger:hover:not(:disabled) {
+  background: #FEF2F2;
+}
+
+.kebabMenu__item--hasSub {
+  justify-content: space-between;
+}
+
+.kebabMenu__arrow {
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.kebabMenu__arrow--open {
+  transform: rotate(90deg);
+}
+
+.kebabMenu__itemSub {
+  position: relative;
+}
+
+.kebabMenu__submenu {
+  position: absolute;
+  left: calc(100% + 4px);
+  top: -4px;
+  z-index: 31;
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  width: max-content;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-card);
+}
+
+@media (max-width: 960px) {
+  .kebabMenu__submenu {
+    left: auto;
+    right: calc(100% + 4px);
+  }
+}
+
+.kebabMenu__check {
+  font-size: 11px;
+  color: var(--green-600);
+  width: 12px;
+  flex: none;
+}

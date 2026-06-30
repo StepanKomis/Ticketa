@@ -36,6 +36,7 @@ export default function TicketsPage() {
   const filterCategory = searchParams.get('category') ?? ''
   const filterOffset   = Number(searchParams.get('offset') ?? '0')
   const scope = (searchParams.get('scope') ?? 'mine') as MaintainerScope
+  const showDeleted = isStaff && searchParams.get('show_deleted') === 'true'
 
   const { data: statuses } = useStatuses()
   const { advance, resolveModal } = useTicketActions(statuses ?? [])
@@ -49,15 +50,20 @@ export default function TicketsPage() {
   const closedParam = statusFilter === 'all' ? false : statusFilter === 'resolved' ? true : undefined
 
   const { data: ticketList, isLoading } = useTickets({
-    status_id: statusIdParam,
-    closed:    closedParam,
+    ...(showDeleted
+      ? { show_deleted: true }
+      : {
+          status_id: statusIdParam,
+          closed:    closedParam,
+          ...(isMaintainer && scope === 'mine' ? { assigned_to: user?.id } : {}),
+          ...(isMaintainer && scope === 'unassigned' ? { unassigned: true } : {}),
+        }
+    ),
     priority:  filterPriority || undefined,
     category:  filterCategory || undefined,
     q:         filterQ || undefined,
     limit:     PAGE_SIZE,
     offset:    filterOffset,
-    ...(isMaintainer && scope === 'mine' ? { assigned_to: user?.id } : {}),
-    ...(isMaintainer && scope === 'unassigned' ? { unassigned: true } : {}),
   })
 
   const apiTickets = ticketList?.items ?? []
@@ -148,14 +154,28 @@ export default function TicketsPage() {
           </div>
         )}
 
-        <FilterBar
-          values={{ q: filterQ, priority: filterPriority, category: filterCategory }}
-          onChange={handleFilterChange}
-        />
+        {isStaff && (
+          <div className="ticketsPage__deletedToggle">
+            <button
+              type="button"
+              className={`ticketsPage__deletedBtn${showDeleted ? ' ticketsPage__deletedBtn--active' : ''}`}
+              onClick={() => setParam('show_deleted', showDeleted ? '' : 'true')}
+            >
+              {showDeleted ? '← Aktivní tikety' : 'Smazané tikety'}
+            </button>
+          </div>
+        )}
+
+        {!showDeleted && (
+          <FilterBar
+            values={{ q: filterQ, priority: filterPriority, category: filterCategory }}
+            onChange={handleFilterChange}
+          />
+        )}
 
         <TicketList
           tickets={tickets}
-          title={listTitle}
+          title={showDeleted ? 'Smazané tikety' : listTitle}
           isLoading={isLoading}
           onTicketAction={handleTicketAction}
           canAct={canAct}

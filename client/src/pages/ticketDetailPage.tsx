@@ -167,9 +167,10 @@ export default function TicketDetailPage() {
   const [mobileTab, setMobileTab] = useState<'detail' | 'activity'>('detail')
 
   const ticket = apiTicket ? mapApiTicket(apiTicket, statuses ?? []) : null
-  const canClaim = !ticket?.isClosed && !ticket?.assigneeId && (isStaff || isMaintainer)
+  const isDeleted = !!apiTicket?.DeletedAt?.Valid
+  const canClaim = !isDeleted && !ticket?.isClosed && !ticket?.assigneeId && (isStaff || isMaintainer)
 
-  const canEdit = !!ticket && (
+  const canEdit = !isDeleted && !!ticket && (
     isAdmin ||
     (user?.id === apiTicket?.AuthorID && !apiTicket?.AssignedTo)
   )
@@ -274,6 +275,12 @@ export default function TicketDetailPage() {
         </div>
       ) : (
         <div className="ticketDetail">
+          {apiTicket.DeletedAt?.Valid && (
+            <div className="td-deletedBanner" role="alert">
+              Tento tiket byl smazán a je pouze pro čtení.
+            </div>
+          )}
+
           <div className="ticketDetail__mobileBar">
             <Link to="/tickets" className="ticketDetail__back">← Tikety</Link>
             <span className="ticketDetail__mobileId">{formatTicketId(ticket.id)}</span>
@@ -290,7 +297,7 @@ export default function TicketDetailPage() {
                     type="button"
                     className={`td-vote${ticket.userHasVoted ? ' td-vote--active' : ''}`}
                     onClick={handleVote}
-                    disabled={vote.isPending || unvote.isPending}
+                    disabled={isDeleted || vote.isPending || unvote.isPending}
                     aria-label={ticket.userHasVoted ? 'Odebrat hlas' : 'Hlasovat pro důležitost'}
                   >
                     <ChevronUp size={11} strokeWidth={2} />{ticket.voteCount ?? 0}
@@ -481,30 +488,32 @@ export default function TicketDetailPage() {
                     <p className="td-notice">Komentáře se nepodařilo načíst.</p>
                   )}
 
-                  <form className="td-composer" onSubmit={submitComment}>
-                    {replyingTo && (
-                      <div className="td-composer__replyBanner">
-                        Odpovídáš na <strong>{replyingTo.authorName}</strong>
-                        <button type="button" className="td-composer__replyCancel" onClick={() => setReplyingTo(null)} aria-label="Zrušit odpověď">✕</button>
+                  {!isDeleted && (
+                    <form className="td-composer" onSubmit={submitComment}>
+                      {replyingTo && (
+                        <div className="td-composer__replyBanner">
+                          Odpovídáš na <strong>{replyingTo.authorName}</strong>
+                          <button type="button" className="td-composer__replyCancel" onClick={() => setReplyingTo(null)} aria-label="Zrušit odpověď">✕</button>
+                        </div>
+                      )}
+                      <textarea
+                        className="td-composer__input"
+                        placeholder={replyingTo ? `Odpověď pro ${replyingTo.authorName}…` : 'Napište komentář…'}
+                        value={draft}
+                        onChange={e => setDraft(e.target.value)}
+                        rows={3}
+                        aria-label="Nový komentář"
+                      />
+                      <div className="td-composer__row">
+                        <button type="submit" className="td-composer__send" disabled={!draft.trim() || addComment.isPending}>
+                          <Send size={12} strokeWidth={1.4} />Odeslat
+                        </button>
                       </div>
-                    )}
-                    <textarea
-                      className="td-composer__input"
-                      placeholder={replyingTo ? `Odpověď pro ${replyingTo.authorName}…` : 'Napište komentář…'}
-                      value={draft}
-                      onChange={e => setDraft(e.target.value)}
-                      rows={3}
-                      aria-label="Nový komentář"
-                    />
-                    <div className="td-composer__row">
-                      <button type="submit" className="td-composer__send" disabled={!draft.trim() || addComment.isPending}>
-                        <Send size={12} strokeWidth={1.4} />Odeslat
-                      </button>
-                    </div>
-                    {addComment.error && (
-                      <p className="td-composer__error">Komentář se nepodařilo odeslat.</p>
-                    )}
-                  </form>
+                      {addComment.error && (
+                        <p className="td-composer__error">Komentář se nepodařilo odeslat.</p>
+                      )}
+                    </form>
+                  )}
                 </section>
               </div>
             </div>

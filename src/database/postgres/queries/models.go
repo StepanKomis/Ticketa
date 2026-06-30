@@ -149,6 +149,16 @@ type MaintainerProfile struct {
 	ManagedScope sql.NullString
 }
 
+type Notification struct {
+	ID        int64
+	UserID    int32
+	Type      string
+	Text      string
+	TicketID  sql.NullInt64
+	IsViewed  bool
+	CreatedAt time.Time
+}
+
 type Session struct {
 	ID         int64
 	UserID     int64
@@ -195,6 +205,7 @@ type Ticket struct {
 	IsClosed           bool
 	ResolutionNote     sql.NullString
 	ResolvedAt         sql.NullTime
+	DeletedAt          sql.NullTime
 }
 
 type TicketComment struct {

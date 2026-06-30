@@ -42,9 +42,8 @@ export default function Sidebar({ firstName, lastName, email, role, ticketCount,
       </nav>
 
       <div className="sidebar__footer">
-        {role === 'admin' && (
-          <NavItem to="/settings" icon={<Settings size={18} strokeWidth={1.4} />} label="Nastavení" />
-        )}
+        <NavItem to="/settings" icon={<Settings size={18} strokeWidth={1.4} />} label="Nastavení" />
+
         {onLogout && (
           <NavItem onClick={onLogout} icon={<LogOut size={18} strokeWidth={1.4} />} label="Odhlásit se" />
         )}

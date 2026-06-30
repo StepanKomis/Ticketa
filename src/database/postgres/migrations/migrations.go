@@ -52,6 +52,9 @@ var up00014 string
 //go:embed up/UP_00015.sql
 var up00015 string
 
+//go:embed up/UP_00016.sql
+var up00016 string
+
 var All = func() []migrate.Migration {
 	ms := []migrate.Migration{
 		{
@@ -247,6 +250,21 @@ var All = func() []migrate.Migration {
 					DROP TRIGGER IF EXISTS trg_ticket_resolved_at ON tickets;
 					DROP FUNCTION IF EXISTS set_ticket_resolved_at;
 					ALTER TABLE tickets DROP COLUMN IF EXISTS resolved_at;
+				`)
+				return err
+			},
+		},
+		{
+			Name: "notifications_and_soft_delete",
+			Up: func(db any) error {
+				_, err := db.(*sql.DB).Exec(up00016)
+				return err
+			},
+			Down: func(db any) error {
+				_, err := db.(*sql.DB).Exec(`
+					DROP TABLE IF EXISTS notifications CASCADE;
+					DROP INDEX IF EXISTS idx_tickets_deleted_at;
+					ALTER TABLE tickets DROP COLUMN IF EXISTS deleted_at;
 				`)
 				return err
 			},

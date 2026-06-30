@@ -54,9 +54,26 @@ type ticketResponse struct {
 	UserHasVoted       bool      `json:"UserHasVoted" example:"false"`
 	RequestedPriority  *string   `json:"RequestedPriority" example:"urgent"`
 	PriorityApprovedBy *int32    `json:"PriorityApprovedBy"`
-	IsClosed           bool       `json:"IsClosed" example:"false"`
-	ResolutionNote     *string    `json:"ResolutionNote" example:"Restartoval jsem projektor a aktualizoval ovladače."`
-	ResolvedAt         *time.Time `json:"ResolvedAt,omitempty"`
+	IsClosed           bool      `json:"IsClosed" example:"false"`
+	ResolutionNote     *string   `json:"ResolutionNote" example:"Restartoval jsem projektor a aktualizoval ovladače."`
+	ResolvedAt         *time.Time `json:"ResolvedAt"`
+	DeletedAt          nullTime  `json:"DeletedAt"`
+}
+
+// notificationResponse je JSON tvar jednoho oznámení.
+type notificationResponse struct {
+	ID        int64     `json:"id"`
+	Type      string    `json:"type"`
+	Text      string    `json:"text"`
+	TicketID  *int64    `json:"ticket_id"`
+	IsViewed  bool      `json:"is_viewed"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// notificationListResponse je odpověď pro GET /api/notifications.
+type notificationListResponse struct {
+	Items       []notificationResponse `json:"items"`
+	UnreadCount int64                  `json:"unread_count"`
 }
 
 // ticketListResponse je stránkovaná odpověď pro seznam tiketů.

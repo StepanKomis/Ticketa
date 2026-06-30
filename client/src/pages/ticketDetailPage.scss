@@ -498,3 +498,14 @@
   &:focus    { border-color: var(--green-400); background: var(--white); }
   &:disabled { opacity: 0.6; cursor: not-allowed; }
 }
+
+.td-deletedBanner {
+  padding: 10px var(--sp-4);
+  margin-bottom: var(--sp-4);
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: var(--radius-sm);
+  color: #B91C1C;
+  font-size: 13.5px;
+  font-weight: 500;
+}
