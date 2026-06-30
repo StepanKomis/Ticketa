@@ -192,7 +192,7 @@ export default function ServerSettingsPage() {
                   <button
                     type="button"
                     className="settingsForm__save"
-                    style={canTestSmtp ? { background: 'var(--white)', border: '1px solid var(--green-600)', color: 'var(--green-700)' } : { background: 'var(--canvas)', border: '1px solid var(--line)', color: 'var(--ink-400)' }}
+                    style={{ background: 'var(--canvas)', color: 'var(--ink-700)', border: '1px solid var(--line)' }}
                     onClick={handleSmtpTest}
                     disabled={testSmtp.isPending || !canTestSmtp}
                   >
