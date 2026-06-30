@@ -18,7 +18,7 @@ describe('StatusBadge', () => {
   })
 
   it('applies the correct modifier class', () => {
-    const { container } = render(<StatusBadge status="in_progress" />)
-    expect(container.firstChild).toHaveClass('statusBadge--in_progress')
+    render(<StatusBadge status="in_progress" />)
+    expect(screen.getByText('Řeší se')).toHaveClass('statusBadge--in_progress')
   })
 })

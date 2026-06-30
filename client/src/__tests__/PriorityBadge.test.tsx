@@ -17,8 +17,8 @@ describe('PriorityBadge', () => {
   })
 
   it('applies modifier class matching priority', () => {
-    const { container } = render(<PriorityBadge priority="urgent" />)
-    expect(container.firstChild).toHaveClass('priorityBadge--urgent')
+    render(<PriorityBadge priority="urgent" />)
+    expect(screen.getByText('Urgentní')).toHaveClass('priorityBadge--urgent')
   })
 
   it('shows a pending-approval hint when pendingApproval is true', () => {

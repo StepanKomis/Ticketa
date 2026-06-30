@@ -12,7 +12,7 @@ describe('FilterTabs', () => {
 
   it('marks the active tab with aria-selected', () => {
     render(<FilterTabs active="open" onChange={() => {}} />)
-    expect(screen.getByText('Otevřené').closest('button')).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('button', { name: 'Otevřené' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('calls onChange with the tab value when clicked', () => {

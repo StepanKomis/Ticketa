@@ -489,7 +489,7 @@ export default function TicketDetailPage() {
                   )}
 
                   {!isDeleted && (
-                    <form className="td-composer" onSubmit={submitComment}>
+                    <form className="td-composer" aria-label="Komentář" onSubmit={submitComment}>
                       {replyingTo && (
                         <div className="td-composer__replyBanner">
                           Odpovídáš na <strong>{replyingTo.authorName}</strong>
