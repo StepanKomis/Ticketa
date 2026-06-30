@@ -27,10 +27,10 @@ export default function SettingsNav() {
           )}
         </NavLink>
       )}
-      <span className="settingsNav__item settingsNav__item--inert" aria-disabled="true">
+      <NavLink to="/settings/notifications" className={navClass}>
         <Bell size={16} strokeWidth={1.4} />
         <span>Oznámení</span>
-      </span>
+      </NavLink>
     </nav>
   )
 }

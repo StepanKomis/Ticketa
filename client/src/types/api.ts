@@ -41,6 +41,10 @@ export interface ApiNotificationList {
   unread_count: number
 }
 
+export interface ApiNotificationPreferences {
+  emailOptOuts: string[]
+}
+
 export interface ApiTicketList {
   items: ApiTicket[]
   total: number

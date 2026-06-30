@@ -11,6 +11,7 @@ import ActivityPage from './pages/activityPage';
 import TicketDetailPage from './pages/ticketDetailPage';
 import SettingsPage from './pages/settingsPage';
 import UsersPage from './pages/usersPage';
+import NotificationsSettingsPage from './pages/notificationsSettingsPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
             <Route path="/profile"        element={<Navigate to="/settings" replace />} />
             <Route path="/settings"       element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/settings/users" element={<ProtectedRoute roles={['admin']}><UsersPage /></ProtectedRoute>} />
+            <Route path="/settings/notifications" element={<ProtectedRoute><NotificationsSettingsPage /></ProtectedRoute>} />
             <Route path="/settings/password" element={<Navigate to="/settings" replace />} />
             <Route path="/settings/email" element={<Navigate to="/settings" replace />} />
             <Route path="/login"    element={<AuthPage form="login" />} />

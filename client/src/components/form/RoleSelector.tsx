@@ -4,7 +4,7 @@ type Role = 'student' | 'staff' | 'maintainer'
 
 const ROLES: { value: Role; label: string }[] = [
   { value: 'student',    label: 'Student' },
-  { value: 'staff',      label: 'Zaměstnanec' },
+  { value: 'staff',      label: 'Učitel' },
   { value: 'maintainer', label: 'Údržbář' },
 ]
 

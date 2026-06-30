@@ -52,6 +52,48 @@
   &__role     { font-size: 13px; font-weight: 600; color: var(--green-600); }
 }
 
+.notifPrefsTable {
+  width: 100%;
+  border-collapse: collapse;
+
+  &__col {
+    padding: 0 0 var(--sp-2);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-500);
+    text-align: left;
+
+    &--channel {
+      width: 72px;
+      text-align: center;
+    }
+  }
+
+  tbody tr { border-top: 1px solid var(--line); }
+
+  &__label {
+    padding: var(--sp-3) 0;
+    font-size: 14px;
+    color: var(--ink-800);
+  }
+
+  &__cell {
+    text-align: center;
+    padding: var(--sp-3) 0;
+
+    input[type='checkbox'] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--green-600);
+      cursor: pointer;
+
+      &:disabled { cursor: default; opacity: 0.5; }
+    }
+  }
+
+  &__row--locked td { color: var(--ink-500); }
+}
+
 .settingsForm {
   display: flex;
   flex-direction: column;
