@@ -8,6 +8,7 @@ import (
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
 	"github.com/StepanKomis/Ticketa/src/config"
 	"github.com/StepanKomis/Ticketa/src/internal/activity"
+	"github.com/StepanKomis/Ticketa/src/internal/mailer"
 	"github.com/StepanKomis/Ticketa/src/internal/notifications"
 	"github.com/StepanKomis/Ticketa/src/internal/security"
 	"github.com/StepanKomis/Ticketa/src/www"
@@ -37,8 +38,9 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 
 	activityLogger := activity.NewActivityLogger(queries, cfg, httpLogger)
 	notifier := notifications.NewNotifier(queries, httpLogger)
+	m := mailer.New(httpLogger)
 
-	userHandler, err := handlers.NewUserHandler(httpLogger, sqlDB, sessionStore, cfg, activityLogger)
+	userHandler, err := handlers.NewUserHandler(httpLogger, sqlDB, sessionStore, cfg, activityLogger, m)
 	if err != nil {
 		httpLogger.Fatalf("nepodařilo se vytvořit user handler v routeru: %s", err)
 	}

@@ -14,6 +14,7 @@ import (
 	psql "github.com/StepanKomis/Ticketa/src/database/postgres"
 	psqlmigrations "github.com/StepanKomis/Ticketa/src/database/postgres/migrations"
 	dbq "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
+	"github.com/StepanKomis/Ticketa/src/internal/mailer"
 	"github.com/StepanKomis/Ticketa/src/www"
 	"github.com/StepanKomis/Ticketa/src/www/router"
 )
@@ -61,6 +62,12 @@ func InitializeServer(l *logs.Logger, cfgStore *config.Store) error {
 		return fmt.Errorf("seedování stavů tiketů: %w", err)
 	}
 	l.Info("Stavy tiketů seedovány.")
+
+	if err := mailer.Ping(l); err != nil {
+		l.Infof("SMTP: test připojení selhal: %s", err)
+	} else if env.Get("SMTP_HOST", "") != "" {
+		l.Info("SMTP: připojení ověřeno.")
+	}
 
 	port := env.Get("SERVER_PORT", "8080")
 	addr := ":" + port

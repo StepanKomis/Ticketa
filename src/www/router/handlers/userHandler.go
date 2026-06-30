@@ -18,6 +18,7 @@ import (
 	"github.com/StepanKomis/Ticketa/src/internal/API/users/login"
 	userregistration "github.com/StepanKomis/Ticketa/src/internal/API/users/registration"
 	"github.com/StepanKomis/Ticketa/src/internal/activity"
+	"github.com/StepanKomis/Ticketa/src/internal/mailer"
 	"github.com/StepanKomis/Ticketa/src/internal/security"
 )
 
@@ -28,6 +29,7 @@ type UserHandler struct {
 	queries        *db.Queries
 	store          *security.SessionStore
 	activityLogger *activity.ActivityLogger
+	mailer         *mailer.Mailer
 	// secureCookie nastaví Secure flag na session cookie. Výchozí false, protože
 	// server zatím neumí TLS — nasazení za HTTPS proxy musí nastavit COOKIE_SECURE=true,
 	// jinak prohlížeč cookie odešle i přes nešifrované HTTP.
@@ -38,13 +40,14 @@ type registrationResponse struct {
 	ID int32 `json:"id"`
 }
 
-func NewUserHandler(httpLogger *logs.Logger, sqlDB *sql.DB, store *security.SessionStore, cfg *config.Config, al *activity.ActivityLogger) (*UserHandler, error) {
+func NewUserHandler(httpLogger *logs.Logger, sqlDB *sql.DB, store *security.SessionStore, cfg *config.Config, al *activity.ActivityLogger, m *mailer.Mailer) (*UserHandler, error) {
 	uh := &UserHandler{}
 	uh.httpLogger = httpLogger
 	uh.db = sqlDB
 	uh.queries = db.New(sqlDB)
 	uh.store = store
 	uh.activityLogger = al
+	uh.mailer = m
 	uh.secureCookie = env.Get("COOKIE_SECURE", "false") == "true"
 
 	var err error
@@ -146,6 +149,8 @@ func (uh *UserHandler) login(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusUnauthorized, "neplatné přihlašovací údaje")
 		return
 	}
+
+	go uh.mailer.Send(user.Email, "Test", "email funguje")
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     security.TokenCookieName,
