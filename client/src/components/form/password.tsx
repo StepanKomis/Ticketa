@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import './password.css'
+import './password.scss'
 
 interface PasswordProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'id'> {
   name?: string

@@ -44,6 +44,7 @@ func (q *Queries) ApproveTicketPriority(ctx context.Context, arg ApproveTicketPr
 		&i.PriorityApprovedBy,
 		&i.IsClosed,
 		&i.ResolutionNote,
+		&i.ResolvedAt,
 		&i.DeletedAt,
 	)
 	return i, err
@@ -152,6 +153,7 @@ func (q *Queries) CreateTicket(ctx context.Context, arg CreateTicketParams) (Tic
 		&i.PriorityApprovedBy,
 		&i.IsClosed,
 		&i.ResolutionNote,
+		&i.ResolvedAt,
 		&i.DeletedAt,
 	)
 	return i, err
@@ -215,6 +217,7 @@ type GetTicketRow struct {
 	PriorityApprovedBy sql.NullInt32
 	IsClosed           bool
 	ResolutionNote     sql.NullString
+	ResolvedAt         sql.NullTime
 	DeletedAt          sql.NullTime
 	AuthorName         string
 	AssigneeName       string
@@ -241,6 +244,7 @@ func (q *Queries) GetTicket(ctx context.Context, arg GetTicketParams) (GetTicket
 		&i.PriorityApprovedBy,
 		&i.IsClosed,
 		&i.ResolutionNote,
+		&i.ResolvedAt,
 		&i.DeletedAt,
 		&i.AuthorName,
 		&i.AssigneeName,
@@ -393,6 +397,7 @@ type ListTicketsFilteredRow struct {
 	PriorityApprovedBy sql.NullInt32
 	IsClosed           bool
 	ResolutionNote     sql.NullString
+	ResolvedAt         sql.NullTime
 	DeletedAt          sql.NullTime
 	AuthorName         string
 	AssigneeName       string
@@ -484,6 +489,7 @@ func (q *Queries) RejectTicketPriority(ctx context.Context, id int64) (Ticket, e
 		&i.PriorityApprovedBy,
 		&i.IsClosed,
 		&i.ResolutionNote,
+		&i.ResolvedAt,
 		&i.DeletedAt,
 	)
 	return i, err
@@ -574,6 +580,7 @@ func (q *Queries) UpdateTicket(ctx context.Context, arg UpdateTicketParams) (Tic
 		&i.PriorityApprovedBy,
 		&i.IsClosed,
 		&i.ResolutionNote,
+		&i.ResolvedAt,
 		&i.DeletedAt,
 	)
 	return i, err
@@ -634,6 +641,7 @@ func (q *Queries) UpdateTicketMeta(ctx context.Context, arg UpdateTicketMetaPara
 		&i.PriorityApprovedBy,
 		&i.IsClosed,
 		&i.ResolutionNote,
+		&i.ResolvedAt,
 		&i.DeletedAt,
 	)
 	return i, err
