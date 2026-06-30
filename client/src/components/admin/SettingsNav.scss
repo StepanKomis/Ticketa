@@ -1,0 +1,55 @@
+@use '../../styles/mixins' as *;
+
+.settingsNav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  @include mobile {
+    flex-direction: row;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar { display: none; }
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    height: 34px;
+    padding: 0 12px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink-700);
+    text-decoration: none;
+
+    svg { color: var(--ink-400); flex: none; }
+
+    &:not(&--inert):hover { background: var(--field-bg); }
+
+    &--active {
+      background: var(--green-50);
+      color: var(--green-700);
+      font-weight: 700;
+
+      svg { color: var(--green-600); }
+    }
+
+    &--inert { color: var(--ink-400); cursor: default; }
+
+    @include mobile { white-space: nowrap; }
+  }
+
+  &__badge {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #ef4444;
+    margin-left: auto;
+    flex: none;
+  }
+}

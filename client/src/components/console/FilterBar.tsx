@@ -1,16 +1,10 @@
 import { useRef } from 'react'
+import { Search } from 'lucide-react'
 import type { TicketCategory } from '../../types/ticket'
 import { PRIORITY_OPTIONS as PRIORITIES } from '../../utils/labels'
-import './FilterBar.css'
+import './FilterBar.scss'
 
 const CATEGORIES: TicketCategory[] = ['AV / Hardware', 'Síť / Internet', 'Nábytek', 'Budova / Prostory', 'Účty / Přístupy']
-
-const SearchIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-    <circle cx="6" cy="6" r="4" stroke="currentColor" strokeWidth="1.3"/>
-    <path d="m9 9 2.5 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-  </svg>
-)
 
 export interface FilterBarValues {
   q: string
@@ -39,7 +33,7 @@ export default function FilterBar({ values, onChange }: Props) {
   return (
     <div className="filterBar">
       <label className="filterBar__search">
-        <SearchIcon />
+        <Search size={14} strokeWidth={1.4} />
         <input
           ref={searchRef}
           className="filterBar__searchInput"

@@ -3,7 +3,8 @@ import { useCreateTicket, useUpdateTicket } from '../../hooks/useTickets'
 import { ApiRequestError } from '../../api/client'
 import type { UserRole, TicketCategory, TicketPriority } from '../../types/ticket'
 import { PRIORITY_OPTIONS as PRIORITIES } from '../../utils/labels'
-import './NewTicketModal.css'
+import { X } from 'lucide-react'
+import './NewTicketModal.scss'
 
 interface EditValues {
   id: number
@@ -22,12 +23,6 @@ interface Props {
 }
 
 const CATEGORIES: TicketCategory[] = ['AV / Hardware', 'Síť / Internet', 'Nábytek', 'Budova / Prostory', 'Účty / Přístupy']
-
-const CloseIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-    <path d="m4 4 8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-  </svg>
-)
 
 export default function NewTicketModal({ open, role, onClose, editTicket }: Props) {
   const isEditMode = !!editTicket
@@ -121,7 +116,7 @@ export default function NewTicketModal({ open, role, onClose, editTicket }: Prop
         <div className="ntModal__head">
           <h2 className="ntModal__title" id="ntModal-title">{heading}</h2>
           <button type="button" className="ntModal__close" onClick={onClose} aria-label="Zavřít">
-            <CloseIcon />
+            <X size={16} strokeWidth={1.5} />
           </button>
         </div>
 

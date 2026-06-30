@@ -3,7 +3,8 @@ import type { FilterValue } from './FilterTabs'
 import TicketCard from './TicketCard'
 import { useTicketFilter, matchesFilter } from '../../hooks/useTicketFilter'
 import type { Ticket } from '../../types/ticket'
-import './TicketList.css'
+import Card from '../ui/Card'
+import './TicketList.scss'
 
 interface Props {
   tickets: Ticket[]
@@ -32,7 +33,7 @@ export default function TicketList({ tickets, title = 'Moje tikety', isLoading, 
   ) as Record<FilterValue, number>
 
   return (
-    <section className="ticketList">
+    <Card className="ticketList">
       <div className="ticketList__header">
         <h2 className="ticketList__title">{title}</h2>
         <FilterTabs active={filter} onChange={setFilter} counts={counts} />
@@ -55,6 +56,6 @@ export default function TicketList({ tickets, title = 'Moje tikety', isLoading, 
           ))}
         </ul>
       )}
-    </section>
+    </Card>
   )
 }

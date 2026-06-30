@@ -1,3 +1,5 @@
+@use '../../styles/variables' as *;
+
 .fab {
   display: flex;
   align-items: center;
@@ -10,9 +12,7 @@
   color: var(--white);
   cursor: pointer;
   box-shadow: 0 8px 22px 0 rgba(27, 122, 80, 0.4);
-  transition: background 0.12s ease;
-}
+  transition: background $ease-fast;
 
-.fab:hover {
-  background: var(--green-700);
+  &:hover { background: var(--green-700); }
 }

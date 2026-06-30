@@ -1,0 +1,17 @@
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px var(--sp-2);
+  border-radius: var(--radius-full);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+
+  &--new        { background: var(--status-new-bg);      color: var(--status-new); }
+  &--open       { background: var(--status-open-bg);     color: var(--status-open); }
+  &--in_progress { background: var(--status-progress-bg); color: var(--status-progress); }
+  &--resolved   { background: var(--status-resolved-bg); color: var(--status-resolved); }
+  &--closed     { background: var(--status-closed-bg);   color: var(--status-closed); }
+}

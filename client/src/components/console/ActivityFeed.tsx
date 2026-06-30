@@ -1,6 +1,7 @@
 import { ActivityEvent } from '../../types/ticket'
 import { relativeTime } from '../../utils/time'
-import './ActivityFeed.css'
+import Card from '../ui/Card'
+import './ActivityFeed.scss'
 
 const ACTION_LABELS: Record<ActivityEvent['action'], string> = {
   created:     'nový požadavek',
@@ -14,7 +15,7 @@ interface Props {
 
 export default function ActivityFeed({ events }: Props) {
   return (
-    <section className="activityFeed" aria-label="Nedávná aktivita">
+    <Card className="activityFeed" aria-label="Nedávná aktivita">
       <h2 className="activityFeed__heading">Nedávná aktivita</h2>
       {events.length === 0 ? (
         <p className="activityFeed__empty">Zatím žádná aktivita.</p>
@@ -33,6 +34,6 @@ export default function ActivityFeed({ events }: Props) {
           ))}
         </ol>
       )}
-    </section>
+    </Card>
   )
 }

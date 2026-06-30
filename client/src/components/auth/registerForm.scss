@@ -1,0 +1,116 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.register {
+  &Panel {
+    background: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 56px;
+    min-height: 100vh;
+
+    @include mobile-sm {
+      padding: var(--sp-6) var(--sp-5);
+    }
+  }
+
+  &Form {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  &Header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  &Title {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--ink-900);
+    margin: 0;
+    letter-spacing: -0.3px;
+  }
+
+  &Subtitle {
+    font-size: 14.5px;
+    color: var(--ink-500);
+    margin: 0;
+    line-height: 1.4;
+
+    &--admin {
+      color: var(--green-600);
+      font-weight: 500;
+      background: var(--green-50);
+      border: 1px solid #b2e0cb;
+      border-radius: 6px;
+      padding: 8px 12px;
+    }
+  }
+
+  &Fields {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  &NameRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+
+    @include mobile-sm { grid-template-columns: 1fr; gap: var(--sp-4); }
+  }
+
+  &Error {
+    font-size: 13.5px;
+    color: var(--color-error);
+    background: #fdf0ee;
+    border: 1px solid #f5c6c0;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin: 0;
+  }
+
+  &Submit {
+    background: var(--green-600);
+    color: var(--white);
+    border: none;
+    border-radius: 8px;
+    padding: 13px 20px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    width: 100%;
+    cursor: pointer;
+    transition: background $ease-base;
+
+    &:hover    { background: var(--green-700); }
+    &:disabled { opacity: 0.6; cursor: not-allowed; }
+  }
+
+  &Footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &SignIn {
+    font-size: 13px;
+    color: var(--ink-500);
+
+    a {
+      color: var(--green-600);
+      font-weight: 600;
+      text-decoration: none;
+
+      &:hover { text-decoration: underline; }
+    }
+  }
+}

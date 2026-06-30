@@ -1,57 +1,15 @@
-import { Link, NavLink } from 'react-router-dom'
-import { Settings } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { LayoutDashboard, Ticket, Activity, BarChart2, Users, Settings, LogOut } from 'lucide-react'
 import type { UserRole } from '../../types/ticket'
 import { initials } from '../../utils/avatar'
 import { ROLE_LABELS } from '../../utils/labels'
-import './Sidebar.css'
+import NavItem from './NavItem'
+import './Sidebar.scss'
 
 const BrandGlyph = () => (
   <svg width="15" height="15" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <line x1="50" y1="14" x2="50" y2="86" stroke="currentColor" strokeWidth="6" strokeDasharray="5 10" strokeLinecap="round" opacity="0.45"/>
     <path d="M30 33 H70 V44 H56 V70 H44 V44 H30 Z" fill="currentColor"/>
-  </svg>
-)
-
-const OverviewIcon = () => (
-  <svg width="18" height="15" viewBox="0 0 18 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <rect x="2" y="2" width="6" height="5" rx="1.2" stroke="currentColor" strokeWidth="1.3"/>
-    <rect x="2" y="9" width="6" height="5" rx="1.2" stroke="currentColor" strokeWidth="1.3"/>
-    <rect x="10" y="2" width="6" height="12" rx="1.2" stroke="currentColor" strokeWidth="1.3"/>
-  </svg>
-)
-
-const TicketsIcon = () => (
-  <svg width="18" height="15" viewBox="0 0 18 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <path d="M2.5 5A1.5 1.5 0 0 1 4 3.5h10A1.5 1.5 0 0 1 15.5 5v1.2a1.3 1.3 0 0 0 0 2.6V11A1.5 1.5 0 0 1 14 12.5H4A1.5 1.5 0 0 1 2.5 11V8.8a1.3 1.3 0 0 0 0-2.6V5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
-  </svg>
-)
-
-const ActivityIcon = () => (
-  <svg width="18" height="15" viewBox="0 0 18 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <path d="M2 8h3l2-4 2.5 8L12 6l1.5 2H16" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-)
-
-const ReportsIcon = () => (
-  <svg width="18" height="15" viewBox="0 0 18 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <rect x="3" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.3"/>
-    <path d="M6 11V8M9 11V6M12 11v-2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-  </svg>
-)
-
-const DirectoryIcon = () => (
-  <svg width="18" height="15" viewBox="0 0 18 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <circle cx="7" cy="6" r="2.5" stroke="currentColor" strokeWidth="1.3"/>
-    <path d="M2.5 13c0-2.2 2-3.6 4.5-3.6s4.5 1.4 4.5 3.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-    <path d="M12.5 4.2a2.3 2.3 0 0 1 0 4.3M13 13c0-1.6-.6-2.8-1.6-3.4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-  </svg>
-)
-
-
-const LogoutIcon = () => (
-  <svg width="18" height="15" viewBox="0 0 18 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <path d="M7 3H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-    <path d="M12 5.5 14.5 8 12 10.5M7.5 8h7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 )
 
@@ -63,9 +21,6 @@ interface Props {
   ticketCount?: number
   onLogout?: () => void
 }
-
-const navItemClass = ({ isActive }: { isActive: boolean }) =>
-  `sidebar__item${isActive ? ' sidebar__item--active' : ''}`
 
 export default function Sidebar({ firstName, lastName, email, role, ticketCount, onLogout }: Props) {
   const fullName = [firstName, lastName].filter(Boolean).join(' ') || email
@@ -79,50 +34,18 @@ export default function Sidebar({ firstName, lastName, email, role, ticketCount,
       </Link>
 
       <nav className="sidebar__nav" aria-label="Hlavní navigace">
-        <NavLink to="/" end className={navItemClass}>
-          <OverviewIcon />
-          <span className="sidebar__label">Přehled</span>
-        </NavLink>
-
-        <NavLink to="/tickets" className={navItemClass}>
-          <TicketsIcon />
-          <span className="sidebar__label">Tikety</span>
-          {ticketCount != null && ticketCount > 0 && (
-            <span className="sidebar__count">{ticketCount}</span>
-          )}
-        </NavLink>
-
-        <NavLink to="/activity" className={navItemClass}>
-          <ActivityIcon />
-          <span className="sidebar__label">Aktivita</span>
-        </NavLink>
-
-        {isStaff && (
-          <span className="sidebar__item sidebar__item--inert" aria-disabled="true">
-            <ReportsIcon />
-            <span className="sidebar__label">Reporty</span>
-          </span>
-        )}
-
-        {role === 'staff' && (
-          <span className="sidebar__item sidebar__item--inert" aria-disabled="true">
-            <DirectoryIcon />
-            <span className="sidebar__label">Adresář</span>
-          </span>
-        )}
+        <NavItem to="/" end icon={<LayoutDashboard size={18} strokeWidth={1.4} />} label="Přehled" />
+        <NavItem to="/tickets" icon={<Ticket size={18} strokeWidth={1.4} />} label="Tikety" badge={ticketCount} />
+        <NavItem to="/activity" icon={<Activity size={18} strokeWidth={1.4} />} label="Aktivita" />
+        {isStaff && <NavItem disabled icon={<BarChart2 size={18} strokeWidth={1.4} />} label="Reporty" />}
+        {role === 'staff' && <NavItem disabled icon={<Users size={18} strokeWidth={1.4} />} label="Adresář" />}
       </nav>
 
       <div className="sidebar__footer">
-        <NavLink to="/settings" className={navItemClass}>
-          <Settings size={18} strokeWidth={1.3} aria-hidden="true" />
-          <span className="sidebar__label">Nastavení</span>
-        </NavLink>
+        <NavItem to="/settings" icon={<Settings size={18} strokeWidth={1.4} />} label="Nastavení" />
 
         {onLogout && (
-          <button type="button" className="sidebar__item sidebar__logout" onClick={onLogout}>
-            <LogoutIcon />
-            <span className="sidebar__label">Odhlásit se</span>
-          </button>
+          <NavItem onClick={onLogout} icon={<LogOut size={18} strokeWidth={1.4} />} label="Odhlásit se" />
         )}
 
         <div className="sidebar__viewer">

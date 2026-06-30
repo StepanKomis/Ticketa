@@ -1,0 +1,50 @@
+@use '../../styles/mixins' as *;
+
+.statCards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-4);
+
+  @include mobile { grid-template-columns: repeat(2, 1fr); }
+}
+
+.statCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+
+  &__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink-500);
+  }
+
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: var(--radius-full);
+  }
+
+  &[data-stat='open']        .statCard__icon { background: var(--status-open-bg);     color: var(--status-open); }
+  &[data-stat='in_progress'] .statCard__icon { background: var(--status-progress-bg); color: var(--status-progress); }
+  &[data-stat='resolved']    .statCard__icon { background: var(--status-resolved-bg); color: var(--status-resolved); }
+
+  &__value {
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--ink-900);
+
+    @include mobile { font-size: 24px; }
+  }
+}

@@ -1,29 +1,16 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import './loginForm.css'
+import './loginForm.scss'
 import Input from '../form/input'
 import Password from '../form/password'
 import { useAuth, ApiRequestError } from '../../contexts/AuthContext'
+import { Mail, Lock } from 'lucide-react'
 
 interface FormState {
   email: string
   password: string
   zustatPrihlasen: boolean
 }
-
-const EmailIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="1" y="2.5" width="11" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none"/>
-    <path d="M1 4.5l5.5 4 5.5-4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" fill="none"/>
-  </svg>
-)
-
-const LockIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="2" y="5.5" width="9" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none"/>
-    <path d="M4 5.5V4a2.5 2.5 0 0 1 5 0v1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" fill="none"/>
-  </svg>
-)
 
 export default function LoginForm() {
   const { login } = useAuth()
@@ -77,7 +64,7 @@ export default function LoginForm() {
             type="email"
             name="email"
             label="Školní e-mail"
-            icon={<EmailIcon />}
+            icon={<Mail size={13} strokeWidth={1.4} />}
             placeholder="jan.novak@skola.cz"
             value={form.email}
             onChange={handleChange}
@@ -90,7 +77,7 @@ export default function LoginForm() {
             <Password
               name="password"
               label="Heslo"
-              icon={<LockIcon />}
+              icon={<Lock size={13} strokeWidth={1.4} />}
               value={form.password}
               onChange={handleChange}
               autoComplete="current-password"

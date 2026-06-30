@@ -1,4 +1,4 @@
-import './RoleSelector.css'
+import './RoleSelector.scss'
 
 type Role = 'student' | 'staff' | 'maintainer'
 

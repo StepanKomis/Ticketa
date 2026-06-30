@@ -15,7 +15,7 @@ import { mapApiTicket } from '../utils/mappers'
 import { statusIdForUiStatus } from '../utils/mappers'
 import type { ApiTicket } from '../types/api'
 import type { Ticket } from '../types/ticket'
-import './ticketsPage.css'
+import './ticketsPage.scss'
 
 const PAGE_SIZE = 20
 

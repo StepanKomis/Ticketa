@@ -1,0 +1,151 @@
+@use '../../styles/mixins' as *;
+
+@include modal-enter(ntModal-in);
+
+.ntModal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-4);
+
+  &__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 20, 0.42);
+    backdrop-filter: blur(2px);
+  }
+
+  &__panel {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 20px 48px -12px rgba(15, 23, 20, 0.32);
+    padding: var(--sp-6);
+    animation: ntModal-in 140ms ease-out;
+
+    @include modal-mobile { padding: var(--sp-4); }
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--sp-5);
+  }
+
+  &__title { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.4px; color: var(--ink-900); }
+
+  &__close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: var(--field-bg);
+    color: var(--ink-500);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+
+    &:hover { color: var(--ink-900); }
+  }
+
+  &__form  { display: flex; flex-direction: column; gap: var(--sp-4); }
+  &__field { display: flex; flex-direction: column; gap: 6px; }
+  &__label { font-size: 13px; font-weight: 600; color: var(--ink-700); }
+
+  &__input,
+  &__textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--field-bg);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    font: inherit;
+    font-size: 14px;
+    color: var(--ink-900);
+    padding: 0 12px;
+    outline: none;
+
+    &:focus       { border-color: var(--green-400); background: var(--white); }
+    &::placeholder { color: var(--ink-400); }
+
+    @include modal-mobile { font-size: 16px; }
+  }
+
+  &__input    { height: 38px; }
+  &__textarea { padding: 10px 12px; resize: vertical; line-height: 1.55; }
+
+  &__row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-3);
+
+    @include modal-mobile { grid-template-columns: 1fr; }
+  }
+
+  &__select {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--field-bg);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    font: inherit;
+    font-size: 14px;
+    color: var(--ink-900);
+    padding: 0 10px;
+    height: 38px;
+    outline: none;
+    cursor: pointer;
+
+    &:focus { border-color: var(--green-400); background: var(--white); }
+
+    @include modal-mobile { font-size: 16px; }
+  }
+
+  &__optional { font-weight: 400; color: var(--ink-400); }
+  &__hint     { font-size: 12px; color: var(--status-urgent); }
+
+  &__error {
+    margin: 0;
+    font-size: 13px;
+    color: var(--status-urgent);
+    background: var(--status-urgent-bg);
+    border-radius: var(--radius-sm);
+    padding: var(--sp-2) var(--sp-3);
+  }
+
+  &__actions { display: flex; justify-content: flex-end; gap: var(--sp-2); margin-top: var(--sp-2); }
+
+  &__cancel,
+  &__submit {
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    padding: 9px 18px;
+    cursor: pointer;
+  }
+
+  &__cancel {
+    background: var(--white);
+    border: 1px solid var(--line);
+    color: var(--ink-700);
+
+    &:hover { background: var(--field-bg); }
+  }
+
+  &__submit {
+    background: var(--green-600);
+    border: none;
+    color: var(--white);
+
+    &:hover    { background: var(--green-700); }
+    &:disabled { opacity: 0.6; cursor: not-allowed; }
+  }
+}
