@@ -17,7 +17,7 @@ SET priority             = requested_priority,
     priority_approved_by = $1::INTEGER,
     requested_priority   = NULL
 WHERE id = $2 AND requested_priority IS NOT NULL
-RETURNING id, title, body, created_at, author_id, status_id, priority, assigned_to, location, category, updated_at, requested_priority, priority_approved_by, is_closed, resolution_note, deleted_at
+RETURNING id, title, body, created_at, author_id, status_id, priority, assigned_to, location, category, updated_at, requested_priority, priority_approved_by, is_closed, resolution_note, resolved_at, deleted_at
 `
 
 type ApproveTicketPriorityParams struct {
@@ -109,7 +109,7 @@ func (q *Queries) CountTicketsFiltered(ctx context.Context, arg CountTicketsFilt
 const createTicket = `-- name: CreateTicket :one
 INSERT INTO tickets (title, body, author_id, status_id, priority, location, category, assigned_to, requested_priority)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, title, body, created_at, author_id, status_id, priority, assigned_to, location, category, updated_at, requested_priority, priority_approved_by, is_closed, resolution_note, deleted_at
+RETURNING id, title, body, created_at, author_id, status_id, priority, assigned_to, location, category, updated_at, requested_priority, priority_approved_by, is_closed, resolution_note, resolved_at, deleted_at
 `
 
 type CreateTicketParams struct {
@@ -182,7 +182,7 @@ func (q *Queries) GetStatusTitle(ctx context.Context, id int32) (string, error) 
 
 const getTicket = `-- name: GetTicket :one
 SELECT
-    t.id, t.title, t.body, t.created_at, t.author_id, t.status_id, t.priority, t.assigned_to, t.location, t.category, t.updated_at, t.requested_priority, t.priority_approved_by, t.is_closed, t.resolution_note, t.deleted_at,
+    t.id, t.title, t.body, t.created_at, t.author_id, t.status_id, t.priority, t.assigned_to, t.location, t.category, t.updated_at, t.requested_priority, t.priority_approved_by, t.is_closed, t.resolution_note, t.resolved_at, t.deleted_at,
     COALESCE(u.first_name || ' ' || u.last_name, u.email)     AS author_name,
     COALESCE(a.first_name || ' ' || a.last_name, a.email, '') AS assignee_name,
     (SELECT COUNT(*)::INT FROM ticket_votes tv WHERE tv.ticket_id = t.id) AS vote_count,
@@ -329,7 +329,7 @@ func (q *Queries) ListTicketHistory(ctx context.Context, arg ListTicketHistoryPa
 
 const listTicketsFiltered = `-- name: ListTicketsFiltered :many
 SELECT
-    t.id, t.title, t.body, t.created_at, t.author_id, t.status_id, t.priority, t.assigned_to, t.location, t.category, t.updated_at, t.requested_priority, t.priority_approved_by, t.is_closed, t.resolution_note, t.deleted_at,
+    t.id, t.title, t.body, t.created_at, t.author_id, t.status_id, t.priority, t.assigned_to, t.location, t.category, t.updated_at, t.requested_priority, t.priority_approved_by, t.is_closed, t.resolution_note, t.resolved_at, t.deleted_at,
     COALESCE(u.first_name || ' ' || u.last_name, u.email)     AS author_name,
     COALESCE(a.first_name || ' ' || a.last_name, a.email, '') AS assignee_name,
     (SELECT COUNT(*)::INT FROM ticket_votes tv WHERE tv.ticket_id = t.id) AS vote_count,
@@ -444,6 +444,7 @@ func (q *Queries) ListTicketsFiltered(ctx context.Context, arg ListTicketsFilter
 			&i.PriorityApprovedBy,
 			&i.IsClosed,
 			&i.ResolutionNote,
+			&i.ResolvedAt,
 			&i.DeletedAt,
 			&i.AuthorName,
 			&i.AssigneeName,
@@ -467,7 +468,7 @@ const rejectTicketPriority = `-- name: RejectTicketPriority :one
 UPDATE tickets
 SET requested_priority = NULL
 WHERE id = $1 AND requested_priority IS NOT NULL
-RETURNING id, title, body, created_at, author_id, status_id, priority, assigned_to, location, category, updated_at, requested_priority, priority_approved_by, is_closed, resolution_note, deleted_at
+RETURNING id, title, body, created_at, author_id, status_id, priority, assigned_to, location, category, updated_at, requested_priority, priority_approved_by, is_closed, resolution_note, resolved_at, deleted_at
 `
 
 func (q *Queries) RejectTicketPriority(ctx context.Context, id int64) (Ticket, error) {
@@ -531,7 +532,7 @@ SET title               = COALESCE($1,    title),
     requested_priority  = COALESCE($8, requested_priority),
     resolution_note     = COALESCE($9, resolution_note)
 WHERE id = $10
-RETURNING id, title, body, created_at, author_id, status_id, priority, assigned_to, location, category, updated_at, requested_priority, priority_approved_by, is_closed, resolution_note, deleted_at
+RETURNING id, title, body, created_at, author_id, status_id, priority, assigned_to, location, category, updated_at, requested_priority, priority_approved_by, is_closed, resolution_note, resolved_at, deleted_at
 `
 
 type UpdateTicketParams struct {
@@ -595,7 +596,7 @@ SET assigned_to     = CASE WHEN $1::boolean THEN $2 ELSE assigned_to END,
     category        = COALESCE($7, category),
     resolution_note = COALESCE($8, resolution_note)
 WHERE id = $9
-RETURNING id, title, body, created_at, author_id, status_id, priority, assigned_to, location, category, updated_at, requested_priority, priority_approved_by, is_closed, resolution_note, deleted_at
+RETURNING id, title, body, created_at, author_id, status_id, priority, assigned_to, location, category, updated_at, requested_priority, priority_approved_by, is_closed, resolution_note, resolved_at, deleted_at
 `
 
 type UpdateTicketMetaParams struct {

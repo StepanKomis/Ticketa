@@ -7,6 +7,7 @@ import (
 
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
 	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
+	"github.com/StepanKomis/Ticketa/src/internal/mailer"
 )
 
 const (
@@ -18,15 +19,28 @@ const (
 	TypePriorityApproved = "priority_approved"
 )
 
-// Notifier zapisuje oznámení do DB. Nulový *Notifier je platný no-op —
+// Notifier zapisuje oznámení do DB a odesílá emaily. Nulový *Notifier je platný no-op —
 // handlery i testy ho mohou předávat jako nil bez podmínek na volající straně.
 type Notifier struct {
 	queries *db.Queries
 	logger  *logs.Logger
+	mailer  *mailer.Mailer
 }
 
-func NewNotifier(q *db.Queries, l *logs.Logger) *Notifier {
-	return &Notifier{queries: q, logger: l}
+func NewNotifier(q *db.Queries, l *logs.Logger, m *mailer.Mailer) *Notifier {
+	return &Notifier{queries: q, logger: l, mailer: m}
+}
+
+// emailForUser vrátí e-mailovou adresu uživatele, nebo "" při chybě.
+func (n *Notifier) emailForUser(ctx context.Context, userID int32) string {
+	if n == nil || n.mailer == nil {
+		return ""
+	}
+	u, err := n.queries.GetUserByID(ctx, userID)
+	if err != nil {
+		return ""
+	}
+	return u.Email
 }
 
 func (n *Notifier) send(ctx context.Context, userID int32, notifType, text string, ticketID *int64) {
@@ -48,15 +62,27 @@ func (n *Notifier) send(ctx context.Context, userID int32, notifType, text strin
 }
 
 func (n *Notifier) NotifyTicketResolved(ctx context.Context, authorID int32, ticketID int64, title string) {
-	n.send(ctx, authorID, TypeTicketResolved, fmt.Sprintf("Váš ticket byl vyřešen: %s", title), &ticketID)
+	text := fmt.Sprintf("Váš ticket byl vyřešen: %s", title)
+	n.send(ctx, authorID, TypeTicketResolved, text, &ticketID)
+	if email := n.emailForUser(ctx, authorID); email != "" {
+		go n.mailer.Send(email, "Ticket vyřešen", text)
+	}
 }
 
 func (n *Notifier) NotifyTicketDeleted(ctx context.Context, authorID int32, ticketID int64, title string) {
-	n.send(ctx, authorID, TypeTicketDeleted, fmt.Sprintf("Váš ticket byl smazán: %s", title), &ticketID)
+	text := fmt.Sprintf("Váš ticket byl smazán: %s", title)
+	n.send(ctx, authorID, TypeTicketDeleted, text, &ticketID)
+	if email := n.emailForUser(ctx, authorID); email != "" {
+		go n.mailer.Send(email, "Ticket smazán", text)
+	}
 }
 
 func (n *Notifier) NotifyTicketAssigned(ctx context.Context, assigneeID int32, ticketID int64, title string) {
-	n.send(ctx, assigneeID, TypeTicketAssigned, fmt.Sprintf("Byl vám přidělen tiket: %s", title), &ticketID)
+	text := fmt.Sprintf("Byl vám přidělen tiket: %s", title)
+	n.send(ctx, assigneeID, TypeTicketAssigned, text, &ticketID)
+	if email := n.emailForUser(ctx, assigneeID); email != "" {
+		go n.mailer.Send(email, "Přidělení tiketu", text)
+	}
 }
 
 func czechRoleLabel(role string) string {
@@ -73,13 +99,25 @@ func czechRoleLabel(role string) string {
 }
 
 func (n *Notifier) NotifyRoleApproved(ctx context.Context, userID int32, role string) {
-	n.send(ctx, userID, TypeRoleApproved, fmt.Sprintf("Vaše žádost o roli %s byla schválena.", czechRoleLabel(role)), nil)
+	text := fmt.Sprintf("Vaše žádost o roli %s byla schválena.", czechRoleLabel(role))
+	n.send(ctx, userID, TypeRoleApproved, text, nil)
+	if email := n.emailForUser(ctx, userID); email != "" {
+		go n.mailer.Send(email, "Žádost o roli schválena", text)
+	}
 }
 
 func (n *Notifier) NotifyRoleRejected(ctx context.Context, userID int32, role string) {
-	n.send(ctx, userID, TypeRoleRejected, fmt.Sprintf("Vaše žádost o roli %s byla zamítnuta.", czechRoleLabel(role)), nil)
+	text := fmt.Sprintf("Vaše žádost o roli %s byla zamítnuta.", czechRoleLabel(role))
+	n.send(ctx, userID, TypeRoleRejected, text, nil)
+	if email := n.emailForUser(ctx, userID); email != "" {
+		go n.mailer.Send(email, "Žádost o roli zamítnuta", text)
+	}
 }
 
 func (n *Notifier) NotifyPriorityApproved(ctx context.Context, authorID int32, ticketID int64, title string) {
-	n.send(ctx, authorID, TypePriorityApproved, fmt.Sprintf("Urgentní priorita vašeho ticketu byla schválena: %s", title), &ticketID)
+	text := fmt.Sprintf("Urgentní priorita vašeho ticketu byla schválena: %s", title)
+	n.send(ctx, authorID, TypePriorityApproved, text, &ticketID)
+	if email := n.emailForUser(ctx, authorID); email != "" {
+		go n.mailer.Send(email, "Priorita schválena", text)
+	}
 }
