@@ -28,9 +28,11 @@ interface Props {
   /** Replaces the default search field (e.g. a breadcrumb on the detail page). */
   left?: ReactNode
   showNew?: boolean
+  unreadCount?: number
+  onBellClick?: () => void
 }
 
-export default function AppHeader({ role, onNew, left, showNew = true }: Props) {
+export default function AppHeader({ role, onNew, left, showNew = true, unreadCount = 0, onBellClick }: Props) {
   const newLabel = role === 'student' ? 'Nový požadavek' : 'Nový tiket'
 
   return (
@@ -45,9 +47,18 @@ export default function AppHeader({ role, onNew, left, showNew = true }: Props) 
       </div>
 
       <div className="appHeader__actions">
-        <button type="button" className="appHeader__iconBtn" aria-label="Oznámení">
+        <button
+          type="button"
+          className="appHeader__iconBtn"
+          aria-label={unreadCount > 0 ? `Oznámení (${unreadCount} nových)` : 'Oznámení'}
+          onClick={onBellClick}
+        >
           <BellIcon />
-          <span className="appHeader__dot" aria-hidden="true" />
+          {unreadCount > 0 && (
+            <span className="appHeader__badge" aria-hidden="true">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
         </button>
 
         {showNew && (

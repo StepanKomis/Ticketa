@@ -13,16 +13,18 @@ import (
 	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
 	"github.com/StepanKomis/Ticketa/src/internal/activity"
 	"github.com/StepanKomis/Ticketa/src/internal/ctxkeys"
+	"github.com/StepanKomis/Ticketa/src/internal/notifications"
 )
 
 type TicketHandler struct {
 	queries        *db.Queries
 	httpLogger     *logs.Logger
 	activityLogger *activity.ActivityLogger
+	notifier       *notifications.Notifier
 }
 
-func NewTicketHandler(q *db.Queries, l *logs.Logger, al *activity.ActivityLogger) *TicketHandler {
-	return &TicketHandler{queries: q, httpLogger: l, activityLogger: al}
+func NewTicketHandler(q *db.Queries, l *logs.Logger, al *activity.ActivityLogger, n *notifications.Notifier) *TicketHandler {
+	return &TicketHandler{queries: q, httpLogger: l, activityLogger: al, notifier: n}
 }
 
 func (h *TicketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -167,6 +169,10 @@ func (h *TicketHandler) list(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	user, ok := userFromContext(w, r)
+	if !ok {
+		return
+	}
 
 	q := r.URL.Query()
 	limit := 20
@@ -227,6 +233,13 @@ func (h *TicketHandler) list(w http.ResponseWriter, r *http.Request) {
 			params.Closed = sql.NullBool{Bool: b, Valid: true}
 		}
 	}
+	if v := q.Get("show_deleted"); v != "" {
+		if user.UserType == db.UserTypeStaff || user.UserType == db.UserTypeAdmin {
+			if b, err := strconv.ParseBool(v); err == nil {
+				params.ShowDeleted = sql.NullBool{Bool: b, Valid: true}
+			}
+		}
+	}
 
 	rows, err := h.queries.ListTicketsFiltered(r.Context(), params)
 	if err != nil {
@@ -243,6 +256,7 @@ func (h *TicketHandler) list(w http.ResponseWriter, r *http.Request) {
 		PendingPriorityApproval: params.PendingPriorityApproval,
 		UnassignedOnly:          params.UnassignedOnly,
 		Closed:                  params.Closed,
+		ShowDeleted:             params.ShowDeleted,
 		Q:                       params.Q,
 	}
 	total, err := h.queries.CountTicketsFiltered(r.Context(), countParams)
@@ -394,6 +408,9 @@ func (h *TicketHandler) update(w http.ResponseWriter, r *http.Request) {
 		newStatus := h.resolveStatusTitle(r.Context(), ticket.StatusID)
 		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "status_changed", oldStatus, newStatus)
 		h.activityLogger.LogStavZmenen(r.Context(), int32(session.UserID), id, oldStatus, newStatus)
+		if !existing.IsClosed && ticket.IsClosed && int32(session.UserID) != ticket.AuthorID {
+			h.notifier.NotifyTicketResolved(r.Context(), ticket.AuthorID, id, ticket.Title)
+		}
 	}
 	if body.Priority != nil && existing.Priority != ticket.Priority {
 		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "priority_changed", existing.Priority, ticket.Priority)
@@ -515,6 +532,9 @@ func (h *TicketHandler) patch(w http.ResponseWriter, r *http.Request) {
 		newStatus := h.resolveStatusTitle(r.Context(), ticket.StatusID)
 		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "status_changed", oldStatus, newStatus)
 		h.activityLogger.LogStavZmenen(r.Context(), int32(session.UserID), id, oldStatus, newStatus)
+		if !existing.IsClosed && ticket.IsClosed && int32(session.UserID) != ticket.AuthorID {
+			h.notifier.NotifyTicketResolved(r.Context(), ticket.AuthorID, id, ticket.Title)
+		}
 	}
 	if body.Priority != nil && existing.Priority != ticket.Priority {
 		h.logHistory(r.Context(), id, int32(session.UserID), actorName, "priority_changed", existing.Priority, ticket.Priority)
@@ -544,6 +564,9 @@ func (h *TicketHandler) patch(w http.ResponseWriter, r *http.Request) {
 		} else if ticket.AssignedTo.Valid {
 			newAssigneeName := resolveAuthorName(r.Context(), h.queries, ticket.AssignedTo.Int32)
 			h.logHistory(r.Context(), id, int32(session.UserID), actorName, "assigned", "", newAssigneeName)
+			if int32(session.UserID) != ticket.AssignedTo.Int32 {
+				h.notifier.NotifyTicketAssigned(r.Context(), ticket.AssignedTo.Int32, id, ticket.Title)
+			}
 		}
 	}
 	// Po meta-update znovu načteme pro assignee jméno
@@ -646,11 +669,14 @@ func (h *TicketHandler) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.queries.DeleteTicket(r.Context(), id); err != nil {
+	if err := h.queries.SoftDeleteTicket(r.Context(), id); err != nil {
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se smazat tiket")
 		return
 	}
 	h.activityLogger.LogTiketSmazan(r.Context(), int32(session.UserID), id, existing.Title)
+	if int32(session.UserID) != existing.AuthorID {
+		h.notifier.NotifyTicketDeleted(r.Context(), existing.AuthorID, id, existing.Title)
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -749,6 +775,7 @@ func (h *TicketHandler) approvePriority(w http.ResponseWriter, r *http.Request) 
 	actorName := resolveAuthorName(r.Context(), h.queries, int32(session.UserID))
 	h.logHistory(r.Context(), id, int32(session.UserID), actorName, "priority_changed", existing.Priority, ticket.Priority)
 	h.activityLogger.LogTiketPrioritaSchvalena(r.Context(), int32(session.UserID), id, ticket.Priority)
+	h.notifier.NotifyPriorityApproved(r.Context(), existing.AuthorID, id, ticket.Title)
 	writeJSON(w, http.StatusOK, toTicketResponseFromTicket(ticket, existing.AssigneeName, int32(session.UserID)))
 }
 
@@ -896,6 +923,7 @@ func toTicketResponseFromRow(r db.ListTicketsFilteredRow) ticketResponse {
 		VoteCount:      r.VoteCount,
 		UserHasVoted:   r.UserHasVoted,
 		IsClosed:       r.IsClosed,
+		DeletedAt:      nullTime{Time: r.DeletedAt.Time, Valid: r.DeletedAt.Valid},
 	}
 	if r.AssignedTo.Valid {
 		v := r.AssignedTo.Int32
@@ -933,6 +961,7 @@ func toTicketResponseFromGetRow(r db.GetTicketRow, currentUserID int32) ticketRe
 		VoteCount:      r.VoteCount,
 		UserHasVoted:   r.UserHasVoted,
 		IsClosed:       r.IsClosed,
+		DeletedAt:      nullTime{Time: r.DeletedAt.Time, Valid: r.DeletedAt.Valid},
 	}
 	if r.AssignedTo.Valid {
 		v := r.AssignedTo.Int32
@@ -967,6 +996,7 @@ func toTicketResponseFromTicket(t db.Ticket, assigneeName string, _ int32) ticke
 		AuthorID:       t.AuthorID,
 		StatusID:       nullInt32{Int32: t.StatusID.Int32, Valid: t.StatusID.Valid},
 		IsClosed:       t.IsClosed,
+		DeletedAt:      nullTime{Time: t.DeletedAt.Time, Valid: t.DeletedAt.Valid},
 	}
 	if t.AssignedTo.Valid {
 		v := t.AssignedTo.Int32

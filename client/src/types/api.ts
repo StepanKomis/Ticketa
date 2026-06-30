@@ -24,6 +24,21 @@ export interface ApiTicket {
   IsClosed: boolean
   ResolutionNote: string | null
   ResolvedAt?: string
+  DeletedAt?: NullTime
+}
+
+export interface ApiNotification {
+  id: number
+  type: string
+  text: string
+  ticket_id: number | null
+  is_viewed: boolean
+  created_at: string
+}
+
+export interface ApiNotificationList {
+  items: ApiNotification[]
+  unread_count: number
 }
 
 export interface ApiTicketList {

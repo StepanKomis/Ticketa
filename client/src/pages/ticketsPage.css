@@ -91,3 +91,21 @@
 .ticketsPage__pageBtn:disabled { opacity: 0.4; cursor: not-allowed; }
 .ticketsPage__pageInfo { font-size: 13px; color: var(--ink-500); }
 
+
+.ticketsPage__deletedToggle { margin-bottom: var(--sp-3); }
+.ticketsPage__deletedBtn {
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  color: var(--ink-500);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+.ticketsPage__deletedBtn:hover { background: var(--canvas); color: var(--ink-700); }
+.ticketsPage__deletedBtn--active {
+  background: var(--canvas);
+  color: var(--priority-urgent);
+  border-color: var(--priority-urgent);
+}

@@ -22,9 +22,11 @@ interface Props {
   lastName?: string
   email: string
   role: UserRole
+  unreadCount?: number
+  onBellClick?: () => void
 }
 
-export default function MobileTopBar({ firstName, lastName, email }: Props) {
+export default function MobileTopBar({ firstName, lastName, email, unreadCount = 0, onBellClick }: Props) {
   return (
     <header className="mobileTopBar">
       <Link to="/" className="mobileTopBar__brand">
@@ -32,9 +34,18 @@ export default function MobileTopBar({ firstName, lastName, email }: Props) {
         <span className="mobileTopBar__wordmark">Ticketa</span>
       </Link>
       <div className="mobileTopBar__actions">
-        <button type="button" className="mobileTopBar__iconBtn" aria-label="Oznámení">
+        <button
+          type="button"
+          className="mobileTopBar__iconBtn"
+          aria-label={unreadCount > 0 ? `Oznámení (${unreadCount} nových)` : 'Oznámení'}
+          onClick={onBellClick}
+        >
           <BellIcon />
-          <span className="mobileTopBar__dot" aria-hidden="true" />
+          {unreadCount > 0 && (
+            <span className="mobileTopBar__badge" aria-hidden="true">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
         </button>
         <span className="mobileTopBar__avatar">{initials(firstName, lastName, email)}</span>
       </div>

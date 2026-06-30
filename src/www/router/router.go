@@ -8,6 +8,7 @@ import (
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
 	"github.com/StepanKomis/Ticketa/src/config"
 	"github.com/StepanKomis/Ticketa/src/internal/activity"
+	"github.com/StepanKomis/Ticketa/src/internal/notifications"
 	"github.com/StepanKomis/Ticketa/src/internal/security"
 	"github.com/StepanKomis/Ticketa/src/www"
 	middleware "github.com/StepanKomis/Ticketa/src/www/midleware"
@@ -35,16 +36,18 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	staffAdmin := func(h http.Handler) http.Handler { return authEnforced(middleware.StaffOrAdminMiddleware()(h)) }
 
 	activityLogger := activity.NewActivityLogger(queries, cfg, httpLogger)
+	notifier := notifications.NewNotifier(queries, httpLogger)
 
 	userHandler, err := handlers.NewUserHandler(httpLogger, sqlDB, sessionStore, cfg, activityLogger)
 	if err != nil {
 		httpLogger.Fatalf("nepodařilo se vytvořit user handler v routeru: %s", err)
 	}
 
-	ticketHandler := handlers.NewTicketHandler(queries, httpLogger, activityLogger)
+	ticketHandler := handlers.NewTicketHandler(queries, httpLogger, activityLogger, notifier)
 	commentHandler := handlers.NewCommentHandler(queries, httpLogger, activityLogger)
-	adminHandler := handlers.NewAdminHandler(queries, cfgStore, httpLogger, activityLogger)
+	adminHandler := handlers.NewAdminHandler(queries, cfgStore, httpLogger, activityLogger, notifier)
 	activityHandler := handlers.NewActivityHandler(queries, httpLogger)
+	notificationHandler := handlers.NewNotificationHandler(queries, httpLogger)
 
 	mux := http.NewServeMux()
 
@@ -104,6 +107,10 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	// History tiketu
 	mux.Handle("GET /api/tickets/{id}/history", authEnforced(ticketHandler))
 
+	// Notifications
+	mux.Handle("GET /api/notifications", authEnforced(notificationHandler))
+	mux.Handle("POST /api/notifications/mark-viewed", authEnforced(notificationHandler))
+
 	// Activity log
 	mux.Handle("GET /api/activity", admin(activityHandler))
 	mux.Handle("GET /api/users/{id}/activity", authEnforced(activityHandler))
@@ -115,7 +122,7 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store) *http.S
 	mux.Handle("POST /api/admin/ticket-statuses", admin(adminHandler))
 	mux.Handle("PUT /api/admin/ticket-statuses/{id}", admin(adminHandler))
 	mux.Handle("DELETE /api/admin/ticket-statuses/{id}", admin(adminHandler))
-	mux.Handle("GET /api/admin/users", admin(adminHandler))
+	mux.Handle("GET /api/admin/users", staffAdmin(adminHandler))
 	mux.Handle("GET /api/admin/users/{id}", admin(adminHandler))
 	mux.Handle("PATCH /api/admin/users/{id}", admin(adminHandler))
 	mux.Handle("POST /api/admin/users/{id}/approve", staffAdmin(adminHandler))

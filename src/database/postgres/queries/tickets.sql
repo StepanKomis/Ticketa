@@ -41,6 +41,12 @@ WHERE
     AND (sqlc.narg('unassigned_only')::BOOLEAN IS NULL OR (t.assigned_to IS NULL) = sqlc.narg('unassigned_only'))
     AND (sqlc.narg('closed')::BOOLEAN IS NULL OR t.is_closed = sqlc.narg('closed'))
     AND (
+        CASE WHEN sqlc.narg('show_deleted')::BOOLEAN IS NOT DISTINCT FROM TRUE
+            THEN t.deleted_at IS NOT NULL
+            ELSE t.deleted_at IS NULL
+        END
+    )
+    AND (
         sqlc.arg('q')::TEXT = ''
         OR t.title ILIKE '%' || sqlc.arg('q') || '%'
         OR t.body  ILIKE '%' || sqlc.arg('q') || '%'
@@ -61,6 +67,12 @@ WHERE
     AND (sqlc.narg('pending_priority_approval')::BOOLEAN IS NULL OR (t.requested_priority IS NOT NULL) = sqlc.narg('pending_priority_approval'))
     AND (sqlc.narg('unassigned_only')::BOOLEAN IS NULL OR (t.assigned_to IS NULL) = sqlc.narg('unassigned_only'))
     AND (sqlc.narg('closed')::BOOLEAN IS NULL OR t.is_closed = sqlc.narg('closed'))
+    AND (
+        CASE WHEN sqlc.narg('show_deleted')::BOOLEAN IS NOT DISTINCT FROM TRUE
+            THEN t.deleted_at IS NOT NULL
+            ELSE t.deleted_at IS NULL
+        END
+    )
     AND (
         sqlc.arg('q')::TEXT = ''
         OR t.title ILIKE '%' || sqlc.arg('q') || '%'
@@ -112,6 +124,11 @@ RETURNING *;
 
 -- name: DeleteTicket :exec
 DELETE FROM tickets
+WHERE id = $1;
+
+-- name: SoftDeleteTicket :exec
+UPDATE tickets
+SET deleted_at = NOW()
 WHERE id = $1;
 
 -- name: VoteTicket :exec

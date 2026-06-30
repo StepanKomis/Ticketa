@@ -62,15 +62,21 @@
   cursor: pointer;
 }
 
-.mobileTopBar__dot {
+.mobileTopBar__badge {
   position: absolute;
-  top: 7px;
-  right: 7px;
-  width: 7px;
-  height: 7px;
+  top: 3px;
+  right: 3px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
   border-radius: var(--radius-full);
   background: var(--priority-urgent);
   box-shadow: 0 0 0 2px var(--white);
+  color: var(--white);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
 }
 
 .mobileTopBar__avatar {

@@ -8,6 +8,7 @@ import { initials, avatarColor } from '../utils/avatar'
 import { ROLE_LABELS } from '../utils/labels'
 import type { ApiUser } from '../types/api'
 import Card from '../components/ui/Card'
+import KebabMenu from '../components/ui/KebabMenu'
 import './usersPage.scss'
 
 type Filter = 'all' | 'student' | 'staff' | 'maintainer' | 'pending'
@@ -40,8 +41,6 @@ export default function UsersPage() {
   const [filter, setFilter] = useState<Filter>('all')
   const [search, setSearch] = useState('')
   const [offset, setOffset] = useState(0)
-  const [menuFor, setMenuFor] = useState<number | null>(null)
-  const [menuAbove, setMenuAbove] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('student')
@@ -96,7 +95,6 @@ export default function UsersPage() {
   }
 
   function setActive(u: ApiUser, isActive: boolean) {
-    setMenuFor(null)
     updateUser.mutate({ id: u.ID, payload: { is_active: isActive } })
   }
 
@@ -273,69 +271,26 @@ export default function UsersPage() {
 
                       <td className="usersRow__actions">
                         {u.ID !== user?.id && (
-                          <div className="usersRow__menuWrap">
-                            <button
-                              type="button"
-                              className="usersRow__kebab"
-                              aria-label={`Akce pro ${fullName(u)}`}
-                              aria-haspopup="menu"
-                              aria-expanded={menuFor === u.ID}
-                              onClick={(e) => {
-                                if (menuFor !== u.ID) {
-                                  const rect = e.currentTarget.getBoundingClientRect()
-                                  setMenuAbove(window.innerHeight - rect.bottom < 200)
-                                  setMenuFor(u.ID)
-                                } else {
-                                  setMenuFor(null)
-                                }
-                              }}
-                            >
-                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                                <circle cx="8" cy="3.5" r="1.2" fill="currentColor" />
-                                <circle cx="8" cy="8" r="1.2" fill="currentColor" />
-                                <circle cx="8" cy="12.5" r="1.2" fill="currentColor" />
-                              </svg>
-                            </button>
-                            {menuFor === u.ID && (
-                              <ul className={`usersRow__menu${menuAbove ? ' usersRow__menu--above' : ''}`} role="menu">
-                                <li role="none">
-                                  <button
-                                    type="button"
-                                    role="menuitem"
-                                    className="usersRow__menuItem"
-                                    onClick={() => setActive(u, !u.IsActive)}
-                                  >
-                                    {u.IsActive ? 'Deaktivovat' : 'Aktivovat'}
-                                  </button>
-                                </li>
-                                <li role="none" className="usersRow__menuItemSub">
-                                  <span className="usersRow__menuItem usersRow__menuItem--hasSubmenu">
-                                    Změnit roli
-                                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                                      <path d="M4 2.5L7.5 6 4 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                    </svg>
-                                  </span>
-                                  <ul className="usersRow__submenu" role="menu">
-                                    {(['student', 'staff', 'maintainer', 'admin'] as const).map(r => (
-                                      <li role="none" key={r}>
-                                        <button
-                                          type="button"
-                                          role="menuitemradio"
-                                          aria-checked={u.UserType === r}
-                                          className={`usersRow__menuItem${u.UserType === r ? ' usersRow__menuItem--current' : ''}`}
-                                          disabled={u.UserType === r}
-                                          onClick={() => { changeRole(u, r); setMenuFor(null) }}
-                                        >
-                                          {u.UserType === r && <span className="usersRow__menuCheck" aria-hidden="true">✓</span>}
-                                          {ROLE_LABELS[r]}
-                                        </button>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </li>
-                              </ul>
-                            )}
-                          </div>
+                          <KebabMenu
+                            ariaLabel={`Akce pro ${fullName(u)}`}
+                            items={[
+                              {
+                                type: 'action',
+                                label: u.IsActive ? 'Deaktivovat' : 'Aktivovat',
+                                onClick: () => setActive(u, !u.IsActive),
+                                danger: u.IsActive,
+                              },
+                              {
+                                type: 'submenu',
+                                label: 'Změnit roli',
+                                items: (['student', 'staff', 'maintainer', 'admin'] as const).map(r => ({
+                                  label: ROLE_LABELS[r],
+                                  onClick: () => changeRole(u, r),
+                                  checked: u.UserType === r,
+                                })),
+                              },
+                            ]}
+                          />
                         )}
                       </td>
                     </tr>

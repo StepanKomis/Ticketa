@@ -1,10 +1,12 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import Sidebar from './Sidebar'
 import AppHeader from './AppHeader'
 import MobileTopBar from './MobileTopBar'
 import BottomNav from './BottomNav'
+import NotificationPanel from './NotificationPanel'
 import { useAuth } from '../../hooks/useAuth'
 import { useTickets } from '../../hooks/useTickets'
+import { useNotifications, useMarkNotificationsViewed } from '../../hooks/useNotifications'
 import type { UserRole } from '../../types/ticket'
 import './ConsoleLayout.scss'
 
@@ -36,6 +38,20 @@ export default function ConsoleLayout({
 }: Props) {
   const { logout } = useAuth()
   const { data: openTickets } = useTickets({ closed: false, limit: 1 })
+  const { data: notifData } = useNotifications()
+  const markViewed = useMarkNotificationsViewed()
+  const [panelOpen, setPanelOpen] = useState(false)
+
+  const unreadCount = notifData?.unread_count ?? 0
+  const notifications = notifData?.items ?? []
+
+  const handleBellClick = () => {
+    const opening = !panelOpen
+    setPanelOpen(opening)
+    if (opening && unreadCount > 0) {
+      markViewed.mutate()
+    }
+  }
 
   return (
     <div className="appShell">
@@ -49,16 +65,32 @@ export default function ConsoleLayout({
       />
 
       <div className="appShell__body">
-        <AppHeader role={user.role} onNew={onNew} left={headerLeft} showNew={showNew} />
+        <AppHeader
+          role={user.role}
+          onNew={onNew}
+          left={headerLeft}
+          showNew={showNew}
+          unreadCount={unreadCount}
+          onBellClick={handleBellClick}
+        />
         <MobileTopBar
           firstName={user.firstName}
           lastName={user.lastName}
           email={user.email}
           role={user.role}
+          unreadCount={unreadCount}
+          onBellClick={handleBellClick}
         />
 
         <main className="appShell__main">{children}</main>
       </div>
+
+      {panelOpen && (
+        <NotificationPanel
+          items={notifications}
+          onClose={() => setPanelOpen(false)}
+        />
+      )}
 
       {fab && <div className="appShell__fab">{fab}</div>}
       <BottomNav />

@@ -7,6 +7,7 @@ interface PasswordProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>
   icon?: React.ReactNode
   showRequirements?: boolean
   compareWith?: string
+  variant?: string
 }
 
 const EyeIcon = ({ open }: { open: boolean }) => open ? (

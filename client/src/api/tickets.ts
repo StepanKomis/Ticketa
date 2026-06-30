@@ -16,6 +16,7 @@ export interface TicketsParams {
   category?: string
   unassigned?: boolean
   closed?: boolean
+  show_deleted?: boolean
   q?: string
   limit?: number
   offset?: number
@@ -30,8 +31,9 @@ export function getTickets(params?: TicketsParams): Promise<ApiTicketList> {
     if (params.author_id != null) qs.set('author_id', String(params.author_id))
     if (params.category)          qs.set('category', params.category)
     if (params.unassigned != null) qs.set('unassigned', String(params.unassigned))
-    if (params.closed != null)    qs.set('closed', String(params.closed))
-    if (params.q)                 qs.set('q', params.q)
+    if (params.closed != null)        qs.set('closed', String(params.closed))
+    if (params.show_deleted != null)  qs.set('show_deleted', String(params.show_deleted))
+    if (params.q)                     qs.set('q', params.q)
     if (params.limit != null)     qs.set('limit', String(params.limit))
     if (params.offset != null)    qs.set('offset', String(params.offset))
   }

@@ -1,4 +1,5 @@
 import { Link, NavLink } from 'react-router-dom'
+import { Settings } from 'lucide-react'
 import type { UserRole } from '../../types/ticket'
 import { initials } from '../../utils/avatar'
 import { ROLE_LABELS } from '../../utils/labels'
@@ -46,12 +47,6 @@ const DirectoryIcon = () => (
   </svg>
 )
 
-const SettingsIcon = () => (
-  <svg width="18" height="15" viewBox="0 0 18 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <circle cx="9" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.3"/>
-    <path d="M9 1.8v1.6M9 12.6v1.6M3.4 4.6l1.1 1.1M13.5 10.3l1.1 1.1M1.8 8h1.6M14.6 8h1.6M3.4 11.4l1.1-1.1M13.5 5.7l1.1-1.1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-  </svg>
-)
 
 const LogoutIcon = () => (
   <svg width="18" height="15" viewBox="0 0 18 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -118,12 +113,10 @@ export default function Sidebar({ firstName, lastName, email, role, ticketCount,
       </nav>
 
       <div className="sidebar__footer">
-        {role === 'admin' && (
-          <NavLink to="/settings" className={navItemClass}>
-            <SettingsIcon />
-            <span className="sidebar__label">Nastavení</span>
-          </NavLink>
-        )}
+        <NavLink to="/settings" className={navItemClass}>
+          <Settings size={18} strokeWidth={1.3} aria-hidden="true" />
+          <span className="sidebar__label">Nastavení</span>
+        </NavLink>
 
         {onLogout && (
           <button type="button" className="sidebar__item sidebar__logout" onClick={onLogout}>

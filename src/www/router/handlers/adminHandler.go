@@ -16,6 +16,7 @@ import (
 	"github.com/StepanKomis/Ticketa/src/config"
 	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
 	"github.com/StepanKomis/Ticketa/src/internal/activity"
+	"github.com/StepanKomis/Ticketa/src/internal/notifications"
 )
 
 type AdminHandler struct {
@@ -23,10 +24,11 @@ type AdminHandler struct {
 	cfgStore       *config.Store
 	httpLogger     *logs.Logger
 	activityLogger *activity.ActivityLogger
+	notifier       *notifications.Notifier
 }
 
-func NewAdminHandler(q *db.Queries, cfgStore *config.Store, l *logs.Logger, al *activity.ActivityLogger) *AdminHandler {
-	return &AdminHandler{queries: q, cfgStore: cfgStore, httpLogger: l, activityLogger: al}
+func NewAdminHandler(q *db.Queries, cfgStore *config.Store, l *logs.Logger, al *activity.ActivityLogger, n *notifications.Notifier) *AdminHandler {
+	return &AdminHandler{queries: q, cfgStore: cfgStore, httpLogger: l, activityLogger: al, notifier: n}
 }
 
 // toUserWithApprover doplní uživatele o jméno schvalovatele (pokud má approved_by).
@@ -645,6 +647,9 @@ func (h *AdminHandler) approveUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.activityLogger.LogUzivatelSchvalen(ctx, approver.ID, id, user.Email)
+	if user.Provider == db.AuthProviderLocal {
+		h.notifier.NotifyRoleApproved(ctx, user.ID, string(user.UserType))
+	}
 	writeJSON(w, http.StatusOK, toUserWithApprover(ctx, h.queries, map[int32]string{}, user))
 }
 
@@ -690,6 +695,9 @@ func (h *AdminHandler) rejectUser(w http.ResponseWriter, r *http.Request) {
 		h.httpLogger.Debugf("rejectUser: SoftDeleteSessionByUserID selhalo pro user_id=%d: %s", id, err)
 	}
 	h.activityLogger.LogUzivatelZamitnuv(ctx, rejecter.ID, id, target.Email)
+	if target.Provider == db.AuthProviderLocal && target.RequestedRole.Valid {
+		h.notifier.NotifyRoleRejected(ctx, target.ID, string(target.RequestedRole.UserType))
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
