@@ -532,6 +532,7 @@ func (h *AdminHandler) getUser(w http.ResponseWriter, r *http.Request) {
 			WriteError(w, http.StatusNotFound, "uživatel nenalezen")
 			return
 		}
+		h.httpLogger.Debugf("getUser: GetUserByID selhalo (id=%d): %s", id64, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst uživatele")
 		return
 	}
@@ -591,6 +592,7 @@ func (h *AdminHandler) patchUser(w http.ResponseWriter, r *http.Request) {
 			ID:       id,
 			IsActive: *body.IsActive,
 		}); err != nil {
+			h.httpLogger.Debugf("patchUser: SetUserIsActive selhalo (id=%d): %s", id, err)
 			WriteError(w, http.StatusInternalServerError, "nepodařilo se aktualizovat uživatele")
 			return
 		}
@@ -599,6 +601,7 @@ func (h *AdminHandler) patchUser(w http.ResponseWriter, r *http.Request) {
 		// ne až při jeho dalším požadavku.
 		if !*body.IsActive {
 			if err := h.queries.SoftDeleteSessionByUserID(ctx, int64(id)); err != nil {
+				h.httpLogger.Debugf("patchUser: SoftDeleteSessionByUserID selhalo (id=%d): %s", id, err)
 				WriteError(w, http.StatusInternalServerError, "nepodařilo se zneplatnit session uživatele")
 				return
 			}
@@ -611,6 +614,7 @@ func (h *AdminHandler) patchUser(w http.ResponseWriter, r *http.Request) {
 			ID:       id,
 			UserType: ut,
 		}); err != nil {
+			h.httpLogger.Debugf("patchUser: SetUserType selhalo (id=%d, type=%s): %s", id, *body.UserType, err)
 			WriteError(w, http.StatusInternalServerError, "nepodařilo se aktualizovat typ uživatele")
 			return
 		}
@@ -622,6 +626,7 @@ func (h *AdminHandler) patchUser(w http.ResponseWriter, r *http.Request) {
 			WriteError(w, http.StatusNotFound, "uživatel nenalezen")
 			return
 		}
+		h.httpLogger.Debugf("patchUser: GetUserByID selhalo (id=%d): %s", id, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst aktualizovaného uživatele")
 		return
 	}
@@ -668,6 +673,7 @@ func (h *AdminHandler) approveUser(w http.ResponseWriter, r *http.Request) {
 			WriteError(w, http.StatusNotFound, "uživatel nenalezen nebo nebyl ve stavu pending")
 			return
 		}
+		h.httpLogger.Debugf("approveUser: ApprovePendingUser selhalo (id=%d): %s", id, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se schválit uživatele")
 		return
 	}
@@ -678,6 +684,7 @@ func (h *AdminHandler) approveUser(w http.ResponseWriter, r *http.Request) {
 			WriteError(w, http.StatusNotFound, "uživatel nenalezen")
 			return
 		}
+		h.httpLogger.Debugf("approveUser: GetUserByID selhalo (id=%d): %s", id, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst uživatele")
 		return
 	}
@@ -718,11 +725,13 @@ func (h *AdminHandler) rejectUser(w http.ResponseWriter, r *http.Request) {
 
 	target, err := h.queries.GetUserByID(ctx, id)
 	if err != nil {
+		h.httpLogger.Debugf("rejectUser: GetUserByID selhalo (id=%d): %s", id, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst uživatele")
 		return
 	}
 
 	if err := h.queries.RejectPendingUser(ctx, id); err != nil {
+		h.httpLogger.Debugf("rejectUser: RejectPendingUser selhalo (id=%d): %s", id, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se zamítnout uživatele")
 		return
 	}
