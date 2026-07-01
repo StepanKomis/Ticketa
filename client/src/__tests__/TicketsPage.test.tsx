@@ -65,12 +65,9 @@ describe('TicketsPage', () => {
   })
 
   it('shows empty state when filter has no results', () => {
+    mockUseTickets.mockReturnValue({ data: { items: [], total: 0, limit: 20, offset: 0 }, isLoading: false })
     renderWithProviders(<TicketsPage />, { initialPath: '/tickets' })
-    fireEvent.click(screen.getAllByText('Vyřešené')[0])
-    const cards = screen.queryAllByTestId('ticket-card')
-    if (cards.length === 0) {
-      expect(screen.getByText('Žádné tikety v tomto filtru.')).toBeInTheDocument()
-    }
+    expect(screen.getByText('Žádné tikety v tomto filtru.')).toBeInTheDocument()
   })
 
   it('shows maintainer scope tabs and defaults to "Moje přiřazené"', () => {

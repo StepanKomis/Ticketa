@@ -296,7 +296,7 @@ function Step3({ settings, onDone }: Step3Props) {
               type="button"
               className={`wizard__btn wizard__btn--test${testResult?.ok ? ' wizard__btn--test--active' : ''}`}
               onClick={handleTest}
-              disabled={testing || !canTest && !isFromEnv}
+              disabled={testing || (!canTest && !isFromEnv)}
             >
               {testing ? 'Testuji…' : 'Otestovat připojení'}
             </button>

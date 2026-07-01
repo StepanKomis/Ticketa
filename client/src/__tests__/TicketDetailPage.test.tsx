@@ -166,7 +166,7 @@ describe('TicketDetailPage', () => {
     renderDetail()
     const textarea = screen.getByRole('textbox', { name: /Nový komentář/ })
     fireEvent.change(textarea, { target: { value: 'Testovací komentář' } })
-    fireEvent.submit(textarea.closest('form')!)
+    fireEvent.submit(screen.getByRole('form', { name: /Komentář/ }))
     expect(mockMutateComment).toHaveBeenCalledWith(
       { body: 'Testovací komentář' },
       expect.any(Object),
