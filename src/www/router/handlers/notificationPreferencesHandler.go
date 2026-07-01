@@ -57,6 +57,7 @@ func (h *NotificationPreferencesHandler) get(w http.ResponseWriter, r *http.Requ
 
 	optOuts, err := h.queries.GetEmailOptOuts(r.Context(), userID)
 	if err != nil {
+		h.httpLogger.Debugf("get: GetEmailOptOuts selhalo (user=%d): %s", userID, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst nastavení oznámení")
 		return
 	}
@@ -91,6 +92,7 @@ func (h *NotificationPreferencesHandler) put(w http.ResponseWriter, r *http.Requ
 	// Načteme současné opt-outy a rozdílově aktualizujeme.
 	current, err := h.queries.GetEmailOptOuts(ctx, userID)
 	if err != nil {
+		h.httpLogger.Debugf("put: GetEmailOptOuts selhalo (user=%d): %s", userID, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst nastavení oznámení")
 		return
 	}
@@ -102,6 +104,7 @@ func (h *NotificationPreferencesHandler) put(w http.ResponseWriter, r *http.Requ
 	for t := range desired {
 		if !currentSet[t] {
 			if err := h.queries.UpsertEmailOptOut(ctx, db.UpsertEmailOptOutParams{UserID: userID, Type: t}); err != nil {
+				h.httpLogger.Debugf("put: UpsertEmailOptOut selhalo (user=%d, type=%s): %s", userID, t, err)
 				WriteError(w, http.StatusInternalServerError, "nepodařilo se uložit nastavení")
 				return
 			}
@@ -110,6 +113,7 @@ func (h *NotificationPreferencesHandler) put(w http.ResponseWriter, r *http.Requ
 	for t := range currentSet {
 		if !desired[t] {
 			if err := h.queries.DeleteEmailOptOut(ctx, db.DeleteEmailOptOutParams{UserID: userID, Type: t}); err != nil {
+				h.httpLogger.Debugf("put: DeleteEmailOptOut selhalo (user=%d, type=%s): %s", userID, t, err)
 				WriteError(w, http.StatusInternalServerError, "nepodařilo se uložit nastavení")
 				return
 			}
@@ -119,6 +123,7 @@ func (h *NotificationPreferencesHandler) put(w http.ResponseWriter, r *http.Requ
 	// Vrátíme aktuální stav.
 	updated, err := h.queries.GetEmailOptOuts(ctx, userID)
 	if err != nil {
+		h.httpLogger.Debugf("put: GetEmailOptOuts (po update) selhalo (user=%d): %s", userID, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst nastavení oznámení")
 		return
 	}

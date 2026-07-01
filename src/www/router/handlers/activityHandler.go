@@ -104,6 +104,7 @@ func (h *ActivityHandler) listGlobal(w http.ResponseWriter, r *http.Request) {
 	}
 	rows, err := h.queries.ListActivityLog(ctx, params)
 	if err != nil {
+		h.httpLogger.Debugf("listGlobal: ListActivityLog selhalo: %s", err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst aktivity")
 		return
 	}
@@ -116,6 +117,7 @@ func (h *ActivityHandler) listGlobal(w http.ResponseWriter, r *http.Request) {
 		ToTs:       toTs,
 	})
 	if err != nil {
+		h.httpLogger.Debugf("listGlobal: CountActivityLog selhalo: %s", err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se spočítat aktivity")
 		return
 	}
@@ -209,6 +211,7 @@ func (h *ActivityHandler) listForUser(w http.ResponseWriter, r *http.Request) {
 		Off:        int32(offset),
 	})
 	if err != nil {
+		h.httpLogger.Debugf("listForUser: ListActivityLogForUser selhalo (user=%d): %s", id, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst aktivity")
 		return
 	}
@@ -221,6 +224,7 @@ func (h *ActivityHandler) listForUser(w http.ResponseWriter, r *http.Request) {
 		ToTs:       toTs,
 	})
 	if err != nil {
+		h.httpLogger.Debugf("listForUser: CountActivityLogForUser selhalo (user=%d): %s", id, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se spočítat aktivity")
 		return
 	}

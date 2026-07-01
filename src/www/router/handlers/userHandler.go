@@ -19,6 +19,7 @@ import (
 	userregistration "github.com/StepanKomis/Ticketa/src/internal/API/users/registration"
 	"github.com/StepanKomis/Ticketa/src/internal/activity"
 	"github.com/StepanKomis/Ticketa/src/internal/security"
+	"github.com/StepanKomis/Ticketa/src/internal/validation"
 )
 
 type UserHandler struct {
@@ -86,6 +87,19 @@ func (uh *UserHandler) register(w http.ResponseWriter, r *http.Request) {
 	err := userregistration.ValidatePassword(body.Password)
 	if err != nil {
 		uh.httpLogger.Debugf("validace hesla selhala pro %s: %s", body.Email, err)
+		WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if err := validation.Email(body.Email); err != nil {
+		WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := validation.Length(strings.TrimSpace(body.FirstName), "first_name", 0, 60); err != nil {
+		WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := validation.Length(strings.TrimSpace(body.LastName), "last_name", 0, 60); err != nil {
 		WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -303,6 +317,7 @@ func (uh *UserHandler) patchMe(w http.ResponseWriter, r *http.Request) {
 		LastName:  lastName,
 	})
 	if err != nil {
+		uh.httpLogger.Debugf("patchMe: UpdateMyProfile selhalo (user=%d): %s", session.UserID, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se aktualizovat profil")
 		return
 	}
@@ -379,12 +394,14 @@ func (uh *UserHandler) acceptInvite(w http.ResponseWriter, r *http.Request) {
 
 	hash, err := security.HashPassword(body.Password)
 	if err != nil {
+		uh.httpLogger.Debugf("acceptInvite: HashPassword selhalo: %s", err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se zpracovat heslo")
 		return
 	}
 
 	tx, err := uh.db.BeginTx(ctx, nil)
 	if err != nil {
+		uh.httpLogger.Debugf("acceptInvite: BeginTx selhalo: %s", err)
 		WriteError(w, http.StatusInternalServerError, "interní chyba serveru")
 		return
 	}
@@ -400,6 +417,7 @@ func (uh *UserHandler) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		Provider:  db.AuthProviderLocal,
 	})
 	if err != nil {
+		uh.httpLogger.Debugf("acceptInvite: CreateUser selhalo (%s): %s", inv.Email, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se vytvořit účet")
 		return
 	}
@@ -409,16 +427,19 @@ func (uh *UserHandler) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		PasswordHash: hash,
 		MustChangePw: false,
 	}); err != nil {
+		uh.httpLogger.Debugf("acceptInvite: CreateLocalLogin selhalo (user=%d): %s", user.ID, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se vytvořit přihlašovací údaje")
 		return
 	}
 
 	if err = txQ.MarkInvitationUsed(ctx, inv.ID); err != nil {
+		uh.httpLogger.Debugf("acceptInvite: MarkInvitationUsed selhalo (inv=%d): %s", inv.ID, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se označit pozvánku jako použitou")
 		return
 	}
 
 	if err = tx.Commit(); err != nil {
+		uh.httpLogger.Debugf("acceptInvite: tx.Commit selhalo: %s", err)
 		WriteError(w, http.StatusInternalServerError, "interní chyba serveru")
 		return
 	}
@@ -448,6 +469,7 @@ func (uh *UserHandler) acceptInvite(w http.ResponseWriter, r *http.Request) {
 func (uh *UserHandler) setupStatus(w http.ResponseWriter, r *http.Request) {
 	count, err := uh.queries.CountUsers(r.Context())
 	if err != nil {
+		uh.httpLogger.Debugf("setupStatus: CountUsers selhalo: %s", err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se ověřit stav systému")
 		return
 	}
@@ -511,6 +533,7 @@ func (uh *UserHandler) patchMyPassword(w http.ResponseWriter, r *http.Request) {
 
 	newHash, err := security.HashPassword(body.NewPassword)
 	if err != nil {
+		uh.httpLogger.Debugf("patchMyPassword: HashPassword selhalo (user=%d): %s", session.UserID, err)
 		WriteError(w, http.StatusInternalServerError, "interní chyba")
 		return
 	}
@@ -519,6 +542,7 @@ func (uh *UserHandler) patchMyPassword(w http.ResponseWriter, r *http.Request) {
 		ID:           int32(session.UserID),
 		PasswordHash: newHash,
 	}); err != nil {
+		uh.httpLogger.Debugf("patchMyPassword: UpdateLocalLoginPassword selhalo (user=%d): %s", session.UserID, err)
 		WriteError(w, http.StatusInternalServerError, "interní chyba")
 		return
 	}
@@ -557,6 +581,10 @@ func (uh *UserHandler) patchMyEmail(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusBadRequest, "pole new_email je povinné")
 		return
 	}
+	if err := validation.Email(newEmail); err != nil {
+		WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	ll, err := uh.queries.GetLocalLoginByUserID(r.Context(), int32(session.UserID))
 	if err != nil {
@@ -579,6 +607,7 @@ func (uh *UserHandler) patchMyEmail(w http.ResponseWriter, r *http.Request) {
 			WriteError(w, http.StatusConflict, "e-mail je již používán")
 			return
 		}
+		uh.httpLogger.Debugf("patchMyEmail: UpdateUserEmail selhalo (user=%d): %s", session.UserID, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se změnit e-mail")
 		return
 	}

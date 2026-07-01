@@ -17,6 +17,7 @@ import (
 	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
 	"github.com/StepanKomis/Ticketa/src/internal/activity"
 	"github.com/StepanKomis/Ticketa/src/internal/notifications"
+	"github.com/StepanKomis/Ticketa/src/internal/validation"
 )
 
 type AdminHandler struct {
@@ -149,6 +150,9 @@ func (h *AdminHandler) patchConfig(w http.ResponseWriter, r *http.Request) {
 
 	err := h.cfgStore.Update(func(c *config.Config) error {
 		if patch.Logging.Level != "" {
+			if err := validation.Enum(patch.Logging.Level, "logging.level", "info", "debug"); err != nil {
+				return err
+			}
 			c.Logging.Level = patch.Logging.Level
 		}
 		if patch.Logging.Dir != "" {
@@ -170,6 +174,8 @@ func (h *AdminHandler) patchConfig(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 	if err != nil {
+		// Callback vrací validační chyby (user-facing); cfgStore může přidat I/O chybu.
+		h.httpLogger.Debugf("patchConfig: Update selhalo: %s", err)
 		WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -194,6 +200,7 @@ func (h *AdminHandler) patchConfig(w http.ResponseWriter, r *http.Request) {
 func (h *AdminHandler) listStatuses(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.queries.ListTicketStatuses(r.Context())
 	if err != nil {
+		h.httpLogger.Debugf("listStatuses: ListTicketStatuses selhalo: %s", err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst stavy")
 		return
 	}
@@ -237,8 +244,16 @@ func (h *AdminHandler) createStatus(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusUnprocessableEntity, "pole title je povinné")
 		return
 	}
+	if err := validation.Length(body.Title, "title", 1, 100); err != nil {
+		WriteError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
 	if body.Color == "" {
 		body.Color = "#808080"
+	}
+	if err := validation.HexColor(body.Color); err != nil {
+		WriteError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	row, err := h.queries.CreateTicketStatus(r.Context(), db.CreateTicketStatusParams{
@@ -248,6 +263,7 @@ func (h *AdminHandler) createStatus(w http.ResponseWriter, r *http.Request) {
 		IsClosed: body.IsClosed,
 	})
 	if err != nil {
+		h.httpLogger.Debugf("createStatus: CreateTicketStatus selhalo: %s", err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se vytvořit stav")
 		return
 	}
@@ -304,6 +320,21 @@ func (h *AdminHandler) updateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if body.Title == "" {
+		WriteError(w, http.StatusUnprocessableEntity, "pole title je povinné")
+		return
+	}
+	if err := validation.Length(body.Title, "title", 1, 100); err != nil {
+		WriteError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+	if body.Color != "" {
+		if err := validation.HexColor(body.Color); err != nil {
+			WriteError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
+
 	row, err := h.queries.UpdateTicketStatus(r.Context(), db.UpdateTicketStatusParams{
 		ID:       id,
 		Title:    body.Title,
@@ -315,6 +346,7 @@ func (h *AdminHandler) updateStatus(w http.ResponseWriter, r *http.Request) {
 			WriteError(w, http.StatusNotFound, "stav nenalezen")
 			return
 		}
+		h.httpLogger.Debugf("updateStatus: UpdateTicketStatus selhalo: %s", err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se aktualizovat stav")
 		return
 	}
@@ -347,6 +379,7 @@ func (h *AdminHandler) deleteStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.queries.DeleteTicketStatus(r.Context(), int32(id64)); err != nil {
+		h.httpLogger.Debugf("deleteStatus: DeleteTicketStatus selhalo: %s", err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se smazat stav")
 		return
 	}
@@ -440,6 +473,7 @@ func (h *AdminHandler) listUsers(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := h.queries.ListUsersFiltered(ctx, params)
 	if err != nil {
+		h.httpLogger.Debugf("listUsers: ListUsersFiltered selhalo: %s", err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst uživatele")
 		return
 	}
@@ -451,6 +485,7 @@ func (h *AdminHandler) listUsers(w http.ResponseWriter, r *http.Request) {
 	}
 	total, err := h.queries.CountUsersFiltered(ctx, countParams)
 	if err != nil {
+		h.httpLogger.Debugf("listUsers: CountUsersFiltered selhalo: %s", err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se spočítat uživatele")
 		return
 	}
@@ -497,6 +532,7 @@ func (h *AdminHandler) getUser(w http.ResponseWriter, r *http.Request) {
 			WriteError(w, http.StatusNotFound, "uživatel nenalezen")
 			return
 		}
+		h.httpLogger.Debugf("getUser: GetUserByID selhalo (id=%d): %s", id64, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst uživatele")
 		return
 	}
@@ -556,6 +592,7 @@ func (h *AdminHandler) patchUser(w http.ResponseWriter, r *http.Request) {
 			ID:       id,
 			IsActive: *body.IsActive,
 		}); err != nil {
+			h.httpLogger.Debugf("patchUser: SetUserIsActive selhalo (id=%d): %s", id, err)
 			WriteError(w, http.StatusInternalServerError, "nepodařilo se aktualizovat uživatele")
 			return
 		}
@@ -564,6 +601,7 @@ func (h *AdminHandler) patchUser(w http.ResponseWriter, r *http.Request) {
 		// ne až při jeho dalším požadavku.
 		if !*body.IsActive {
 			if err := h.queries.SoftDeleteSessionByUserID(ctx, int64(id)); err != nil {
+				h.httpLogger.Debugf("patchUser: SoftDeleteSessionByUserID selhalo (id=%d): %s", id, err)
 				WriteError(w, http.StatusInternalServerError, "nepodařilo se zneplatnit session uživatele")
 				return
 			}
@@ -576,6 +614,7 @@ func (h *AdminHandler) patchUser(w http.ResponseWriter, r *http.Request) {
 			ID:       id,
 			UserType: ut,
 		}); err != nil {
+			h.httpLogger.Debugf("patchUser: SetUserType selhalo (id=%d, type=%s): %s", id, *body.UserType, err)
 			WriteError(w, http.StatusInternalServerError, "nepodařilo se aktualizovat typ uživatele")
 			return
 		}
@@ -587,6 +626,7 @@ func (h *AdminHandler) patchUser(w http.ResponseWriter, r *http.Request) {
 			WriteError(w, http.StatusNotFound, "uživatel nenalezen")
 			return
 		}
+		h.httpLogger.Debugf("patchUser: GetUserByID selhalo (id=%d): %s", id, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst aktualizovaného uživatele")
 		return
 	}
@@ -633,6 +673,7 @@ func (h *AdminHandler) approveUser(w http.ResponseWriter, r *http.Request) {
 			WriteError(w, http.StatusNotFound, "uživatel nenalezen nebo nebyl ve stavu pending")
 			return
 		}
+		h.httpLogger.Debugf("approveUser: ApprovePendingUser selhalo (id=%d): %s", id, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se schválit uživatele")
 		return
 	}
@@ -643,6 +684,7 @@ func (h *AdminHandler) approveUser(w http.ResponseWriter, r *http.Request) {
 			WriteError(w, http.StatusNotFound, "uživatel nenalezen")
 			return
 		}
+		h.httpLogger.Debugf("approveUser: GetUserByID selhalo (id=%d): %s", id, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst uživatele")
 		return
 	}
@@ -683,11 +725,13 @@ func (h *AdminHandler) rejectUser(w http.ResponseWriter, r *http.Request) {
 
 	target, err := h.queries.GetUserByID(ctx, id)
 	if err != nil {
+		h.httpLogger.Debugf("rejectUser: GetUserByID selhalo (id=%d): %s", id, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst uživatele")
 		return
 	}
 
 	if err := h.queries.RejectPendingUser(ctx, id); err != nil {
+		h.httpLogger.Debugf("rejectUser: RejectPendingUser selhalo (id=%d): %s", id, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se zamítnout uživatele")
 		return
 	}
@@ -729,6 +773,10 @@ func (h *AdminHandler) createInvitation(w http.ResponseWriter, r *http.Request) 
 		WriteError(w, http.StatusBadRequest, "pole email je povinné")
 		return
 	}
+	if err := validation.Email(body.Email); err != nil {
+		WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	validInviteTypes := map[string]db.UserType{
 		"student":    db.UserTypeStudent,
@@ -760,6 +808,7 @@ func (h *AdminHandler) createInvitation(w http.ResponseWriter, r *http.Request) 
 		UserType:  userType,
 	})
 	if err != nil {
+		h.httpLogger.Debugf("createInvitation: CreateInvitation selhalo: %s", err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se vytvořit pozvánku")
 		return
 	}

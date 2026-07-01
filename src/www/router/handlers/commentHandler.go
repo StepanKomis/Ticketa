@@ -10,6 +10,7 @@ import (
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
 	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
 	"github.com/StepanKomis/Ticketa/src/internal/activity"
+	"github.com/StepanKomis/Ticketa/src/internal/validation"
 )
 
 type CommentHandler struct {
@@ -80,6 +81,10 @@ func (h *CommentHandler) create(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusUnprocessableEntity, "pole body je povinné")
 		return
 	}
+	if err := validation.Length(body.Body, "body", 1, 10000); err != nil {
+		WriteError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
 
 	params := db.CreateCommentParams{
 		TicketID: ticketID,
@@ -92,6 +97,7 @@ func (h *CommentHandler) create(w http.ResponseWriter, r *http.Request) {
 
 	comment, err := h.queries.CreateComment(r.Context(), params)
 	if err != nil {
+		h.httpLogger.Debugf("create: CreateComment selhalo: %s", err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se vytvořit komentář")
 		return
 	}
@@ -126,6 +132,7 @@ func (h *CommentHandler) list(w http.ResponseWriter, r *http.Request) {
 		Off:      0,
 	})
 	if err != nil {
+		h.httpLogger.Debugf("list: ListCommentsByTicket selhalo (ticket=%d): %s", ticketID, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst komentáře")
 		return
 	}
@@ -180,6 +187,7 @@ func (h *CommentHandler) update(w http.ResponseWriter, r *http.Request) {
 			WriteError(w, http.StatusNotFound, "komentář nenalezen")
 			return
 		}
+		h.httpLogger.Debugf("update: GetComment selhalo (id=%d): %s", id, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst komentář")
 		return
 	}
@@ -201,12 +209,17 @@ func (h *CommentHandler) update(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusUnprocessableEntity, "pole body je povinné")
 		return
 	}
+	if err := validation.Length(body.Body, "body", 1, 10000); err != nil {
+		WriteError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
 
 	comment, err := h.queries.UpdateComment(r.Context(), db.UpdateCommentParams{
 		ID:   id,
 		Body: body.Body,
 	})
 	if err != nil {
+		h.httpLogger.Debugf("update: UpdateComment selhalo (id=%d): %s", id, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se aktualizovat komentář")
 		return
 	}
@@ -247,6 +260,7 @@ func (h *CommentHandler) softDelete(w http.ResponseWriter, r *http.Request) {
 			WriteError(w, http.StatusNotFound, "komentář nenalezen")
 			return
 		}
+		h.httpLogger.Debugf("softDelete: GetComment selhalo (id=%d): %s", id, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst komentář")
 		return
 	}
@@ -265,6 +279,7 @@ func (h *CommentHandler) softDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.queries.SoftDeleteComment(r.Context(), id); err != nil {
+		h.httpLogger.Debugf("softDelete: SoftDeleteComment selhalo (id=%d): %s", id, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se smazat komentář")
 		return
 	}
