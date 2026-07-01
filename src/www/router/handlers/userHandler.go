@@ -19,6 +19,7 @@ import (
 	userregistration "github.com/StepanKomis/Ticketa/src/internal/API/users/registration"
 	"github.com/StepanKomis/Ticketa/src/internal/activity"
 	"github.com/StepanKomis/Ticketa/src/internal/security"
+	"github.com/StepanKomis/Ticketa/src/internal/validation"
 )
 
 type UserHandler struct {
@@ -86,6 +87,19 @@ func (uh *UserHandler) register(w http.ResponseWriter, r *http.Request) {
 	err := userregistration.ValidatePassword(body.Password)
 	if err != nil {
 		uh.httpLogger.Debugf("validace hesla selhala pro %s: %s", body.Email, err)
+		WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if err := validation.Email(body.Email); err != nil {
+		WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := validation.Length(strings.TrimSpace(body.FirstName), "first_name", 0, 60); err != nil {
+		WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := validation.Length(strings.TrimSpace(body.LastName), "last_name", 0, 60); err != nil {
 		WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -555,6 +569,10 @@ func (uh *UserHandler) patchMyEmail(w http.ResponseWriter, r *http.Request) {
 	newEmail := strings.ToLower(strings.TrimSpace(body.NewEmail))
 	if newEmail == "" {
 		WriteError(w, http.StatusBadRequest, "pole new_email je povinné")
+		return
+	}
+	if err := validation.Email(newEmail); err != nil {
+		WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 

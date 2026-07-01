@@ -94,7 +94,8 @@ func (h *ServerSettingsHandler) testSMTP(w http.ResponseWriter, r *http.Request)
 	// živý mailer, který má reálné přihlašovací údaje načtené při startu.
 	if body.Password == "" && h.mailer != nil {
 		if err := h.mailer.Ping(); err != nil {
-			WriteError(w, http.StatusBadGateway, err.Error())
+			h.logger.Debugf("testSMTP: Ping selhalo: %s", err)
+			WriteError(w, http.StatusBadGateway, "nezdařilo se ověřit SMTP připojení")
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -106,7 +107,8 @@ func (h *ServerSettingsHandler) testSMTP(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if err := mailer.TestCredentials(body.Host, body.Port, body.Username, body.Password); err != nil {
-		WriteError(w, http.StatusBadGateway, err.Error())
+		h.logger.Debugf("testSMTP: TestCredentials selhalo: %s", err)
+		WriteError(w, http.StatusBadGateway, "nezdařilo se testovat SMTP připojení")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -115,7 +117,8 @@ func (h *ServerSettingsHandler) testSMTP(w http.ResponseWriter, r *http.Request)
 func (h *ServerSettingsHandler) testDB(w http.ResponseWriter, r *http.Request) {
 	// DB je již připojená, testujeme aktuální spojení.
 	if _, err := h.queries.CountUsers(r.Context()); err != nil {
-		WriteError(w, http.StatusBadGateway, "Databáze není dostupná: "+err.Error())
+		h.logger.Debugf("testDB: CountUsers selhalo: %s", err)
+		WriteError(w, http.StatusBadGateway, "databáze není dostupná")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -128,6 +131,7 @@ func (h *ServerSettingsHandler) completeWizard(w http.ResponseWriter, r *http.Re
 		FromEnv: false,
 	})
 	if err != nil {
+		h.logger.Debugf("completeWizard: UpsertServerSetting selhalo: %s", err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se dokončit wizard")
 		return
 	}
@@ -137,6 +141,7 @@ func (h *ServerSettingsHandler) completeWizard(w http.ResponseWriter, r *http.Re
 func (h *ServerSettingsHandler) getServerSettings(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.queries.GetAllServerSettings(r.Context())
 	if err != nil {
+		h.logger.Debugf("getServerSettings: GetAllServerSettings selhalo: %s", err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst nastavení")
 		return
 	}
@@ -212,6 +217,7 @@ func (h *ServerSettingsHandler) patchSMTP(w http.ResponseWriter, r *http.Request
 			Value:   s.val,
 			FromEnv: false,
 		}); err != nil {
+			h.logger.Debugf("patchSMTP: UpsertServerSetting selhalo (key=%s): %s", s.key, err)
 			WriteError(w, http.StatusInternalServerError, "nepodařilo se uložit nastavení")
 			return
 		}

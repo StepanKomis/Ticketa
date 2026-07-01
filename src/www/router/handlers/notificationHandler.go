@@ -37,11 +37,13 @@ func (h *NotificationHandler) list(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := h.queries.GetNotificationsForUser(ctx, userID)
 	if err != nil {
+		h.httpLogger.Debugf("list: GetNotificationsForUser selhalo (user=%d): %s", userID, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst oznámení")
 		return
 	}
 	unreadCount, err := h.queries.CountUnreadNotifications(ctx, userID)
 	if err != nil {
+		h.httpLogger.Debugf("list: CountUnreadNotifications selhalo (user=%d): %s", userID, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se spočítat oznámení")
 		return
 	}
@@ -72,6 +74,7 @@ func (h *NotificationHandler) markViewed(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if err := h.queries.MarkAllNotificationsViewed(r.Context(), int32(session.UserID)); err != nil {
+		h.httpLogger.Debugf("markViewed: MarkAllNotificationsViewed selhalo (user=%d): %s", session.UserID, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se označit oznámení jako přečtená")
 		return
 	}

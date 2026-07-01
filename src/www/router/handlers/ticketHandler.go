@@ -14,6 +14,7 @@ import (
 	"github.com/StepanKomis/Ticketa/src/internal/activity"
 	"github.com/StepanKomis/Ticketa/src/internal/ctxkeys"
 	"github.com/StepanKomis/Ticketa/src/internal/notifications"
+	"github.com/StepanKomis/Ticketa/src/internal/validation"
 )
 
 type TicketHandler struct {
@@ -106,8 +107,24 @@ func (h *TicketHandler) create(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusUnprocessableEntity, "pole title je povinné")
 		return
 	}
+	if err := validation.Length(body.Title, "title", 1, 200); err != nil {
+		WriteError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
 	if body.Body == "" {
 		WriteError(w, http.StatusUnprocessableEntity, "pole body je povinné")
+		return
+	}
+	if err := validation.Length(body.Body, "body", 1, 50000); err != nil {
+		WriteError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+	if err := validation.Length(body.Location, "location", 0, 200); err != nil {
+		WriteError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+	if err := validation.Length(body.Category, "category", 0, 200); err != nil {
+		WriteError(w, http.StatusUnprocessableEntity, err.Error())
 		return
 	}
 	if body.Priority == "" {
@@ -151,6 +168,7 @@ func (h *TicketHandler) create(w http.ResponseWriter, r *http.Request) {
 
 	ticket, err := h.queries.CreateTicket(r.Context(), params)
 	if err != nil {
+		h.httpLogger.Debugf("create: CreateTicket selhalo: %s", err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se vytvořit tiket")
 		return
 	}
@@ -246,6 +264,7 @@ func (h *TicketHandler) list(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := h.queries.ListTicketsFiltered(r.Context(), params)
 	if err != nil {
+		h.httpLogger.Debugf("list: ListTicketsFiltered selhalo: %s", err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst tikety")
 		return
 	}
@@ -264,6 +283,7 @@ func (h *TicketHandler) list(w http.ResponseWriter, r *http.Request) {
 	}
 	total, err := h.queries.CountTicketsFiltered(r.Context(), countParams)
 	if err != nil {
+		h.httpLogger.Debugf("list: CountTicketsFiltered selhalo: %s", err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se spočítat tikety")
 		return
 	}
@@ -300,6 +320,7 @@ func (h *TicketHandler) get(w http.ResponseWriter, r *http.Request) {
 			WriteError(w, http.StatusNotFound, "tiket nenalezen")
 			return
 		}
+		h.httpLogger.Debugf("get: GetTicket selhalo (id=%d): %s", id, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se načíst tiket")
 		return
 	}
@@ -349,6 +370,36 @@ func (h *TicketHandler) update(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusUnprocessableEntity, "neplatná priorita (povolené hodnoty: low, medium, high, urgent)")
 		return
 	}
+	if body.Title != nil {
+		if err := validation.Length(*body.Title, "title", 1, 200); err != nil {
+			WriteError(w, http.StatusUnprocessableEntity, err.Error())
+			return
+		}
+	}
+	if body.Body != nil {
+		if err := validation.Length(*body.Body, "body", 1, 50000); err != nil {
+			WriteError(w, http.StatusUnprocessableEntity, err.Error())
+			return
+		}
+	}
+	if body.Location != nil {
+		if err := validation.Length(*body.Location, "location", 0, 200); err != nil {
+			WriteError(w, http.StatusUnprocessableEntity, err.Error())
+			return
+		}
+	}
+	if body.Category != nil {
+		if err := validation.Length(*body.Category, "category", 0, 200); err != nil {
+			WriteError(w, http.StatusUnprocessableEntity, err.Error())
+			return
+		}
+	}
+	if body.ResolutionNote != nil {
+		if err := validation.Length(*body.ResolutionNote, "resolution_note", 0, 2000); err != nil {
+			WriteError(w, http.StatusUnprocessableEntity, err.Error())
+			return
+		}
+	}
 
 	params := db.UpdateTicketParams{ID: id}
 	if body.Title != nil {
@@ -386,6 +437,7 @@ func (h *TicketHandler) update(w http.ResponseWriter, r *http.Request) {
 
 	ticket, err := h.queries.UpdateTicket(r.Context(), params)
 	if err != nil {
+		h.httpLogger.Debugf("update: UpdateTicket selhalo (id=%d): %s", id, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se aktualizovat tiket")
 		return
 	}
@@ -692,6 +744,7 @@ func (h *TicketHandler) delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.queries.SoftDeleteTicket(r.Context(), id); err != nil {
+		h.httpLogger.Debugf("delete: SoftDeleteTicket selhalo (id=%d): %s", id, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se smazat tiket")
 		return
 	}
@@ -717,6 +770,7 @@ func (h *TicketHandler) vote(w http.ResponseWriter, r *http.Request) {
 		TicketID: id,
 		UserID:   int32(session.UserID),
 	}); err != nil {
+		h.httpLogger.Debugf("vote: VoteTicket selhalo (id=%d): %s", id, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se přidat hlas")
 		return
 	}
@@ -738,6 +792,7 @@ func (h *TicketHandler) unvote(w http.ResponseWriter, r *http.Request) {
 		TicketID: id,
 		UserID:   int32(session.UserID),
 	}); err != nil {
+		h.httpLogger.Debugf("unvote: UnvoteTicket selhalo (id=%d): %s", id, err)
 		WriteError(w, http.StatusInternalServerError, "nepodařilo se odebrat hlas")
 		return
 	}

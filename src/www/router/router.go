@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"io/fs"
 	"net/http"
+	"time"
 
 	"github.com/StepanKomis/Ticketa/src/cmd/server/logs"
 	"github.com/StepanKomis/Ticketa/src/config"
@@ -18,7 +19,7 @@ import (
 	db "github.com/StepanKomis/Ticketa/src/database/postgres/queries"
 )
 
-func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store, m *mailer.Mailer) *http.ServeMux {
+func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store, m *mailer.Mailer) http.Handler {
 	cfg := cfgStore.Get()
 	httpLogger, err := logs.NewLogger("http", cfg)
 	if err != nil {
@@ -35,6 +36,11 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store, m *mail
 	authEnforced := func(h http.Handler) http.Handler { return auth(mustChangePw(h)) }
 	admin := func(h http.Handler) http.Handler { return authEnforced(middleware.AdminMiddleware()(h)) }
 	staffAdmin := func(h http.Handler) http.Handler { return authEnforced(middleware.StaffOrAdminMiddleware()(h)) }
+
+	// Rate limiter pro auth endpointy — brání brute-force útokům.
+	loginLimiter    := middleware.RateLimiter(10, time.Minute)
+	registerLimiter := middleware.RateLimiter(5, time.Minute)
+	inviteLimiter   := middleware.RateLimiter(5, time.Minute)
 
 	activityLogger := activity.NewActivityLogger(queries, cfg, httpLogger)
 	notifier := notifications.NewNotifier(queries, httpLogger, m)
@@ -70,9 +76,9 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store, m *mail
 
 	// Public routes
 	mux.Handle("GET /api/setup-status", userHandler)
-	mux.Handle("POST /api/register", userHandler)
-	mux.Handle("POST /api/login", userHandler)
-	mux.Handle("POST /api/auth/invite/accept", userHandler)
+	mux.Handle("POST /api/register", registerLimiter(userHandler))
+	mux.Handle("POST /api/login", loginLimiter(userHandler))
+	mux.Handle("POST /api/auth/invite/accept", inviteLimiter(userHandler))
 	mux.Handle("POST /api/setup/smtp/test", serverSettingsHandler)
 	mux.Handle("POST /api/setup/db/test", serverSettingsHandler)
 
@@ -144,5 +150,12 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store, m *mail
 	mux.Handle("POST /api/admin/users/{id}/reject", staffAdmin(adminHandler))
 	mux.Handle("POST /api/admin/invitations", admin(adminHandler))
 
-	return mux
+	// Globální middleware stack (aplikuje se na vše):
+	// Recovery → SecurityHeaders → BodyLimit → mux
+	// Recovery musí být nejvýše — zachytí paniky z ostatních vrstev.
+	return middleware.Recovery(httpLogger)(
+		middleware.SecurityHeaders(
+			middleware.BodyLimit(1 << 20)(mux), // 1 MB limit pro všechna těla požadavků
+		),
+	)
 }

@@ -16,7 +16,7 @@ const (
 )
 
 // ValidatePassword ověří, že heslo splňuje minimální bezpečnostní požadavky:
-// alespoň 8 znaků, nejvýše 72, jedna číslice a jeden speciální znak.
+// alespoň 8 znaků, nejvýše 72, jedno velké písmeno, jedna číslice a jeden speciální znak.
 func ValidatePassword(rawPassword string) error {
 	length := len(rawPassword)
 
@@ -28,15 +28,21 @@ func ValidatePassword(rawPassword string) error {
 		return fmt.Errorf("heslo musí mít nejvýše %d znaků", maxPasswordLength)
 	}
 
-	var hasDigit, hasSpecial bool
+	var hasDigit, hasSpecial, hasUpper bool
 
 	for _, c := range rawPassword {
 		switch {
+		case unicode.IsUpper(c):
+			hasUpper = true
 		case unicode.IsDigit(c):
 			hasDigit = true
 		case unicode.IsPunct(c) || unicode.IsSymbol(c):
 			hasSpecial = true
 		}
+	}
+
+	if !hasUpper {
+		return fmt.Errorf("heslo musí obsahovat alespoň jedno velké písmeno")
 	}
 
 	if !hasDigit {
