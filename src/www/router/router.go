@@ -124,8 +124,9 @@ func NewRouter(staticFiles fs.FS, sqlDB *sql.DB, cfgStore *config.Store, m *mail
 	mux.Handle("GET /api/notifications/preferences", authEnforced(notificationPreferencesHandler))
 	mux.Handle("PUT /api/notifications/preferences", authEnforced(notificationPreferencesHandler))
 
-	// Activity log
+	// Activity log / audit log (aliasovaný endpoint pro konzistenci s /api/admin/*)
 	mux.Handle("GET /api/activity", admin(activityHandler))
+	mux.Handle("GET /api/admin/audit-log", admin(activityHandler))
 	mux.Handle("GET /api/users/{id}/activity", authEnforced(activityHandler))
 
 	// Setup wizard completion (admin only, only before wizard_completed)

@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { User, Users, Bell, Server } from 'lucide-react'
+import { User, Users, Bell, Server, ClipboardList } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { usePendingCount } from '../../hooks/useUsers'
 import './SettingsNav.scss'
@@ -35,6 +35,12 @@ export default function SettingsNav() {
         <NavLink to="/settings/server" className={navClass}>
           <Server size={16} strokeWidth={1.4} />
           <span>Server</span>
+        </NavLink>
+      )}
+      {isAdmin && (
+        <NavLink to="/settings/audit-log" className={navClass}>
+          <ClipboardList size={16} strokeWidth={1.4} />
+          <span>Audit log</span>
         </NavLink>
       )}
     </nav>

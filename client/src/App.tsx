@@ -15,6 +15,7 @@ import SettingsPage from './pages/settingsPage';
 import UsersPage from './pages/usersPage';
 import NotificationsSettingsPage from './pages/notificationsSettingsPage';
 import ServerSettingsPage from './pages/serverSettingsPage';
+import AuditLogPage from './pages/auditLogPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
 import WizardPage from './pages/wizardPage';
 import { getSetupStatus } from './api/auth';
@@ -58,6 +59,7 @@ function App() {
             <Route path="/settings/users" element={<ProtectedRoute roles={['admin']}><UsersPage /></ProtectedRoute>} />
             <Route path="/settings/notifications" element={<ProtectedRoute><NotificationsSettingsPage /></ProtectedRoute>} />
             <Route path="/settings/server" element={<ProtectedRoute roles={['admin']}><ServerSettingsPage /></ProtectedRoute>} />
+            <Route path="/settings/audit-log" element={<ProtectedRoute roles={['admin']}><AuditLogPage /></ProtectedRoute>} />
             <Route path="/settings/password" element={<Navigate to="/settings" replace />} />
             <Route path="/settings/email" element={<Navigate to="/settings" replace />} />
             <Route path="/login"    element={<AuthPage form="login" />} />
